@@ -1,0 +1,200 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}{{ item.title }} - Watchlist Detail{% endblock %}
+{% block page_title %}Watchlist Item Detail{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-heart"></i> Watchlist Item Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        {% if item.poster_path %}
+                            <img src="{{ item.poster_path }}" alt="{{ item.title }}" 
+                                 class="img-fluid rounded" style="max-width: 100%;">
+                        {% else %}
+                            <div class="bg-secondary d-flex align-items-center justify-content-center rounded" 
+                                 style="height: 300px;">
+                                <i class="fas fa-film text-white fa-4x"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <h3>{{ item.title }}</h3>
+                        <hr>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>Movie ID:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                <code>{{ item.movie_id }}</code>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>Title:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                {{ item.title }}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>Poster URL:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                {% if item.poster_path %}
+                                    <a href="{{ item.poster_path }}" target="_blank" class="text-break">
+                                        {{ item.poster_path }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">No poster available</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>Added Date:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                {{ item.added_at|date:"F d, Y \a\t H:i" }}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>User:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                                                 <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" class="text-decoration-none">
+                                    {{ item.user.name }} ({{ item.user.email }})
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>User Status:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                {% if item.user.is_email_verified %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Verified
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Unverified
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4">
+                                <strong>User's Total Watchlist:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                {{ item.user.watchlist_count }} items
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Actions Card -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cogs"></i> Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                                            <a href="{% url 'admin_dashboard:watchlist_edit' item.id %}" 
+                       class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Item
+                    </a>
+                                            <a href="{% url 'admin_dashboard:watchlist_delete' item.id %}" 
+                       class="btn btn-danger"
+                       onclick="return confirm('Bạn có chắc muốn xóa item này?')">
+                        <i class="fas fa-trash"></i> Delete Item
+                    </a>
+                    <a href="{% url 'admin_dashboard:watchlist_list' %}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-user"></i> User Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    {% if item.user.avatar %}
+                        <img src="{{ item.user.avatar }}" alt="{{ item.user.name }}" 
+                             class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                    {% else %}
+                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                             style="width: 50px; height: 50px;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <strong>{{ item.user.name }}</strong>
+                        <br>
+                        <small class="text-muted">{{ item.user.email }}</small>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">User ID:</small>
+                    <br>
+                                                    <code>{{ item.user.id }}</code>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">API ID:</small>
+                    <br>
+                                                    <code>{{ item.user.id|default:"Not synced" }}</code>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Created:</small>
+                    <br>
+                    {{ item.user.created_at|date:"M d, Y" }}
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Watchlist Items:</small>
+                    <br>
+                    <strong>{{ item.user.watchlist_count }}</strong>
+                </div>
+                
+                                        <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" 
+                   class="btn btn-outline-primary btn-sm w-100">
+                    <i class="fas fa-eye"></i> View User Details
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

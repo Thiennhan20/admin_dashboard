@@ -1,0 +1,544 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Tạo Admin Mới{% endblock %}
+
+{% block extra_css %}
+<style>
+    .create-admin-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 2rem;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+        margin: -2rem -2rem 2rem -2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-dark);
+    }
+    
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    
+    .password-strength {
+        height: 4px;
+        background-color: #e9ecef;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .password-strength-bar {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background-color 0.3s ease;
+    }
+    
+    .strength-weak { background-color: #dc3545; }
+    .strength-fair { background-color: #fd7e14; }
+    .strength-good { background-color: #ffc107; }
+    .strength-strong { background-color: #28a745; }
+    
+    .password-requirements {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    
+    .requirement {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+    
+    .requirement.valid {
+        color: #28a745;
+    }
+    
+    .requirement.invalid {
+        color: #dc3545;
+    }
+    
+    .requirement i {
+        width: 16px;
+        margin-right: 0.5rem;
+    }
+    
+    .btn-create {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
+        color: white;
+    }
+    
+    .role-info {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .role-description {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .role-description:last-child {
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="create-admin-container">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-user-plus"></i> Tạo Admin Mới
+                </h1>
+                <nav aria-label="breadcrumb" class="mt-2">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item active">Tạo mới</li>
+                    </ol>
+                </nav>
+            </div>
+            <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+        </div>
+
+        <!-- Form Card -->
+        <div class="form-card">
+            <div class="form-header">
+                <h4 class="mb-1">
+                    <i class="fas fa-shield-alt"></i> Thông tin Admin mới
+                </h4>
+                <p class="mb-0 opacity-75">Điền đầy đủ thông tin để tạo tài khoản admin</p>
+            </div>
+
+            <form method="post" id="adminCreateForm">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Thông tin đăng nhập -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-key text-primary"></i> Thông tin đăng nhập
+                        </h5>
+                        
+                        <div class="form-group">
+                            <label class="form-label required-field">Tên đăng nhập</label>
+                            <input type="text" class="form-control" name="username" id="username" 
+                                   required placeholder="Nhập tên đăng nhập">
+                            <div class="form-text">Tên đăng nhập phải duy nhất trong hệ thống</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required-field">Email</label>
+                            <input type="email" class="form-control" name="email" id="email" 
+                                   required placeholder="admin@example.com">
+                            <div class="form-text">Email sẽ được sử dụng để khôi phục mật khẩu</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required-field">Mật khẩu</label>
+                            <div class="position-relative">
+                                <input type="password" class="form-control" name="password" id="password" 
+                                       required placeholder="Nhập mật khẩu mạnh">
+                                <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                        onclick="togglePassword('password')">
+                                    <i class="fas fa-eye" id="passwordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength">
+                                <div class="password-strength-bar" id="strengthBar"></div>
+                            </div>
+                            <div class="password-requirements" id="passwordRequirements">
+                                <div class="requirement invalid" id="req-length">
+                                    <i class="fas fa-times"></i>
+                                    Ít nhất 8 ký tự
+                                </div>
+                                <div class="requirement invalid" id="req-uppercase">
+                                    <i class="fas fa-times"></i>
+                                    Có chữ hoa
+                                </div>
+                                <div class="requirement invalid" id="req-lowercase">
+                                    <i class="fas fa-times"></i>
+                                    Có chữ thường
+                                </div>
+                                <div class="requirement invalid" id="req-number">
+                                    <i class="fas fa-times"></i>
+                                    Có số
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required-field">Xác nhận mật khẩu</label>
+                            <div class="position-relative">
+                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
+                                       required placeholder="Nhập lại mật khẩu">
+                                <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                        onclick="togglePassword('confirm_password')">
+                                    <i class="fas fa-eye" id="confirmPasswordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text" id="passwordMatch"></div>
+                        </div>
+                    </div>
+
+                    <!-- Thông tin cá nhân -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-user text-primary"></i> Thông tin cá nhân
+                        </h5>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Họ</label>
+                            <input type="text" class="form-control" name="first_name" id="first_name" 
+                                   placeholder="Nhập họ">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tên</label>
+                            <input type="text" class="form-control" name="last_name" id="last_name" 
+                                   placeholder="Nhập tên">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required-field">Vai trò</label>
+                            <select class="form-select" name="role" id="role" required>
+                                <option value="">Chọn vai trò</option>
+                                {% for role in roles %}
+                                <option value="{{ role }}">{{ role|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="role-info" id="roleInfo" style="display: none;">
+                                <div class="role-description" id="adminDesc" style="display: none;">
+                                    <strong>Admin:</strong> Có quyền quản lý users và watchlist, không thể quản lý admin khác.
+                                </div>
+                                <div class="role-description" id="superAdminDesc" style="display: none;">
+                                    <strong>Super Admin:</strong> Có toàn quyền trong hệ thống, bao gồm quản lý admin.
+                                </div>
+                                <div class="role-description" id="moderatorDesc" style="display: none;">
+                                    <strong>Moderator:</strong> Chỉ có quyền xem và quản lý nội dung, không thể xóa.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_superuser" id="is_superuser">
+                                <label class="form-check-label" for="is_superuser">
+                                    <strong>Superuser</strong> - Có toàn quyền Django Admin
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle text-info"></i>
+                                Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.
+                            </div>
+                        </div>
+
+                        <!-- Admin Preview -->
+                        <div class="card mt-4" id="adminPreview" style="display: none;">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-eye"></i> Preview Admin
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="admin-avatar me-3" id="previewAvatar">
+                                        A
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1" id="previewName">Admin Name</h6>
+                                        <p class="text-muted mb-0" id="previewUsername">@username</p>
+                                        <small class="text-muted" id="previewEmail">email@example.com</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Hủy bỏ
+                    </a>
+                    <button type="submit" class="btn btn-create" id="submitBtn" disabled>
+                        <i class="fas fa-save"></i> Tạo Admin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation
+const form = document.getElementById('adminCreateForm');
+const submitBtn = document.getElementById('submitBtn');
+const requiredFields = ['username', 'email', 'password', 'confirm_password', 'role'];
+
+// Password strength checker
+function checkPasswordStrength(password) {
+    const requirements = {
+        length: password.length >= 8,
+        uppercase: /[A-Z]/.test(password),
+        lowercase: /[a-z]/.test(password),
+        number: /\d/.test(password)
+    };
+    
+    // Update requirement indicators
+    Object.keys(requirements).forEach(req => {
+        const element = document.getElementById(`req-${req}`);
+        if (element) {
+            const icon = element.querySelector('i');
+            if (requirements[req]) {
+                element.classList.remove('invalid');
+                element.classList.add('valid');
+                icon.className = 'fas fa-check';
+            } else {
+                element.classList.remove('valid');
+                element.classList.add('invalid');
+                icon.className = 'fas fa-times';
+            }
+        }
+    });
+    
+    // Calculate strength
+    const validCount = Object.values(requirements).filter(Boolean).length;
+    const strengthBar = document.getElementById('strengthBar');
+    
+    let strength = 0;
+    let className = '';
+    
+    if (validCount === 4) {
+        strength = 100;
+        className = 'strength-strong';
+    } else if (validCount === 3) {
+        strength = 75;
+        className = 'strength-good';
+    } else if (validCount === 2) {
+        strength = 50;
+        className = 'strength-fair';
+    } else if (validCount === 1) {
+        strength = 25;
+        className = 'strength-weak';
+    }
+    
+    strengthBar.style.width = strength + '%';
+    strengthBar.className = `password-strength-bar ${className}`;
+    
+    return validCount === 4;
+}
+
+// Password visibility toggle
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const icon = document.getElementById(fieldId + 'Icon');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+// Password match checker
+function checkPasswordMatch() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const matchDiv = document.getElementById('passwordMatch');
+    
+    if (confirmPassword.length > 0) {
+        if (password === confirmPassword) {
+            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> Mật khẩu khớp';
+            matchDiv.className = 'form-text text-success';
+            return true;
+        } else {
+            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> Mật khẩu không khớp';
+            matchDiv.className = 'form-text text-danger';
+            return false;
+        }
+    } else {
+        matchDiv.innerHTML = '';
+        return false;
+    }
+}
+
+// Role info display
+function updateRoleInfo() {
+    const role = document.getElementById('role').value;
+    const roleInfo = document.getElementById('roleInfo');
+    const descriptions = document.querySelectorAll('.role-description');
+    
+    descriptions.forEach(desc => desc.style.display = 'none');
+    
+    if (role) {
+        roleInfo.style.display = 'block';
+        const targetDesc = document.getElementById(role.replace('_', '') + 'Desc');
+        if (targetDesc) {
+            targetDesc.style.display = 'block';
+        }
+    } else {
+        roleInfo.style.display = 'none';
+    }
+}
+
+// Update admin preview
+function updatePreview() {
+    const firstName = document.getElementById('first_name').value;
+    const lastName = document.getElementById('last_name').value;
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    
+    if (username || firstName || lastName || email) {
+        const preview = document.getElementById('adminPreview');
+        const avatar = document.getElementById('previewAvatar');
+        const name = document.getElementById('previewName');
+        const usernameEl = document.getElementById('previewUsername');
+        const emailEl = document.getElementById('previewEmail');
+        
+        preview.style.display = 'block';
+        
+        // Avatar
+        const displayChar = firstName ? firstName.charAt(0).toUpperCase() : 
+                          username ? username.charAt(0).toUpperCase() : 'A';
+        avatar.textContent = displayChar;
+        
+        // Name
+        const displayName = firstName || lastName ? 
+                          `${firstName} ${lastName}`.trim() : 
+                          username || 'Admin Name';
+        name.textContent = displayName;
+        
+        // Username
+        usernameEl.textContent = username ? `@${username}` : '@username';
+        
+        // Email
+        emailEl.textContent = email || 'email@example.com';
+    } else {
+        document.getElementById('adminPreview').style.display = 'none';
+    }
+}
+
+// Form validation
+function validateForm() {
+    const values = {};
+    let allValid = true;
+    
+    requiredFields.forEach(field => {
+        const element = document.getElementById(field);
+        values[field] = element.value.trim();
+        if (!values[field]) {
+            allValid = false;
+        }
+    });
+    
+    // Check password strength
+    const passwordStrong = checkPasswordStrength(values.password);
+    if (!passwordStrong) {
+        allValid = false;
+    }
+    
+    // Check password match
+    const passwordMatch = checkPasswordMatch();
+    if (!passwordMatch) {
+        allValid = false;
+    }
+    
+    submitBtn.disabled = !allValid;
+    return allValid;
+}
+
+// Event listeners
+document.getElementById('password').addEventListener('input', () => {
+    checkPasswordStrength(document.getElementById('password').value);
+    validateForm();
+});
+
+document.getElementById('confirm_password').addEventListener('input', () => {
+    checkPasswordMatch();
+    validateForm();
+});
+
+document.getElementById('role').addEventListener('change', () => {
+    updateRoleInfo();
+    validateForm();
+});
+
+// Add event listeners to all form fields
+requiredFields.forEach(field => {
+    document.getElementById(field).addEventListener('input', validateForm);
+});
+
+// Preview update listeners
+['first_name', 'last_name', 'username', 'email'].forEach(field => {
+    document.getElementById(field).addEventListener('input', updatePreview);
+});
+
+// Form submission
+form.addEventListener('submit', function(e) {
+    if (!validateForm()) {
+        e.preventDefault();
+        alert('Vui lòng điền đầy đủ thông tin hợp lệ!');
+    }
+});
+
+// Initial validation
+validateForm();
+</script>
+{% endblock %}

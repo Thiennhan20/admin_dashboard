@@ -1,0 +1,629 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Chi tiết Admin - {{ admin_user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+        transform: translate(30px, -30px);
+    }
+    
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 2rem;
+        border: 3px solid rgba(255,255,255,0.3);
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        border: 2px solid;
+    }
+    
+    .status-active {
+        background-color: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .status-inactive {
+        background-color: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .role-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+    
+    .info-card-header {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .info-card-body {
+        padding: 1.5rem;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .info-content {
+        flex-grow: 1;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        color: var(--text-muted);
+        margin: 0;
+    }
+    
+    .action-buttons {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+    }
+    
+    .btn-action {
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid;
+    }
+    
+    .btn-edit {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        border-color: #ffc107;
+        color: white;
+    }
+    
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        color: white;
+    }
+    
+    .btn-delete {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-delete:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        color: white;
+    }
+    
+    .btn-back {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        border-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-back:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+    }
+    
+    .activity-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, var(--primary-color), var(--accent-color));
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -25px;
+        top: 0.5rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid var(--primary-color);
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-left: 1rem;
+    }
+    
+    .permissions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .permission-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .permission-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="detail-container">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-user-shield"></i> Chi tiết Admin
+                </h1>
+                <nav aria-label="breadcrumb" class="mt-2">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item active">{{ admin_user.username }}</li>
+                    </ol>
+                </nav>
+            </div>
+            <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+        </div>
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <div class="profile-avatar me-4">
+                            {{ admin_user.first_name|first|default:admin_user.username|first|upper }}
+                        </div>
+                        <div>
+                            <h2 class="mb-1">
+                                {% if admin_user.first_name or admin_user.last_name %}
+                                    {{ admin_user.first_name }} {{ admin_user.last_name }}
+                                {% else %}
+                                    {{ admin_user.username }}
+                                {% endif %}
+                            </h2>
+                            <p class="mb-2 opacity-75">@{{ admin_user.username }}</p>
+                            <p class="mb-0 opacity-75">{{ admin_user.email }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="mb-2">
+                        <span class="role-badge">
+                            <i class="fas fa-crown"></i> {{ admin_user.admin_profile.role|title }}
+                        </span>
+                    </div>
+                    <div>
+                        {% if admin_user.is_active %}
+                        <span class="status-badge status-active">
+                            <i class="fas fa-check-circle"></i> Đang hoạt động
+                        </span>
+                        {% else %}
+                        <span class="status-badge status-inactive">
+                            <i class="fas fa-times-circle"></i> Tạm khóa
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column - Thông tin chi tiết -->
+            <div class="col-lg-8">
+                <!-- Thông tin cơ bản -->
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle text-primary"></i> Thông tin cơ bản
+                        </h5>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Tên đăng nhập</div>
+                                <p class="info-value">{{ admin_user.username }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Email</div>
+                                <p class="info-value">{{ admin_user.email }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if admin_user.first_name or admin_user.last_name %}
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-id-card"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Họ và tên</div>
+                                <p class="info-value">{{ admin_user.first_name }} {{ admin_user.last_name }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Vai trò</div>
+                                <p class="info-value">{{ admin_user.admin_profile.role|title }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-toggle-{% if admin_user.is_active %}on{% else %}off{% endif %}"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trạng thái</div>
+                                <p class="info-value">
+                                    {% if admin_user.is_active %}
+                                        <span class="text-success">Đang hoạt động</span>
+                                    {% else %}
+                                        <span class="text-danger">Tạm khóa</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thông tin hệ thống -->
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cog text-primary"></i> Thông tin hệ thống
+                        </h5>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-calendar-plus"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ngày tạo</div>
+                                <p class="info-value">{{ admin_user.date_joined|date:"d/m/Y H:i" }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Lần đăng nhập cuối</div>
+                                <p class="info-value">
+                                    {% if admin_user.last_login %}
+                                        {{ admin_user.last_login|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">Chưa đăng nhập</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-user-cog"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Profile tạo lúc</div>
+                                <p class="info-value">{{ admin_user.admin_profile.created_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Cập nhật cuối</div>
+                                <p class="info-value">{{ admin_user.admin_profile.updated_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Permissions -->
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-key text-primary"></i> Quyền hạn theo vai trò
+                        </h5>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="permissions-grid">
+                            {% if admin_user.admin_profile.role == 'super_admin' %}
+                                <div class="permission-item">
+                                    <div class="permission-icon">
+                                        <i class="fas fa-users-cog"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Quản lý Admin</strong>
+                                        <br><small class="text-muted">Tạo, sửa, xóa admin</small>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="permission-item">
+                                <div class="permission-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div>
+                                    <strong>Quản lý Users</strong>
+                                    <br><small class="text-muted">Xem, sửa thông tin users</small>
+                                </div>
+                            </div>
+                            
+                            <div class="permission-item">
+                                <div class="permission-icon">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                                <div>
+                                    <strong>Quản lý Watchlist</strong>
+                                    <br><small class="text-muted">Xem, sửa watchlist</small>
+                                </div>
+                            </div>
+                            
+                            {% if admin_user.admin_profile.role != 'moderator' %}
+                                <div class="permission-item">
+                                    <div class="permission-icon">
+                                        <i class="fas fa-trash"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Xóa dữ liệu</strong>
+                                        <br><small class="text-muted">Xóa users và watchlist</small>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="permission-item">
+                                <div class="permission-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div>
+                                    <strong>Xem thống kê</strong>
+                                    <br><small class="text-muted">Dashboard và báo cáo</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Actions -->
+            <div class="col-lg-4">
+                <!-- Action Buttons -->
+                <div class="action-buttons mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-tools text-primary"></i> Thao tác
+                    </h5>
+                    
+                    <div class="d-grid gap-3">
+                        <a href="{% url 'admin_dashboard:admin_edit' admin_user.id %}" 
+                           class="btn btn-edit btn-action">
+                            <i class="fas fa-edit"></i> Chỉnh sửa Admin
+                        </a>
+                        
+                        {% if admin_user.id != request.user.id %}
+                            <button class="btn btn-delete btn-action" 
+                                    onclick="deleteAdmin({{ admin_user.id }}, '{{ admin_user.username }}')">
+                                <i class="fas fa-trash"></i> Xóa Admin
+                            </button>
+                        {% else %}
+                            <button class="btn btn-secondary btn-action" disabled>
+                                <i class="fas fa-lock"></i> Không thể xóa chính mình
+                            </button>
+                        {% endif %}
+                        
+                        <a href="{% url 'admin_dashboard:admin_list' %}" 
+                           class="btn btn-back btn-action">
+                            <i class="fas fa-arrow-left"></i> Quay lại danh sách
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie text-primary"></i> Thống kê nhanh
+                        </h5>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="text-center">
+                            <div class="mb-3">
+                                <h3 class="text-primary mb-1">
+                                    {% if admin_user.last_login %}
+                                        {{ admin_user.last_login|timesince }}
+                                    {% else %}
+                                        Chưa bao giờ
+                                    {% endif %}
+                                </h3>
+                                <small class="text-muted">Đăng nhập lần cuối</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h3 class="text-success mb-1">{{ admin_user.date_joined|timesince }}</h3>
+                                <small class="text-muted">Thành viên từ</small>
+                            </div>
+                            
+                            <div>
+                                <h3 class="text-info mb-1">
+                                    {% if admin_user.is_staff %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                </h3>
+                                <small class="text-muted">Staff Status</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Delete admin function
+function deleteAdmin(adminId, username) {
+    if (confirm(`Bạn có chắc chắn muốn xóa admin "${username}"?\n\nThao tác này không thể hoàn tác!`)) {
+        // Create form và submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/dashboard/admins/${adminId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Animate elements on load
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.info-card, .action-buttons');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

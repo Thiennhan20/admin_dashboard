@@ -1,0 +1,6 @@
+Django==6.0.5
+requests
+psycopg[binary]
+pymongo
+gunicorn
+whitenoise

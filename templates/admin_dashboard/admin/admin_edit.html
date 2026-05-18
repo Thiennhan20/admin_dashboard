@@ -1,0 +1,663 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Chỉnh sửa Admin - {{ admin_user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-admin-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+        margin: -2rem -2rem 2rem -2rem;
+    }
+    
+    .admin-preview {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .preview-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-dark);
+    }
+    
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    
+    .password-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .password-toggle {
+        cursor: pointer;
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .password-strength {
+        height: 4px;
+        background-color: #e9ecef;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .password-strength-bar {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background-color 0.3s ease;
+    }
+    
+    .strength-weak { background-color: #dc3545; }
+    .strength-fair { background-color: #fd7e14; }
+    .strength-good { background-color: #ffc107; }
+    .strength-strong { background-color: #28a745; }
+    
+    .form-switch {
+        padding-left: 2.5rem;
+    }
+    
+    .form-switch .form-check-input {
+        width: 2rem;
+        height: 1rem;
+        border-radius: 1rem;
+    }
+    
+    .role-info {
+        background-color: #e3f2fd;
+        border: 1px solid #90caf9;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .role-description {
+        font-size: 0.875rem;
+        color: #1565c0;
+        margin: 0;
+    }
+    
+    .warning-section {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .danger-section {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
+        color: white;
+    }
+    
+    .changes-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #17a2b8;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-size: 0.875rem;
+        z-index: 1000;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .changes-indicator.show {
+        transform: translateX(0);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="edit-admin-container">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-user-edit"></i> Chỉnh sửa Admin
+                </h1>
+                <nav aria-label="breadcrumb" class="mt-2">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}">{{ admin_user.username }}</a></li>
+                        <li class="breadcrumb-item active">Chỉnh sửa</li>
+                    </ol>
+                </nav>
+            </div>
+            <div>
+                <a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-eye"></i> Xem chi tiết
+                </a>
+                <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Quay lại
+                </a>
+            </div>
+        </div>
+
+        <!-- Changes Indicator -->
+        <div class="changes-indicator" id="changesIndicator">
+            <i class="fas fa-exclamation-circle"></i> Có thay đổi chưa lưu
+        </div>
+
+        <!-- Current Admin Preview -->
+        <div class="admin-preview">
+            <h5 class="mb-3">
+                <i class="fas fa-user text-primary"></i> Admin hiện tại
+            </h5>
+            <div class="d-flex align-items-center">
+                <div class="preview-avatar me-3">
+                    {{ admin_user.first_name|first|default:admin_user.username|first|upper }}
+                </div>
+                <div>
+                    <h6 class="mb-1">
+                        {% if admin_user.first_name or admin_user.last_name %}
+                            {{ admin_user.first_name }} {{ admin_user.last_name }}
+                        {% else %}
+                            {{ admin_user.username }}
+                        {% endif %}
+                    </h6>
+                    <p class="text-muted mb-1">@{{ admin_user.username }} • {{ admin_user.email }}</p>
+                    <small class="text-muted">
+                        <span class="badge bg-primary">{{ admin_user.admin_profile.role|title }}</span>
+                        {% if admin_user.is_active %}
+                            <span class="badge bg-success">Đang hoạt động</span>
+                        {% else %}
+                            <span class="badge bg-danger">Tạm khóa</span>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="form-card">
+            <div class="form-header">
+                <h4 class="mb-1">
+                    <i class="fas fa-edit"></i> Cập nhật thông tin Admin
+                </h4>
+                <p class="mb-0 opacity-75">Chỉnh sửa thông tin và quyền hạn của admin</p>
+            </div>
+
+            <form method="post" id="adminEditForm">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Thông tin cơ bản -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-info-circle text-primary"></i> Thông tin cơ bản
+                        </h5>
+                        
+                        <div class="form-group">
+                            <label class="form-label required-field">Tên đăng nhập</label>
+                            <input type="text" class="form-control" name="username" id="username" 
+                                   value="{{ admin_user.username }}" required 
+                                   data-original="{{ admin_user.username }}">
+                            <div class="form-text">Tên đăng nhập phải duy nhất trong hệ thống</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required-field">Email</label>
+                            <input type="email" class="form-control" name="email" id="email" 
+                                   value="{{ admin_user.email }}" required
+                                   data-original="{{ admin_user.email }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Họ</label>
+                            <input type="text" class="form-control" name="first_name" id="first_name" 
+                                   value="{{ admin_user.first_name }}"
+                                   data-original="{{ admin_user.first_name }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tên</label>
+                            <input type="text" class="form-control" name="last_name" id="last_name" 
+                                   value="{{ admin_user.last_name }}"
+                                   data-original="{{ admin_user.last_name }}">
+                        </div>
+                    </div>
+
+                    <!-- Quyền hạn và trạng thái -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-shield-alt text-primary"></i> Quyền hạn và trạng thái
+                        </h5>
+                        
+                        <div class="form-group">
+                            <label class="form-label required-field">Vai trò</label>
+                            <select class="form-select" name="role" id="role" required
+                                    data-original="{{ admin_user.admin_profile.role }}">
+                                {% for role in roles %}
+                                <option value="{{ role }}" {% if role == admin_user.admin_profile.role %}selected{% endif %}>
+                                    {{ role|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="role-info" id="roleInfo">
+                                <p class="role-description" id="roleDescription"></p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" 
+                                       {% if admin_user.is_active %}checked{% endif %}
+                                       data-original="{{ admin_user.is_active|yesno:'true,false' }}">
+                                <label class="form-check-label" for="is_active">
+                                    <strong>Tài khoản đang hoạt động</strong>
+                                </label>
+                            </div>
+                            <div class="form-text">Bỏ tích để tạm khóa tài khoản admin này</div>
+                        </div>
+
+                        {% if request.user.is_superuser %}
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_superuser" id="is_superuser" 
+                                       {% if admin_user.is_superuser %}checked{% endif %}
+                                       data-original="{{ admin_user.is_superuser|yesno:'true,false' }}">
+                                <label class="form-check-label" for="is_superuser">
+                                    <strong>Superuser</strong> - Toàn quyền Django Admin
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle text-info"></i>
+                                Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if admin_user.id == request.user.id %}
+                        <div class="warning-section">
+                            <h6 class="text-warning mb-2">
+                                <i class="fas fa-exclamation-triangle"></i> Lưu ý
+                            </h6>
+                            <p class="mb-0">Bạn đang chỉnh sửa chính tài khoản của mình. Hãy cẩn thận khi thay đổi quyền hạn!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Password Section -->
+                <div class="password-section">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-key text-primary"></i> Đổi mật khẩu
+                        </h5>
+                        <button type="button" class="password-toggle" onclick="togglePasswordSection()">
+                            <span id="passwordToggleText">Hiển thị</span>
+                            <i class="fas fa-chevron-down" id="passwordToggleIcon"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="passwordFields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Mật khẩu mới</label>
+                                    <div class="position-relative">
+                                        <input type="password" class="form-control" name="new_password" id="new_password" 
+                                               placeholder="Để trống nếu không đổi">
+                                        <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                                onclick="togglePasswordVisibility('new_password')">
+                                            <i class="fas fa-eye" id="newPasswordIcon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="password-strength">
+                                        <div class="password-strength-bar" id="strengthBar"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Xác nhận mật khẩu mới</label>
+                                    <div class="position-relative">
+                                        <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
+                                               placeholder="Nhập lại mật khẩu mới">
+                                        <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                                onclick="togglePasswordVisibility('confirm_password')">
+                                            <i class="fas fa-eye" id="confirmPasswordIcon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text" id="passwordMatch"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="warning-section">
+                            <h6 class="text-warning mb-2">
+                                <i class="fas fa-exclamation-triangle"></i> Lưu ý về mật khẩu
+                            </h6>
+                            <ul class="mb-0">
+                                <li>Để trống nếu không muốn thay đổi mật khẩu</li>
+                                <li>Mật khẩu mới phải có ít nhất 8 ký tự</li>
+                                <li>Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                {% if admin_user.id != request.user.id %}
+                <div class="danger-section">
+                    <h6 class="text-danger mb-2">
+                        <i class="fas fa-exclamation-triangle"></i> Vùng nguy hiểm
+                    </h6>
+                    <p class="mb-3">Thao tác xóa admin sẽ không thể hoàn tác!</p>
+                    <button type="button" class="btn btn-outline-danger" 
+                            onclick="deleteAdmin({{ admin_user.id }}, '{{ admin_user.username }}')">
+                        <i class="fas fa-trash"></i> Xóa Admin này
+                    </button>
+                </div>
+                {% endif %}
+
+                <!-- Submit Buttons -->
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Hủy bỏ
+                    </a>
+                    <button type="submit" class="btn btn-save" id="submitBtn">
+                        <i class="fas fa-save"></i> Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Role descriptions
+const roleDescriptions = {
+    'admin': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
+    'super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
+    'moderator': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.'
+};
+
+// Track changes
+let hasChanges = false;
+const originalValues = {};
+
+// Initialize original values
+function initializeOriginalValues() {
+    const fields = ['username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_superuser'];
+    fields.forEach(field => {
+        const element = document.getElementById(field);
+        if (element) {
+            if (element.type === 'checkbox') {
+                originalValues[field] = element.checked;
+            } else {
+                originalValues[field] = element.value;
+            }
+        }
+    });
+}
+
+// Check for changes
+function checkForChanges() {
+    const fields = ['username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_superuser'];
+    let changed = false;
+    
+    fields.forEach(field => {
+        const element = document.getElementById(field);
+        if (element) {
+            let currentValue;
+            if (element.type === 'checkbox') {
+                currentValue = element.checked;
+            } else {
+                currentValue = element.value;
+            }
+            
+            if (currentValue !== originalValues[field]) {
+                changed = true;
+            }
+        }
+    });
+    
+    // Check password fields
+    const newPassword = document.getElementById('new_password').value;
+    if (newPassword.length > 0) {
+        changed = true;
+    }
+    
+    hasChanges = changed;
+    document.getElementById('changesIndicator').classList.toggle('show', hasChanges);
+}
+
+// Toggle password section
+function togglePasswordSection() {
+    const fields = document.getElementById('passwordFields');
+    const icon = document.getElementById('passwordToggleIcon');
+    const text = document.getElementById('passwordToggleText');
+    
+    if (fields.style.display === 'none') {
+        fields.style.display = 'block';
+        icon.className = 'fas fa-chevron-up';
+        text.textContent = 'Ẩn';
+    } else {
+        fields.style.display = 'none';
+        icon.className = 'fas fa-chevron-down';
+        text.textContent = 'Hiển thị';
+    }
+}
+
+// Toggle password visibility
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    const icon = document.getElementById(fieldId + 'Icon');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+// Password strength checker
+function checkPasswordStrength(password) {
+    const strengthBar = document.getElementById('strengthBar');
+    
+    if (!password) {
+        strengthBar.style.width = '0%';
+        strengthBar.className = 'password-strength-bar';
+        return;
+    }
+    
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    
+    let width = (score / 5) * 100;
+    let className = 'password-strength-bar ';
+    
+    if (score >= 4) className += 'strength-strong';
+    else if (score >= 3) className += 'strength-good';
+    else if (score >= 2) className += 'strength-fair';
+    else className += 'strength-weak';
+    
+    strengthBar.style.width = width + '%';
+    strengthBar.className = className;
+}
+
+// Password match checker
+function checkPasswordMatch() {
+    const newPassword = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const matchDiv = document.getElementById('passwordMatch');
+    
+    if (newPassword && confirmPassword) {
+        if (newPassword === confirmPassword) {
+            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> Mật khẩu khớp';
+            matchDiv.className = 'form-text text-success';
+        } else {
+            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> Mật khẩu không khớp';
+            matchDiv.className = 'form-text text-danger';
+        }
+    } else {
+        matchDiv.innerHTML = '';
+        matchDiv.className = 'form-text';
+    }
+}
+
+// Update role info
+function updateRoleInfo() {
+    const role = document.getElementById('role').value;
+    const description = document.getElementById('roleDescription');
+    
+    if (roleDescriptions[role]) {
+        description.textContent = roleDescriptions[role];
+        document.getElementById('roleInfo').style.display = 'block';
+    } else {
+        document.getElementById('roleInfo').style.display = 'none';
+    }
+}
+
+// Delete admin function
+function deleteAdmin(adminId, username) {
+    if (confirm(`Bạn có chắc chắn muốn xóa admin "${username}"?\n\nThao tác này không thể hoàn tác!`)) {
+        window.location.href = `/dashboard/admins/${adminId}/delete/`;
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    initializeOriginalValues();
+    updateRoleInfo();
+    
+    // Change detection
+    const watchFields = ['username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_superuser'];
+    watchFields.forEach(field => {
+        const element = document.getElementById(field);
+        if (element) {
+            element.addEventListener('input', checkForChanges);
+            element.addEventListener('change', checkForChanges);
+        }
+    });
+    
+    // Password fields
+    document.getElementById('new_password').addEventListener('input', function() {
+        checkPasswordStrength(this.value);
+        checkPasswordMatch();
+        checkForChanges();
+    });
+    
+    document.getElementById('confirm_password').addEventListener('input', function() {
+        checkPasswordMatch();
+        checkForChanges();
+    });
+    
+    // Role change
+    document.getElementById('role').addEventListener('change', updateRoleInfo);
+    
+    // Form submission
+    document.getElementById('adminEditForm').addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (newPassword && newPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('Mật khẩu xác nhận không khớp!');
+            return false;
+        }
+        
+        if (newPassword && newPassword.length < 8) {
+            e.preventDefault();
+            alert('Mật khẩu mới phải có ít nhất 8 ký tự!');
+            return false;
+        }
+    });
+    
+    // Warn about unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+});
+</script>
+{% endblock %}

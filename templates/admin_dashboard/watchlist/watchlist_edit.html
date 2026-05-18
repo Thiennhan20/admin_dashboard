@@ -1,0 +1,190 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Edit {{ item.title }} - Watchlist{% endblock %}
+{% block page_title %}Edit Watchlist Item{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit"></i> Edit Watchlist Item
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {% if item.poster_path %}
+                                <img src="{{ item.poster_path }}" alt="{{ item.title }}" 
+                                     class="img-fluid rounded mb-3" style="max-width: 100%;">
+                            {% else %}
+                                <div class="bg-secondary d-flex align-items-center justify-content-center rounded mb-3" 
+                                     style="height: 200px;">
+                                    <i class="fas fa-film text-white fa-3x"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">
+                                    <strong>Movie Title *</strong>
+                                </label>
+                                <input type="text" class="form-control" id="title" name="title" 
+                                       value="{{ item.title }}" required>
+                                <div class="form-text">The title of the movie</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="movie_id" class="form-label">
+                                    <strong>Movie ID *</strong>
+                                </label>
+                                <input type="number" class="form-control" id="movie_id" name="movie_id" 
+                                       value="{{ item.movie_id }}" readonly>
+                                <div class="form-text">Movie ID cannot be changed</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="poster_path" class="form-label">
+                                    <strong>Poster URL</strong>
+                                </label>
+                                <input type="url" class="form-control" id="poster_path" name="poster_path" 
+                                       value="{{ item.poster_path|default:'' }}">
+                                <div class="form-text">URL to the movie poster image</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="user" class="form-label">
+                                    <strong>User *</strong>
+                                </label>
+                                <select class="form-select" id="user" name="user" required>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}" {% if user.id == item.user.id %}selected{% endif %}>
+                                            {{ user.name }} ({{ user.email }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select the user who owns this watchlist item</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <strong>Added Date</strong>
+                                </label>
+                                <input type="text" class="form-control" value="{{ item.added_at|date:'F d, Y \a\t H:i' }}" readonly>
+                                <div class="form-text">Date when this item was added to watchlist</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <a href="{% url 'admin_dashboard:watchlist_detail' item.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Current User Info -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-user"></i> Current User
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    {% if item.user.avatar %}
+                        <img src="{{ item.user.avatar }}" alt="{{ item.user.name }}" 
+                             class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                    {% else %}
+                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                             style="width: 50px; height: 50px;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <strong>{{ item.user.name }}</strong>
+                        <br>
+                        <small class="text-muted">{{ item.user.email }}</small>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">User ID:</small>
+                    <br>
+                                                    <code>{{ item.user.id }}</code>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">API ID:</small>
+                    <br>
+                                                    <code>{{ item.user.id|default:"Not synced" }}</code>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Total Watchlist:</small>
+                    <br>
+                    <strong>{{ item.user.watchlist_count }} items</strong>
+                </div>
+                
+                                        <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" 
+                   class="btn btn-outline-primary btn-sm w-100">
+                    <i class="fas fa-eye"></i> View User Details
+                </a>
+            </div>
+        </div>
+        
+        <!-- Movie Info -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-film"></i> Movie Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Movie ID:</small>
+                    <br>
+                    <code>{{ item.movie_id }}</code>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Title:</small>
+                    <br>
+                    <strong>{{ item.title }}</strong>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Poster URL:</small>
+                    <br>
+                    {% if item.poster_path %}
+                        <a href="{{ item.poster_path }}" target="_blank" class="text-break small">
+                            {{ item.poster_path|truncatechars:30 }}
+                        </a>
+                    {% else %}
+                        <span class="text-muted small">No poster available</span>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Added:</small>
+                    <br>
+                    {{ item.added_at|date:"M d, Y" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

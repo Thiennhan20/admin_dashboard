@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --ink: #16202a;
+            --muted: #667085;
+            --line: #d8dee8;
+            --nav: #111827;
+            --nav-soft: #1f2937;
+            --topbar: rgba(255, 255, 255, 0.92);
+            --control: #ffffff;
+            --control-hover: #f3f6fb;
+            --table-hover: #f8fafc;
+            --shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+            --blue: #2563eb;
+            --green: #15803d;
+            --amber: #b45309;
+            --red: #b91c1c;
+            --teal: #0f766e;
+            --sidebar: clamp(232px, 16vw, 304px);
+            --radius: 8px;
+            --primary-color: var(--blue);
+            --primary-rgb: 37, 99, 235;
+            --accent-color: var(--teal);
+            --secondary-color: var(--muted);
+            --dark-color: var(--ink);
+            --light-color: var(--control-hover);
+            --border-color: var(--line);
+            --text-dark: var(--ink);
+            --text-muted: var(--muted);
+            --bs-body-bg: var(--bg);
+            --bs-body-color: var(--ink);
+            --bs-secondary-color: var(--muted);
+            --bs-tertiary-color: var(--muted);
+            --bs-emphasis-color: var(--ink);
+            --bs-heading-color: var(--ink);
+            --bs-border-color: var(--line);
+            --bs-card-bg: var(--panel);
+            --bs-card-color: var(--ink);
+            --bs-card-border-color: var(--line);
+            --bs-link-color: var(--blue);
+            --bs-link-hover-color: var(--teal);
+        }
+
+        html[data-theme="dark"] {
+            --bg: #0f172a;
+            --panel: #111827;
+            --ink: #e5e7eb;
+            --muted: #9ca3af;
+            --line: #263244;
+            --nav: #07111f;
+            --nav-soft: #172033;
+            --topbar: rgba(17, 24, 39, 0.9);
+            --control: #182235;
+            --control-hover: #233047;
+            --table-hover: #172033;
+            --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+            --blue: #60a5fa;
+            --green: #4ade80;
+            --amber: #fbbf24;
+            --red: #f87171;
+            --teal: #2dd4bf;
+            --primary-color: var(--blue);
+            --primary-rgb: 96, 165, 250;
+            --accent-color: var(--teal);
+            --secondary-color: var(--muted);
+            --dark-color: var(--ink);
+            --light-color: var(--control-hover);
+            --border-color: var(--line);
+            --text-dark: var(--ink);
+            --text-muted: var(--muted);
+            color-scheme: dark;
+        }
+
+        * { box-sizing: border-box; }
+        html { min-height: 100%; }
+        body {
+            min-height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        a { color: inherit; }
+        label,
+        .form-label,
+        .form-check-label,
+        .card-title,
+        .card-text {
+            color: var(--ink);
+        }
+
+        .text-muted,
+        .text-secondary,
+        small.text-muted,
+        label.text-muted {
+            color: var(--muted) !important;
+        }
+
+        .text-dark,
+        .text-black {
+            color: var(--ink) !important;
+        }
+
+        .bg-light,
+        .bg-white {
+            background-color: var(--control-hover) !important;
+            color: var(--ink) !important;
+        }
+
+        .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--nav);
+            color: #fff;
+            padding: 18px 14px;
+            border-right: 1px solid #0b1220;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px 18px;
+            text-decoration: none;
+            font-weight: 800;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            background: #0f766e;
+        }
+
+        .nav-section {
+            color: #98a2b3;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin: 18px 10px 8px;
+        }
+
+        .side-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            color: #d1d5db;
+            text-decoration: none;
+            font-weight: 650;
+            min-height: 42px;
+        }
+
+        .side-link:hover,
+        .side-link.active {
+            background: var(--nav-soft);
+            color: #fff;
+        }
+
+        .side-link i { width: 18px; text-align: center; }
+        .main { min-width: 0; }
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            min-height: 64px;
+            background: var(--topbar);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px clamp(14px, 2.4vw, 32px);
+        }
+
+        .menu-button {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--control);
+            color: var(--ink);
+        }
+
+        .page-title {
+            font-size: clamp(18px, 1.25vw, 26px);
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--line);
+            background: var(--control);
+            border-radius: 999px;
+            padding: 6px 10px 6px 6px;
+            color: var(--muted);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .avatar-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 13px;
+        }
+
+        .content {
+            width: min(100%, 1840px);
+            margin: 0 auto;
+            padding: clamp(14px, 2.2vw, 32px);
+        }
+
+        .card,
+        .modal-content,
+        .dropdown-menu,
+        .alert,
+        .form-control,
+        .form-select,
+        .btn {
+            border-radius: var(--radius);
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+            color: var(--ink);
+            --bs-card-bg: var(--panel);
+            --bs-card-color: var(--ink);
+            --bs-card-border-color: var(--line);
+            --bs-card-cap-bg: var(--panel);
+            --bs-card-cap-color: var(--ink);
+        }
+
+        .card-header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+            color: var(--ink);
+            font-weight: 800;
+        }
+
+        .card-body,
+        .card-footer,
+        .modal-content,
+        .dropdown-menu,
+        .list-group-item {
+            background-color: var(--panel);
+            border-color: var(--line);
+            color: var(--ink);
+        }
+
+        .btn {
+            font-weight: 750;
+        }
+
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--ink);
+            --bs-table-hover-bg: var(--table-hover);
+            --bs-table-hover-color: var(--ink);
+            --bs-border-color: var(--line);
+            --bs-table-border-color: var(--line);
+            --bs-table-striped-color: var(--ink);
+            --bs-table-striped-bg: var(--control-hover);
+            color: var(--ink);
+            margin: 0;
+        }
+
+        .table th {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .table td { vertical-align: middle; }
+        .table-light {
+            --bs-table-bg: var(--control-hover);
+            --bs-table-color: var(--ink);
+            --bs-table-border-color: var(--line);
+            background-color: var(--control-hover) !important;
+            color: var(--ink) !important;
+        }
+
+        .badge-soft {
+            border: 1px solid var(--line);
+            background: var(--control-hover);
+            color: var(--ink);
+        }
+
+        .form-control,
+        .form-select,
+        .dropdown-menu {
+            background-color: var(--control);
+            border-color: var(--line);
+            color: var(--ink);
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background-color: var(--control);
+            color: var(--ink);
+            border-color: var(--blue);
+            box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15);
+        }
+
+        .form-control::placeholder {
+            color: var(--muted);
+            opacity: .75;
+        }
+
+        .form-control:disabled,
+        .form-control[readonly],
+        .form-select:disabled,
+        .input-group-text {
+            background-color: var(--control-hover);
+            border-color: var(--line);
+            color: var(--ink);
+        }
+
+        .dropdown-item {
+            color: var(--ink);
+        }
+
+        .dropdown-item:hover,
+        .dropdown-item:focus {
+            background-color: var(--control-hover);
+            color: var(--ink);
+        }
+
+        .breadcrumb {
+            --bs-breadcrumb-divider-color: var(--muted);
+            --bs-breadcrumb-item-active-color: var(--muted);
+        }
+
+        .breadcrumb-item,
+        .breadcrumb-item.active,
+        .breadcrumb-item + .breadcrumb-item::before {
+            color: var(--muted);
+        }
+
+        .breadcrumb-item a {
+            color: var(--blue);
+        }
+
+        code {
+            color: #db2777;
+        }
+
+        html[data-theme="dark"] code {
+            color: #f9a8d4;
+        }
+
+        .btn-outline-secondary,
+        .btn-outline-primary,
+        .btn-outline-info,
+        .btn-outline-warning,
+        .btn-outline-danger,
+        .btn-outline-success {
+            background: var(--control);
+        }
+
+        html[data-theme="dark"] .card,
+        html[data-theme="dark"] .card-body,
+        html[data-theme="dark"] .card-header,
+        html[data-theme="dark"] .card-footer,
+        html[data-theme="dark"] .filter-section,
+        html[data-theme="dark"] .form-card,
+        html[data-theme="dark"] .admin-preview,
+        html[data-theme="dark"] .info-card,
+        html[data-theme="dark"] .info-card-body,
+        html[data-theme="dark"] .action-buttons {
+            background: var(--panel) !important;
+            background-color: var(--panel) !important;
+            border-color: var(--line) !important;
+            color: var(--ink) !important;
+        }
+
+        html[data-theme="dark"] .info-card-header,
+        html[data-theme="dark"] .timeline-content,
+        html[data-theme="dark"] .permission-item,
+        html[data-theme="dark"] .role-info,
+        html[data-theme="dark"] .password-section,
+        html[data-theme="dark"] .password-strength {
+            background: var(--control-hover) !important;
+            background-color: var(--control-hover) !important;
+            border-color: var(--line) !important;
+            color: var(--ink) !important;
+        }
+
+        html[data-theme="dark"] .form-header,
+        html[data-theme="dark"] .profile-header,
+        html[data-theme="dark"] .stats-card {
+            color: #fff !important;
+        }
+
+        html[data-theme="dark"] .form-header h1,
+        html[data-theme="dark"] .form-header h2,
+        html[data-theme="dark"] .form-header h3,
+        html[data-theme="dark"] .form-header h4,
+        html[data-theme="dark"] .form-header h5,
+        html[data-theme="dark"] .form-header h6,
+        html[data-theme="dark"] .profile-header h1,
+        html[data-theme="dark"] .profile-header h2,
+        html[data-theme="dark"] .profile-header h3,
+        html[data-theme="dark"] .profile-header h4,
+        html[data-theme="dark"] .profile-header h5,
+        html[data-theme="dark"] .profile-header h6,
+        html[data-theme="dark"] .stats-card h1,
+        html[data-theme="dark"] .stats-card h2,
+        html[data-theme="dark"] .stats-card h3,
+        html[data-theme="dark"] .stats-card h4,
+        html[data-theme="dark"] .stats-card h5,
+        html[data-theme="dark"] .stats-card h6 {
+            color: #fff !important;
+        }
+
+        html[data-theme="dark"] .form-control,
+        html[data-theme="dark"] .form-select,
+        html[data-theme="dark"] .input-group-text {
+            background-color: var(--control) !important;
+            border-color: var(--line) !important;
+            color: var(--ink) !important;
+        }
+
+        html[data-theme="dark"] .form-control:focus,
+        html[data-theme="dark"] .form-select:focus {
+            background-color: var(--control) !important;
+            color: var(--ink) !important;
+            border-color: var(--blue) !important;
+            box-shadow: 0 0 0 .2rem rgba(96, 165, 250, .16) !important;
+        }
+
+        html[data-theme="dark"] .form-text,
+        html[data-theme="dark"] .password-requirements,
+        html[data-theme="dark"] .role-description,
+        html[data-theme="dark"] .info-value {
+            color: var(--muted) !important;
+        }
+
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--ink) !important;
+        }
+
+        html[data-theme="dark"] .info-label,
+        html[data-theme="dark"] .timeline-content h6,
+        html[data-theme="dark"] .permission-item strong,
+        html[data-theme="dark"] .admin-preview h6 {
+            color: var(--ink) !important;
+        }
+
+        html[data-theme="dark"] .table,
+        html[data-theme="dark"] .table td,
+        html[data-theme="dark"] .table tbody tr {
+            color: var(--ink) !important;
+            border-color: var(--line) !important;
+        }
+
+        html[data-theme="dark"] .table th,
+        html[data-theme="dark"] .table-light th {
+            background-color: var(--control-hover) !important;
+            color: var(--muted) !important;
+            border-color: var(--line) !important;
+        }
+
+        html[data-theme="dark"] .btn-outline-secondary,
+        html[data-theme="dark"] .btn-outline-primary,
+        html[data-theme="dark"] .btn-outline-info,
+        html[data-theme="dark"] .btn-outline-warning,
+        html[data-theme="dark"] .btn-outline-danger,
+        html[data-theme="dark"] .btn-outline-success {
+            background: var(--control) !important;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .icon-button,
+        .lang-button {
+            height: 38px;
+            border: 1px solid var(--line);
+            background: var(--control);
+            color: var(--ink);
+            border-radius: 8px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 10px;
+        }
+
+        .icon-button {
+            width: 38px;
+            padding: 0;
+        }
+
+        .icon-button:hover,
+        .lang-button:hover,
+        .menu-button:hover,
+        .user-chip:hover {
+            background: var(--control-hover);
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 39;
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        @media (max-width: 980px) {
+            .app-shell { display: block; }
+            .sidebar {
+                position: fixed;
+                z-index: 40;
+                transform: translateX(-100%);
+                transition: transform .18s ease;
+                width: min(88vw, 320px);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-backdrop.show { display: block; }
+            .menu-button { display: grid; place-items: center; }
+            .topbar { gap: 10px; }
+        }
+
+        @media (max-width: 560px) {
+            .topbar { align-items: flex-start; }
+            .user-chip span { display: none; }
+            .content { padding: 12px; }
+            .topbar-actions { gap: 6px; }
+            .lang-button span { display: none; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" href="{% url 'admin_dashboard:dashboard' %}">
+                <span class="brand-mark"><i class="fas fa-film"></i></span>
+                <span>Movie Admin</span>
+            </a>
+
+            <div class="nav-section" data-i18n="nav.operate">Operate</div>
+            <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
+                <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
+            </a>
+            <a class="side-link {% if 'users' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:users_list' %}">
+                <i class="fas fa-users"></i><span data-i18n="nav.users">Users</span>
+            </a>
+            <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
+                <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
+            </a>
+
+            <div class="nav-section" data-i18n="nav.system">System</div>
+            <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
+                <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>
+            </a>
+            <a class="side-link" href="{% url 'admin:index' %}">
+                <i class="fas fa-screwdriver-wrench"></i><span data-i18n="nav.djangoAdmin">Django Admin</span>
+            </a>
+            <a class="side-link" href="{% url 'admin_dashboard:logout' %}">
+                <i class="fas fa-right-from-bracket"></i><span data-i18n="nav.logout">Logout</span>
+            </a>
+        </aside>
+
+        <section class="main">
+            <header class="topbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="menu-button" id="menuButton" type="button" aria-label="Open menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}Admin Dashboard{% endblock %}</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme" title="Toggle theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="lang-button" id="langToggle" type="button" aria-label="Switch language" title="Switch language">
+                        <i class="fas fa-language"></i><span>VI</span>
+                    </button>
+                    <a class="user-chip" href="{% url 'admin:password_change' %}">
+                        <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
+                        <span>{{ request.user.username }}</span>
+                    </a>
+                </div>
+            </header>
+
+            <main class="content">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.AdminI18N = {
+            en: {
+                'nav.operate': 'Operate',
+                'nav.dashboard': 'Dashboard',
+                'nav.users': 'Users',
+                'nav.watchlist': 'Watchlist',
+                'nav.system': 'System',
+                'nav.adminAccounts': 'Admin Accounts',
+                'nav.djangoAdmin': 'Django Admin',
+                'nav.logout': 'Logout',
+                'theme.light': 'Light mode',
+                'theme.dark': 'Dark mode',
+                'language.next': 'Switch language'
+            },
+            vi: {
+                'nav.operate': 'Vận hành',
+                'nav.dashboard': 'Bảng điều khiển',
+                'nav.users': 'Người dùng',
+                'nav.watchlist': 'Danh sách xem',
+                'nav.system': 'Hệ thống',
+                'nav.adminAccounts': 'Tài khoản admin',
+                'nav.djangoAdmin': 'Django Admin',
+                'nav.logout': 'Đăng xuất',
+                'theme.light': 'Giao diện sáng',
+                'theme.dark': 'Giao diện tối',
+                'language.next': 'Đổi ngôn ngữ'
+            }
+        };
+
+        function mergeTranslations(extra) {
+            Object.entries(extra || {}).forEach(([lang, messages]) => {
+                window.AdminI18N[lang] = Object.assign(window.AdminI18N[lang] || {}, messages || {});
+            });
+        }
+
+        function currentLanguage() {
+            return localStorage.getItem('admin-language') || 'vi';
+        }
+
+        function translateValue(key, params = {}) {
+            const lang = currentLanguage();
+            const fallback = window.AdminI18N.en?.[key] || key;
+            let value = window.AdminI18N[lang]?.[key] || fallback;
+            Object.entries(params).forEach(([name, paramValue]) => {
+                value = value.replaceAll(`{${name}}`, paramValue);
+            });
+            return value;
+        }
+
+        function translatePage(root = document) {
+            const lang = currentLanguage();
+            document.documentElement.lang = lang;
+            root.querySelectorAll('[data-i18n]').forEach(el => {
+                el.textContent = translateValue(el.dataset.i18n);
+            });
+            root.querySelectorAll('[data-i18n-title]').forEach(el => {
+                el.title = translateValue(el.dataset.i18nTitle);
+            });
+            const langToggle = document.getElementById('langToggle');
+            if (langToggle) {
+                langToggle.querySelector('span').textContent = lang.toUpperCase();
+                langToggle.title = translateValue('language.next');
+            }
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.dataset.theme = theme;
+            localStorage.setItem('admin-theme', theme);
+            const icon = document.querySelector('#themeToggle i');
+            const button = document.getElementById('themeToggle');
+            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            if (button) button.title = translateValue(theme === 'dark' ? 'theme.light' : 'theme.dark');
+        }
+
+        function initializePreferences() {
+            const savedTheme = localStorage.getItem('admin-theme') || 'light';
+            applyTheme(savedTheme);
+            translatePage();
+        }
+
+        window.AdminUI = {
+            addTranslations: mergeTranslations,
+            t: translateValue,
+            translate: translatePage,
+            language: currentLanguage,
+            theme: () => document.documentElement.dataset.theme || 'light'
+        };
+
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        const menuButton = document.getElementById('menuButton');
+        const themeToggle = document.getElementById('themeToggle');
+        const langToggle = document.getElementById('langToggle');
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('show');
+        }
+
+        menuButton?.addEventListener('click', () => {
+            sidebar.classList.add('open');
+            backdrop.classList.add('show');
+        });
+        backdrop?.addEventListener('click', closeSidebar);
+        document.querySelectorAll('.side-link').forEach(link => link.addEventListener('click', closeSidebar));
+        themeToggle?.addEventListener('click', () => {
+            applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+        });
+        langToggle?.addEventListener('click', () => {
+            const next = currentLanguage() === 'vi' ? 'en' : 'vi';
+            localStorage.setItem('admin-language', next);
+            translatePage();
+            document.dispatchEvent(new CustomEvent('admin:language-change', { detail: { language: next } }));
+        });
+
+        initializePreferences();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

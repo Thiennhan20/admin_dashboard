@@ -1,0 +1,776 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Operations - Movie Admin{% endblock %}
+{% block page_title %}Operations{% endblock %}
+{% block page_i18n_key %}ops.title{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ops-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .metric-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px;
+        min-height: 118px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .metric-value {
+        font-size: clamp(24px, 2vw, 42px);
+        font-weight: 850;
+        line-height: 1.05;
+    }
+
+    .metric-note {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ops-panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        min-width: 0;
+    }
+
+    .ops-panel-header {
+        min-height: 56px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .ops-panel-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 850;
+    }
+
+    .ops-panel-body {
+        padding: 14px;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 5px 9px;
+        font-size: 12px;
+        font-weight: 800;
+        background: var(--control);
+    }
+
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+    }
+
+    .dot.ok { background: var(--green); }
+    .dot.warn { background: var(--amber); }
+    .dot.bad { background: var(--red); }
+
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .collection-tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .collection-tab {
+        border: 1px solid var(--line);
+        background: var(--control);
+        border-radius: var(--radius);
+        padding: 8px 10px;
+        font-weight: 800;
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    .collection-tab.active {
+        color: #fff;
+        background: var(--nav);
+        border-color: var(--nav);
+    }
+
+    .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+    }
+
+    .data-table {
+        min-width: 920px;
+    }
+
+    .line-clamp {
+        max-width: 360px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .skeleton {
+        position: relative;
+        overflow: hidden;
+        background: #eef2f7;
+        border-radius: 6px;
+        min-height: 18px;
+    }
+
+    .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
+        animation: shimmer 1.2s infinite;
+    }
+
+    html[data-theme="dark"] .skeleton {
+        background: #1f2937;
+    }
+
+    html[data-theme="dark"] .skeleton::after {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+    }
+
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+    .split-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+        gap: 14px;
+    }
+
+    @media (max-width: 1480px) {
+        .ops-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 980px) {
+        .ops-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .split-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+        .ops-grid { grid-template-columns: 1fr; gap: 10px; }
+        .toolbar { align-items: stretch; }
+        .toolbar > * { width: 100%; }
+        .ops-panel-body { padding: 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<section class="mb-3">
+    <div class="toolbar">
+        <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="status-pill" id="serverStatus"><span class="dot"></span><span data-i18n="status.serverChecking">Server checking</span></span>
+                <span class="status-pill" id="mongoStatus"><span class="dot"></span><span data-i18n="status.mongoChecking">Mongo checking</span></span>
+            </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ client_url }}" target="_blank" rel="noreferrer" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-up-right-from-square me-1"></i><span data-i18n="actions.client">Client</span>
+            </a>
+            <a href="{{ server_url }}" target="_blank" rel="noreferrer" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-server me-1"></i><span data-i18n="actions.server">Server</span>
+            </a>
+            <button class="btn btn-dark btn-sm" id="refreshButton" type="button">
+                <i class="fas fa-rotate me-1"></i><span data-i18n="actions.refresh">Refresh</span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<section class="ops-grid mb-3" id="metricsGrid">
+    {% for item in "123456" %}
+    <div class="metric-card">
+        <span class="skeleton" style="width: 45%"></span>
+        <span class="skeleton" style="width: 72%; height: 34px"></span>
+        <span class="skeleton" style="width: 60%"></span>
+    </div>
+    {% endfor %}
+</section>
+
+<section class="split-grid mb-3">
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title" data-i18n="activity.title">Recent Activity</h2>
+            <span class="badge badge-soft" id="activityCount" data-i18n="common.loading">Loading</span>
+        </div>
+        <div class="ops-panel-body">
+            <div id="activityFeed">
+                <div class="skeleton mb-2" style="height: 54px"></div>
+                <div class="skeleton mb-2" style="height: 54px"></div>
+                <div class="skeleton" style="height: 54px"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title" data-i18n="rooms.title">Watch Rooms</h2>
+            <span class="badge badge-soft" id="roomCount" data-i18n="common.loading">Loading</span>
+        </div>
+        <div class="ops-panel-body" id="roomsPanel">
+            <div class="skeleton mb-2" style="height: 50px"></div>
+            <div class="skeleton" style="height: 50px"></div>
+        </div>
+    </div>
+</section>
+
+<section class="ops-panel">
+    <div class="ops-panel-header">
+        <div>
+            <h2 class="ops-panel-title" data-i18n="data.title">Data Manager</h2>
+            <div class="text-muted small" data-i18n="data.subtitle">MongoDB collections used by app, web, and server</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="prevPage" type="button">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="nextPage" type="button">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+    <div class="ops-panel-body">
+        <div class="collection-tabs mb-3" id="collectionTabs"></div>
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+            <span class="text-muted small" id="collectionMeta" data-i18n="common.loading">Loading</span>
+            <button class="btn btn-dark btn-sm" id="reloadCollection" type="button">
+                <i class="fas fa-rotate me-1"></i><span data-i18n="actions.reloadTable">Reload table</span>
+            </button>
+        </div>
+        <div class="table-wrap">
+            <table class="table table-hover data-table">
+                <thead id="dataHead"></thead>
+                <tbody id="dataBody">
+                    <tr><td><div class="skeleton" style="height: 42px"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    window.AdminUI.addTranslations({
+        en: {
+            'ops.title': 'Operations',
+            'status.serverChecking': 'Server checking',
+            'status.mongoChecking': 'Mongo checking',
+            'status.server': 'Server',
+            'status.mongo': 'Mongo',
+            'status.online': 'online',
+            'status.offline': 'offline',
+            'status.error': 'error',
+            'actions.client': 'Client',
+            'actions.server': 'Server',
+            'actions.refresh': 'Refresh',
+            'actions.reloadTable': 'Reload table',
+            'actions.open': 'Open',
+            'actions.delete': 'delete',
+            'actions.hide': 'hide',
+            'actions.restore': 'restore',
+            'actions.read': 'read',
+            'actions.unread': 'unread',
+            'common.loading': 'Loading',
+            'common.noData': 'No data.',
+            'metrics.users': 'Users',
+            'metrics.verified': '{count} verified',
+            'metrics.comments': 'Comments',
+            'metrics.commentsNote': 'All movie and TV comments',
+            'metrics.watchProgress': 'Watch Progress',
+            'metrics.watchProgressNote': 'Recently watched records',
+            'metrics.searchDocs': 'Search Docs',
+            'metrics.searchDocsNote': 'Per-user search history docs',
+            'metrics.notifications': 'Notifications',
+            'metrics.notificationsNote': 'User notification records',
+            'metrics.rooms': 'Rooms',
+            'metrics.serverOnline': 'Server online',
+            'metrics.serverOffline': 'Server offline',
+            'activity.title': 'Recent Activity',
+            'activity.hiddenComment': 'Hidden comment',
+            'activity.comment': 'Comment',
+            'activity.watchProgress': 'Watch progress',
+            'activity.noActivity': 'No recent activity.',
+            'activity.items': '{count} items',
+            'rooms.title': 'Watch Rooms',
+            'rooms.active': '{count} active',
+            'rooms.noRooms': 'No active public rooms.',
+            'rooms.host': 'Host',
+            'data.title': 'Data Manager',
+            'data.subtitle': 'MongoDB collections used by app, web, and server',
+            'data.metaLoading': '{label} • loading',
+            'data.meta': '{label} • page {page} • {total} records',
+            'collections.users': 'Users',
+            'collections.comments': 'Comments',
+            'collections.watchprogresses': 'Watch Progress',
+            'collections.searchhistories': 'Search History',
+            'collections.notifications': 'Notifications',
+            'collections.passwordresettokens': 'Reset Tokens',
+            'collections.blacklistedtokens': 'Blacklisted Tokens',
+            'headers.id': 'ID',
+            'headers.user': 'User',
+            'headers.auth': 'Auth',
+            'headers.email': 'Email',
+            'headers.watchlist': 'Watchlist',
+            'headers.action': 'Action',
+            'headers.content': 'Content',
+            'headers.target': 'Target',
+            'headers.likes': 'Likes',
+            'headers.state': 'State',
+            'headers.title': 'Title',
+            'headers.type': 'Type',
+            'headers.progress': 'Progress',
+            'headers.lastWatched': 'Last watched',
+            'headers.count': 'Count',
+            'headers.recentQueries': 'Recent queries',
+            'headers.updated': 'Updated',
+            'headers.recipient': 'Recipient',
+            'headers.created': 'Created',
+            'headers.payload': 'Payload',
+            'badges.verified': 'Verified',
+            'badges.unverified': 'Unverified',
+            'badges.hidden': 'Hidden',
+            'badges.visible': 'Visible',
+            'badges.read': 'Read',
+            'badges.unread': 'Unread',
+            'types.movie': 'Movie',
+            'types.tv': 'TV',
+            'table.watchlistCount': '{count} watchlist',
+            'table.queryCount': '{count} queries',
+            'messages.confirmDelete': 'Delete this record?',
+            'messages.actionFailed': 'Action failed',
+            'messages.collectionFailed': 'Failed to load collection',
+            'messages.failedOverview': 'Failed to load overview: {message}'
+        },
+        vi: {
+            'ops.title': 'Vận hành',
+            'status.serverChecking': 'Đang kiểm tra server',
+            'status.mongoChecking': 'Đang kiểm tra Mongo',
+            'status.server': 'Server',
+            'status.mongo': 'Mongo',
+            'status.online': 'đang hoạt động',
+            'status.offline': 'mất kết nối',
+            'status.error': 'lỗi',
+            'actions.client': 'Client',
+            'actions.server': 'Server',
+            'actions.refresh': 'Làm mới',
+            'actions.reloadTable': 'Tải lại bảng',
+            'actions.open': 'Mở',
+            'actions.delete': 'xóa',
+            'actions.hide': 'ẩn',
+            'actions.restore': 'khôi phục',
+            'actions.read': 'đã đọc',
+            'actions.unread': 'chưa đọc',
+            'common.loading': 'Đang tải',
+            'common.noData': 'Không có dữ liệu.',
+            'metrics.users': 'Người dùng',
+            'metrics.verified': '{count} đã xác thực',
+            'metrics.comments': 'Bình luận',
+            'metrics.commentsNote': 'Bình luận phim và TV',
+            'metrics.watchProgress': 'Tiến độ xem',
+            'metrics.watchProgressNote': 'Các lượt xem gần đây',
+            'metrics.searchDocs': 'Lịch sử tìm',
+            'metrics.searchDocsNote': 'Lịch sử tìm kiếm theo user',
+            'metrics.notifications': 'Thông báo',
+            'metrics.notificationsNote': 'Thông báo của người dùng',
+            'metrics.rooms': 'Phòng xem',
+            'metrics.serverOnline': 'Server đang hoạt động',
+            'metrics.serverOffline': 'Server mất kết nối',
+            'activity.title': 'Hoạt động gần đây',
+            'activity.hiddenComment': 'Bình luận đã ẩn',
+            'activity.comment': 'Bình luận',
+            'activity.watchProgress': 'Tiến độ xem',
+            'activity.noActivity': 'Chưa có hoạt động gần đây.',
+            'activity.items': '{count} mục',
+            'rooms.title': 'Phòng xem chung',
+            'rooms.active': '{count} đang mở',
+            'rooms.noRooms': 'Không có phòng công khai đang hoạt động.',
+            'rooms.host': 'Chủ phòng',
+            'data.title': 'Quản lý dữ liệu',
+            'data.subtitle': 'Các collection MongoDB app, web và server đang dùng',
+            'data.metaLoading': '{label} • đang tải',
+            'data.meta': '{label} • trang {page} • {total} bản ghi',
+            'collections.users': 'Người dùng',
+            'collections.comments': 'Bình luận',
+            'collections.watchprogresses': 'Tiến độ xem',
+            'collections.searchhistories': 'Lịch sử tìm',
+            'collections.notifications': 'Thông báo',
+            'collections.passwordresettokens': 'Token reset',
+            'collections.blacklistedtokens': 'Token khóa',
+            'headers.id': 'ID',
+            'headers.user': 'Người dùng',
+            'headers.auth': 'Đăng nhập',
+            'headers.email': 'Email',
+            'headers.watchlist': 'Danh sách xem',
+            'headers.action': 'Thao tác',
+            'headers.content': 'Nội dung',
+            'headers.target': 'Đích',
+            'headers.likes': 'Thích',
+            'headers.state': 'Trạng thái',
+            'headers.title': 'Tiêu đề',
+            'headers.type': 'Loại',
+            'headers.progress': 'Tiến độ',
+            'headers.lastWatched': 'Xem gần nhất',
+            'headers.count': 'Số lượng',
+            'headers.recentQueries': 'Từ khóa gần đây',
+            'headers.updated': 'Cập nhật',
+            'headers.recipient': 'Người nhận',
+            'headers.created': 'Ngày tạo',
+            'headers.payload': 'Dữ liệu',
+            'badges.verified': 'Đã xác thực',
+            'badges.unverified': 'Chưa xác thực',
+            'badges.hidden': 'Đã ẩn',
+            'badges.visible': 'Hiển thị',
+            'badges.read': 'Đã đọc',
+            'badges.unread': 'Chưa đọc',
+            'types.movie': 'Phim',
+            'types.tv': 'TV',
+            'table.watchlistCount': '{count} mục',
+            'table.queryCount': '{count} từ khóa',
+            'messages.confirmDelete': 'Xóa bản ghi này?',
+            'messages.actionFailed': 'Thao tác thất bại',
+            'messages.collectionFailed': 'Không tải được collection',
+            'messages.failedOverview': 'Không tải được tổng quan: {message}'
+        }
+    });
+    const t = (key, params = {}) => window.AdminUI.t(key, params);
+    window.AdminUI.translate();
+
+    const collectionLabelKeys = {
+        users: 'collections.users',
+        comments: 'collections.comments',
+        watchprogresses: 'collections.watchprogresses',
+        searchhistories: 'collections.searchhistories',
+        notifications: 'collections.notifications',
+        passwordresettokens: 'collections.passwordresettokens',
+        blacklistedtokens: 'collections.blacklistedtokens',
+    };
+    const collectionOrder = Object.keys(collectionLabelKeys);
+    const state = { collection: 'users', page: 1, limit: 20, overview: null };
+
+    function collectionLabel(key) {
+        return t(collectionLabelKeys[key] || key);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        }[ch]));
+    }
+
+    function fmtDate(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '-';
+        return date.toLocaleString(window.AdminUI.language() === 'vi' ? 'vi-VN' : 'en-US', { hour12: false });
+    }
+
+    function shortId(value) {
+        const text = String(value || '');
+        return text.length > 10 ? `${text.slice(0, 6)}...${text.slice(-4)}` : text || '-';
+    }
+
+    function setStatus(el, ok, label, detail) {
+        const dot = el.querySelector('.dot');
+        dot.className = `dot ${ok ? 'ok' : 'bad'}`;
+        const textNode = el.querySelector('[data-i18n]') || el.lastElementChild;
+        textNode.textContent = detail ? `${label}: ${detail}` : label;
+    }
+
+    function metric(label, value, note, color) {
+        return `
+            <div class="metric-card">
+                <div class="metric-label">${escapeHtml(label)}</div>
+                <div class="metric-value" style="color:${color}">${escapeHtml(value)}</div>
+                <div class="metric-note">${escapeHtml(note)}</div>
+            </div>
+        `;
+    }
+
+    function renderMetrics(data) {
+        const counts = data.mongo?.counts || {};
+        const stats = data.mongo?.stats || {};
+        const health = data.server_health || {};
+        document.getElementById('metricsGrid').innerHTML = [
+            metric(t('metrics.users'), counts.users ?? 0, t('metrics.verified', { count: stats.verified_users ?? 0 }), 'var(--blue)'),
+            metric(t('metrics.comments'), counts.comments ?? 0, t('metrics.commentsNote'), 'var(--teal)'),
+            metric(t('metrics.watchProgress'), counts.watchprogresses ?? 0, t('metrics.watchProgressNote'), 'var(--green)'),
+            metric(t('metrics.searchDocs'), counts.searchhistories ?? 0, t('metrics.searchDocsNote'), 'var(--amber)'),
+            metric(t('metrics.notifications'), counts.notifications ?? 0, t('metrics.notificationsNote'), 'var(--red)'),
+            metric(t('metrics.rooms'), (data.rooms || []).length, health.ok ? t('metrics.serverOnline') : t('metrics.serverOffline'), 'var(--ink)'),
+        ].join('');
+    }
+
+    function renderActivity(data) {
+        const comments = data.mongo?.recent_comments || [];
+        const progress = data.mongo?.watch_progress || [];
+        const rows = [];
+
+        comments.slice(0, 5).forEach(comment => {
+            rows.push({
+                type: comment.isDeleted ? t('activity.hiddenComment') : t('activity.comment'),
+                title: comment.user?.name || shortId(comment.userId),
+                meta: `${comment.type || '-'} #${comment.movieId || '-'} • ${fmtDate(comment.createdAt)}`,
+                body: comment.content || '',
+            });
+        });
+
+        progress.slice(0, 5).forEach(item => {
+            rows.push({
+                type: t('activity.watchProgress'),
+                title: item.title || item.contentId,
+                meta: `${item.isTVShow ? t('types.tv') : t('types.movie')} • ${fmtDate(item.lastWatched)}`,
+                body: `${Math.round(item.currentTime || 0)}s / ${Math.round(item.duration || 0)}s`,
+            });
+        });
+
+        document.getElementById('activityCount').textContent = t('activity.items', { count: rows.length });
+        document.getElementById('activityFeed').innerHTML = rows.length ? rows.slice(0, 8).map(row => `
+            <div class="border-bottom py-2">
+                <div class="d-flex justify-content-between gap-2">
+                    <strong>${escapeHtml(row.title)}</strong>
+                    <span class="badge badge-soft">${escapeHtml(row.type)}</span>
+                </div>
+                <div class="text-muted small">${escapeHtml(row.meta)}</div>
+                <div class="line-clamp small">${escapeHtml(row.body)}</div>
+            </div>
+        `).join('') : `<div class="text-muted">${escapeHtml(t('activity.noActivity'))}</div>`;
+    }
+
+    function renderRooms(data) {
+        const rooms = data.rooms || [];
+        document.getElementById('roomCount').textContent = t('rooms.active', { count: rooms.length });
+        if (data.rooms_error) {
+            document.getElementById('roomsPanel').innerHTML = `<div class="alert alert-warning mb-0">${escapeHtml(data.rooms_error)}</div>`;
+            return;
+        }
+        document.getElementById('roomsPanel').innerHTML = rooms.length ? rooms.map(room => `
+            <div class="border-bottom py-2">
+                <div class="d-flex justify-content-between gap-2">
+                    <strong>${escapeHtml(room.title || room.room_id)}</strong>
+                    <span class="badge badge-soft">${escapeHtml(room.member_count || 0)}/${escapeHtml(room.max_users || 0)}</span>
+                </div>
+                <div class="text-muted small">${escapeHtml(room.host_name || t('rooms.host'))} • ${escapeHtml(room.status || '-')}</div>
+                <div class="small">${escapeHtml(room.room_id)}</div>
+            </div>
+        `).join('') : `<div class="text-muted">${escapeHtml(t('rooms.noRooms'))}</div>`;
+    }
+
+    function setupTabs() {
+        document.getElementById('collectionTabs').innerHTML = collectionOrder.map(key => `
+            <button type="button" class="collection-tab ${key === state.collection ? 'active' : ''}" data-collection="${key}">
+                ${escapeHtml(collectionLabel(key))}
+            </button>
+        `).join('');
+        document.querySelectorAll('.collection-tab').forEach(button => {
+            button.addEventListener('click', () => {
+                state.collection = button.dataset.collection;
+                state.page = 1;
+                setupTabs();
+                loadCollection();
+            });
+        });
+    }
+
+    function rowCells(row) {
+        const id = row._id;
+        if (state.collection === 'users') {
+            return [
+                shortId(id),
+                `<strong>${escapeHtml(row.name)}</strong><div class="text-muted small">${escapeHtml(row.email)}</div>`,
+                escapeHtml(row.authType || '-'),
+                row.isEmailVerified ? `<span class="badge text-bg-success">${escapeHtml(t('badges.verified'))}</span>` : `<span class="badge text-bg-warning">${escapeHtml(t('badges.unverified'))}</span>`,
+                t('table.watchlistCount', { count: (row.watchlist || []).length }),
+                `<a class="btn btn-outline-primary btn-sm" href="/dashboard/users/${id}/">${escapeHtml(t('actions.open'))}</a>`,
+            ];
+        }
+        if (state.collection === 'comments') {
+            const hidden = !!row.isDeleted;
+            return [
+                shortId(id),
+                `<div class="line-clamp">${escapeHtml(row.content)}</div>`,
+                `${escapeHtml(row.type || '-')} #${escapeHtml(row.movieId || '-')}`,
+                escapeHtml(row.likes || 0),
+                hidden ? `<span class="badge text-bg-secondary">${escapeHtml(t('badges.hidden'))}</span>` : `<span class="badge text-bg-success">${escapeHtml(t('badges.visible'))}</span>`,
+                actionButtons(id, hidden ? ['restore', 'delete'] : ['hide', 'delete']),
+            ];
+        }
+        if (state.collection === 'watchprogresses') {
+            return [
+                shortId(id),
+                `<strong>${escapeHtml(row.title || row.contentId)}</strong><div class="text-muted small">${escapeHtml(row.contentId)}</div>`,
+                row.isTVShow ? `${t('types.tv')} S${row.season || '-'} E${row.episode || '-'}` : t('types.movie'),
+                `${Math.round(row.currentTime || 0)}s / ${Math.round(row.duration || 0)}s`,
+                fmtDate(row.lastWatched),
+                actionButtons(id, ['delete']),
+            ];
+        }
+        if (state.collection === 'searchhistories') {
+            const history = row.history || [];
+            return [
+                shortId(id),
+                shortId(row.user_id),
+                t('table.queryCount', { count: history.length }),
+                `<div class="line-clamp">${escapeHtml(history.slice(0, 4).map(item => item.query).join(', '))}</div>`,
+                fmtDate(row.updated_at),
+                actionButtons(id, ['delete']),
+            ];
+        }
+        if (state.collection === 'notifications') {
+            return [
+                shortId(id),
+                escapeHtml(row.type || '-'),
+                shortId(row.recipient),
+                row.read ? `<span class="badge text-bg-success">${escapeHtml(t('badges.read'))}</span>` : `<span class="badge text-bg-warning">${escapeHtml(t('badges.unread'))}</span>`,
+                fmtDate(row.createdAt),
+                actionButtons(id, row.read ? ['unread', 'delete'] : ['read', 'delete']),
+            ];
+        }
+        return [
+            shortId(id),
+            fmtDate(row.createdAt || row.expiresAt),
+            `<div class="line-clamp">${escapeHtml(JSON.stringify(row))}</div>`,
+            '',
+            '',
+            actionButtons(id, ['delete']),
+        ];
+    }
+
+    function actionButtons(id, actions) {
+        return actions.map(action => {
+            const styles = { delete: 'danger', hide: 'warning', restore: 'success', read: 'success', unread: 'secondary' };
+            return `<button class="btn btn-outline-${styles[action] || 'secondary'} btn-sm me-1" data-action="${action}" data-id="${id}">${escapeHtml(t(`actions.${action}`))}</button>`;
+        }).join('');
+    }
+
+    function headers() {
+        const map = {
+            users: ['headers.id', 'headers.user', 'headers.auth', 'headers.email', 'headers.watchlist', 'headers.action'],
+            comments: ['headers.id', 'headers.content', 'headers.target', 'headers.likes', 'headers.state', 'headers.action'],
+            watchprogresses: ['headers.id', 'headers.title', 'headers.type', 'headers.progress', 'headers.lastWatched', 'headers.action'],
+            searchhistories: ['headers.id', 'headers.user', 'headers.count', 'headers.recentQueries', 'headers.updated', 'headers.action'],
+            notifications: ['headers.id', 'headers.type', 'headers.recipient', 'headers.state', 'headers.created', 'headers.action'],
+        };
+        return (map[state.collection] || ['headers.id', 'headers.created', 'headers.payload', '', '', 'headers.action']).map(key => key ? t(key) : '');
+    }
+
+    async function loadOverview() {
+        document.getElementById('refreshButton').disabled = true;
+        try {
+            const response = await fetch('{% url "admin_dashboard:api_overview" %}');
+            const data = await response.json();
+            state.overview = data;
+            setStatus(document.getElementById('serverStatus'), data.server_health?.ok, t('status.server'), data.server_health?.ok ? t('status.online') : t('status.offline'));
+            setStatus(document.getElementById('mongoStatus'), data.mongo?.enabled && !data.mongo?.error, t('status.mongo'), data.mongo?.error ? t('status.error') : t('status.online'));
+            renderMetrics(data);
+            renderActivity(data);
+            renderRooms(data);
+        } catch (error) {
+            setStatus(document.getElementById('serverStatus'), false, t('status.server'), t('status.error'));
+            document.getElementById('metricsGrid').innerHTML = `<div class="alert alert-danger grid-column-1">${escapeHtml(t('messages.failedOverview', { message: error.message }))}</div>`;
+        } finally {
+            document.getElementById('refreshButton').disabled = false;
+        }
+    }
+
+    async function loadCollection() {
+        document.getElementById('dataHead').innerHTML = `<tr>${headers().map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+        document.getElementById('dataBody').innerHTML = '<tr><td colspan="6"><div class="skeleton" style="height:42px"></div></td></tr>';
+        document.getElementById('collectionMeta').textContent = t('data.metaLoading', { label: collectionLabel(state.collection) });
+        try {
+            const response = await fetch(`/dashboard/api/mongo/${state.collection}/?page=${state.page}&limit=${state.limit}`);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || t('messages.collectionFailed'));
+            document.getElementById('collectionMeta').textContent = t('data.meta', { label: collectionLabel(state.collection), page: data.page, total: data.total });
+            document.getElementById('prevPage').disabled = data.page <= 1;
+            document.getElementById('nextPage').disabled = !data.has_more;
+            document.getElementById('dataBody').innerHTML = data.rows.length ? data.rows.map(row => `
+                <tr>${rowCells(row).map(cell => `<td>${cell}</td>`).join('')}</tr>
+            `).join('') : `<tr><td colspan="6" class="text-muted py-4 text-center">${escapeHtml(t('common.noData'))}</td></tr>`;
+        } catch (error) {
+            document.getElementById('dataBody').innerHTML = `<tr><td colspan="6" class="text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+        }
+    }
+
+    async function runAction(collection, id, action) {
+        if (action === 'delete' && !confirm(t('messages.confirmDelete'))) return;
+        const response = await fetch(`/dashboard/api/mongo/${collection}/${id}/${action}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+        });
+        const data = await response.json();
+        if (!data.success) {
+            alert(data.error || t('messages.actionFailed'));
+            return;
+        }
+        await Promise.all([loadOverview(), loadCollection()]);
+    }
+
+    document.getElementById('refreshButton').addEventListener('click', () => Promise.all([loadOverview(), loadCollection()]));
+    document.getElementById('reloadCollection').addEventListener('click', loadCollection);
+    document.getElementById('prevPage').addEventListener('click', () => { if (state.page > 1) { state.page--; loadCollection(); } });
+    document.getElementById('nextPage').addEventListener('click', () => { state.page++; loadCollection(); });
+    document.getElementById('dataBody').addEventListener('click', event => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        runAction(state.collection, button.dataset.id, button.dataset.action);
+    });
+    document.addEventListener('admin:language-change', () => {
+        setupTabs();
+        if (state.overview) {
+            renderMetrics(state.overview);
+            renderActivity(state.overview);
+            renderRooms(state.overview);
+            setStatus(document.getElementById('serverStatus'), state.overview.server_health?.ok, t('status.server'), state.overview.server_health?.ok ? t('status.online') : t('status.offline'));
+            setStatus(document.getElementById('mongoStatus'), state.overview.mongo?.enabled && !state.overview.mongo?.error, t('status.mongo'), state.overview.mongo?.error ? t('status.error') : t('status.online'));
+        }
+        loadCollection();
+    });
+
+    setupTabs();
+    loadOverview();
+    loadCollection();
+</script>
+{% endblock %}

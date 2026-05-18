@@ -1,0 +1,138 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Edit User - Admin Panel{% endblock %}
+{% block page_title %}Edit User{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-edit"></i> Edit User: {{ user.name }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       value="{{ user.name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ user.email }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="avatar" class="form-label">Avatar URL</label>
+                        <input type="url" class="form-control" id="avatar" name="avatar" 
+                               value="{{ user.avatar|default:'' }}" placeholder="https://example.com/avatar.jpg">
+                        <div class="form-text">Leave empty to use default avatar</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_email_verified" 
+                                   name="is_email_verified" {% if user.is_email_verified %}checked{% endif %}>
+                            <label class="form-check-label" for="is_email_verified">
+                                Email Verified
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="watchlist" class="form-label">Watchlist (JSON)</label>
+                        <textarea class="form-control" id="watchlist" name="watchlist" rows="8" 
+                                  placeholder='[{"id": 1, "title": "Movie Title", "overview": "Description"}]'>{{ user.watchlist|default:'' }}</textarea>
+                        <div class="form-text">
+                            Enter valid JSON array of movies. Each movie should have: id, title, overview (optional), release_date (optional)
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                                                 <a href="{% url 'admin_dashboard:user_detail' user.id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- User Info Card -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-info-circle"></i> User Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                                                 <p><strong>API ID:</strong> 
+                             {% if user.id %}
+                                 <code>{{ user.id }}</code>
+                             {% else %}
+                                 <span class="text-muted">Not synced</span>
+                             {% endif %}
+                         </p>
+                        <p><strong>Created:</strong> {{ user.created_at|date:"F d, Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Updated:</strong> {{ user.updated_at|date:"F d, Y H:i" }}</p>
+                        <p><strong>Watchlist Count:</strong> {{ user.watchlist|length|default:0 }} movies</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-format JSON in watchlist textarea
+    document.getElementById('watchlist').addEventListener('blur', function() {
+        try {
+            const value = this.value.trim();
+            if (value) {
+                const parsed = JSON.parse(value);
+                this.value = JSON.stringify(parsed, null, 2);
+            }
+        } catch (e) {
+            // If JSON is invalid, don't change the value
+            console.log('Invalid JSON format');
+        }
+    });
+
+    // Confirm before leaving with unsaved changes
+    let formChanged = false;
+    document.querySelector('form').addEventListener('change', function() {
+        formChanged = true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Reset formChanged when form is submitted
+    document.querySelector('form').addEventListener('submit', function() {
+        formChanged = false;
+    });
+</script>
+{% endblock %}
