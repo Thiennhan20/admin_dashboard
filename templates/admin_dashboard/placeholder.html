@@ -1,0 +1,77 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}{{ title }} - Movie Admin{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block page_i18n_key %}nav.{{ key }}{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold" style="color: var(--ink);">
+            <i class="fas fa-table text-primary me-2"></i> {{ title }} Data
+        </h5>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3">
+            <i class="fas fa-plus me-1"></i> Add New
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        {% for col in columns %}
+                        <th class="py-3 px-4 text-muted fw-semibold text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">{{ col }}</th>
+                        {% endfor %}
+                        <th class="py-3 px-4 text-end text-muted fw-semibold text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in data %}
+                    <tr>
+                        {% for val in item %}
+                        <td class="px-4 py-3" style="color: var(--ink);">
+                            {% if forloop.first %}
+                            <span class="fw-medium">{{ val }}</span>
+                            {% else %}
+                            {{ val }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="px-4 py-3 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-light text-primary border-0 shadow-sm rounded-start me-1" title="View/Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-light text-danger border-0 shadow-sm rounded-end" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="100%" class="text-center py-5 text-muted">
+                            <div class="mb-3">
+                                <i class="fas fa-inbox fa-3x text-light-subtle"></i>
+                            </div>
+                            <h6>No data available</h6>
+                            <p class="small mb-0">There are currently no records to display here.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white border-top-0 py-3 d-flex justify-content-between align-items-center">
+        <span class="text-muted small">Showing {{ data|length }} entries</span>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item disabled"><a class="page-link border-0 text-muted" href="#"><i class="fas fa-chevron-left"></i></a></li>
+            <li class="page-item active"><a class="page-link border-0 rounded" href="#">1</a></li>
+            <li class="page-item"><a class="page-link border-0 text-muted" href="#">2</a></li>
+            <li class="page-item"><a class="page-link border-0 text-muted" href="#">3</a></li>
+            <li class="page-item"><a class="page-link border-0 text-muted" href="#"><i class="fas fa-chevron-right"></i></a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

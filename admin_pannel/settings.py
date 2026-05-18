@@ -173,6 +173,8 @@ API_BASE_URL = os.environ.get('API_BASE_URL', f'{SERVER_URL}/api').rstrip('/')
 API_AUTH_BASE_URL = os.environ.get('API_AUTH_BASE_URL', f'{API_BASE_URL}/auth').rstrip('/')
 MONGODB_URI = os.environ.get('MONGODB_URI', '')
 MONGODB_NAME = os.environ.get('MONGODB_NAME', '')
+UPSTASH_REDIS_URL = os.environ.get('UPSTASH_REDIS_REST_CACHE_URL', '')
+UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_REST_CACHE_TOKEN', '')
 
 
 # Password validation

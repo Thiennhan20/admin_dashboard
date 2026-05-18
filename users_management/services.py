@@ -160,7 +160,7 @@ class MongoAdminService:
         users = list(
             db.users.find({}, {'password': 0, 'emailVerificationToken': 0})
             .sort('createdAt', -1)
-            .limit(8)
+            .limit(5)
         )
 
         verified_users = db.users.count_documents({'isEmailVerified': True})
@@ -169,7 +169,7 @@ class MongoAdminService:
 
         recent_comments = list(db.comments.aggregate([
             {'$sort': {'createdAt': -1}},
-            {'$limit': 10},
+            {'$limit': 5},
             {'$lookup': {
                 'from': 'users',
                 'localField': 'userId',
@@ -192,19 +192,19 @@ class MongoAdminService:
         watch_progress = list(
             db.watchprogresses.find({})
             .sort('lastWatched', -1)
-            .limit(10)
+            .limit(5)
         )
 
         search_docs = list(
             db.searchhistories.find({})
             .sort('updated_at', -1)
-            .limit(8)
+            .limit(5)
         )
 
         notifications = list(
             db.notifications.find({})
             .sort('createdAt', -1)
-            .limit(10)
+            .limit(5)
         )
 
         return {

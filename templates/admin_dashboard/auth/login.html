@@ -16,166 +16,43 @@
             --ink: #111827;
             --muted: #64748b;
             --line: #d6dee9;
-            --nav: #0b1220;
-            --nav-soft: #111c31;
             --teal: #0f766e;
-            --blue: #2563eb;
+            --teal-dim: rgba(15, 118, 110, 0.08);
             --amber: #d97706;
             --red: #dc2626;
-            --shadow: 0 22px 70px rgba(15, 23, 42, .16);
             --radius: 14px;
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        html {
-            min-height: 100%;
-            -webkit-text-size-adjust: 100%;
+        html, body {
+            min-height: 100vh;
+            min-height: 100dvh;
         }
 
         body {
-            min-height: 100vh;
-            min-height: 100dvh;
-            margin: 0;
-            color: var(--ink);
-            background:
-                linear-gradient(120deg, rgba(15, 118, 110, .12), transparent 36%),
-                linear-gradient(240deg, rgba(37, 99, 235, .10), transparent 34%),
-                var(--bg);
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            letter-spacing: 0;
-        }
-
-        .auth-page {
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: grid;
-            place-items: center;
-            padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-        }
-
-        .auth-shell {
-            width: min(100%, 1120px);
-            min-height: min(720px, calc(100dvh - 36px));
-            display: grid;
-            grid-template-columns: minmax(320px, .92fr) minmax(360px, 1.08fr);
-            overflow: hidden;
-            border: 1px solid rgba(148, 163, 184, .45);
-            border-radius: 24px;
-            background: var(--panel);
-            box-shadow: var(--shadow);
-        }
-
-        .brand-panel {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 28px;
-            padding: clamp(26px, 4vw, 46px);
-            color: #fff;
-            background:
-                linear-gradient(145deg, rgba(15, 118, 110, .92), rgba(11, 18, 32, .98)),
-                #0b1220;
-        }
-
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 800;
-            font-size: 18px;
-        }
-
-        .brand-mark {
-            width: 42px;
-            height: 42px;
-            display: grid;
-            place-items: center;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, .14);
-            border: 1px solid rgba(255, 255, 255, .18);
-        }
-
-        .brand-copy h1 {
-            margin: 0 0 14px;
-            font-size: clamp(30px, 4vw, 54px);
-            line-height: 1.02;
-            font-weight: 850;
-            letter-spacing: 0;
-        }
-
-        .brand-copy p {
-            max-width: 430px;
-            margin: 0;
-            color: rgba(255, 255, 255, .78);
-            font-size: 15px;
-            line-height: 1.65;
-        }
-
-        .signal-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .signal-item {
-            min-height: 94px;
-            border: 1px solid rgba(255, 255, 255, .14);
-            border-radius: var(--radius);
-            padding: 14px;
-            background: rgba(255, 255, 255, .08);
-        }
-
-        .signal-item i {
-            color: #67e8f9;
-            margin-bottom: 10px;
-        }
-
-        .signal-item strong {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 14px;
-        }
-
-        .signal-item span {
-            display: block;
-            color: rgba(255, 255, 255, .68);
-            font-size: 12px;
-            line-height: 1.45;
-        }
-
-        .form-panel {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: clamp(24px, 5vw, 60px);
+            background:
+                linear-gradient(120deg, rgba(15, 118, 110, .10), transparent 36%),
+                linear-gradient(240deg, rgba(37, 99, 235, .08), transparent 34%),
+                var(--bg);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--ink);
         }
 
-        .form-wrap {
-            width: min(100%, 430px);
+        .auth-wrapper {
+            width: min(100%, 420px);
+            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
         }
 
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--teal);
-            font-weight: 800;
-            font-size: 13px;
-            text-transform: uppercase;
-        }
-
-        .form-title {
-            margin: 14px 0 8px;
-            font-size: clamp(28px, 3vw, 42px);
-            font-weight: 850;
-            line-height: 1.1;
-        }
-
-        .form-subtitle {
-            margin: 0 0 24px;
-            color: var(--muted);
-            line-height: 1.6;
+        .auth-card {
+            background: var(--panel);
+            border: 1px solid rgba(148, 163, 184, .35);
+            border-radius: 20px;
+            padding: clamp(28px, 5vw, 40px);
+            box-shadow: 0 22px 70px rgba(15, 23, 42, .12);
         }
 
         .alert {
@@ -187,25 +64,25 @@
 
         .alert-danger {
             border-color: rgba(220, 38, 38, .22);
-            background: rgba(220, 38, 38, .08);
+            background: rgba(220, 38, 38, .06);
             color: var(--red);
         }
 
         .alert-success {
             border-color: rgba(15, 118, 110, .22);
-            background: rgba(15, 118, 110, .08);
+            background: rgba(15, 118, 110, .06);
             color: var(--teal);
         }
 
         .alert-info,
         .alert-warning {
-            border-color: rgba(217, 119, 6, .24);
-            background: rgba(217, 119, 6, .08);
+            border-color: rgba(217, 119, 6, .22);
+            background: rgba(217, 119, 6, .06);
             color: var(--amber);
         }
 
         .field {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         .field label {
@@ -218,20 +95,25 @@
             font-weight: 750;
         }
 
+        .field label i {
+            color: var(--teal);
+            font-size: 13px;
+        }
+
         .input-shell {
             position: relative;
         }
 
         .form-control {
-            min-height: 52px;
+            width: 100%;
+            min-height: 50px;
             border: 1px solid var(--line);
             border-radius: 12px;
             background: #f8fafc;
             color: var(--ink);
-            font-size: 16px;
-            line-height: 1.35;
+            font-size: 15px;
             padding: 13px 14px;
-            transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+            transition: border-color .2s, box-shadow .2s, background .2s;
         }
 
         .form-control.password-input {
@@ -244,17 +126,18 @@
         }
 
         .form-control:focus {
+            outline: none;
             background: #fff;
             border-color: var(--teal);
-            box-shadow: 0 0 0 4px rgba(15, 118, 110, .13);
+            box-shadow: 0 0 0 3px var(--teal-dim);
         }
 
         .password-toggle {
             position: absolute;
             top: 50%;
             right: 8px;
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             display: grid;
             place-items: center;
             transform: translateY(-50%);
@@ -262,6 +145,8 @@
             border-radius: 10px;
             background: transparent;
             color: var(--muted);
+            cursor: pointer;
+            transition: background .15s, color .15s;
         }
 
         .password-toggle:hover {
@@ -271,47 +156,45 @@
 
         .btn-auth {
             width: 100%;
-            min-height: 52px;
+            min-height: 50px;
             border: 0;
             border-radius: 12px;
-            background: var(--nav);
+            background: #0b1220;
             color: #fff;
-            font-weight: 850;
-            font-size: 16px;
+            font-weight: 800;
+            font-size: 15px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 9px;
+            cursor: pointer;
+            transition: background .15s;
         }
 
-        .btn-auth:hover,
-        .btn-auth:focus {
-            background: var(--nav-soft);
-            color: #fff;
+        .btn-auth:hover {
+            background: #111c31;
         }
 
         .auth-links {
             display: flex;
-            flex-wrap: wrap;
             gap: 10px;
-            justify-content: space-between;
-            margin-top: 18px;
+            justify-content: center;
+            margin-top: 22px;
         }
 
         .auth-link {
-            min-height: 42px;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 9px 12px;
+            gap: 7px;
+            padding: 9px 16px;
             border: 1px solid var(--line);
             border-radius: 12px;
             color: var(--ink);
             text-decoration: none;
-            font-weight: 750;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 13px;
             background: #fff;
+            transition: border-color .15s, color .15s, background .15s;
         }
 
         .auth-link:hover {
@@ -320,157 +203,59 @@
             background: #f0fdfa;
         }
 
-        @media (max-width: 900px) {
-            .auth-page {
-                display: block;
-                padding: 0;
-                background: var(--panel);
-            }
-
-            .auth-shell {
-                min-height: 100dvh;
-                grid-template-columns: 1fr;
-                border: 0;
-                border-radius: 0;
-                box-shadow: none;
-            }
-
-            .brand-panel {
-                padding: 22px 18px;
-                gap: 20px;
-            }
-
-            .brand-copy h1 {
-                font-size: 30px;
-            }
-
-            .signal-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .signal-item {
-                min-height: 80px;
-            }
-
-            .form-panel {
-                align-items: flex-start;
-                padding: 28px 18px calc(28px + env(safe-area-inset-bottom));
-            }
-        }
-
-        @media (max-width: 560px) {
-            .brand-copy p {
-                font-size: 14px;
-            }
-
-            .signal-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .signal-item:nth-child(n+3) {
-                display: none;
-            }
-
-            .form-title {
-                font-size: 30px;
-            }
-
-            .auth-links {
-                display: grid;
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 480px) {
+            .auth-wrapper { padding: 16px; }
+            .auth-card { padding: 24px 20px; }
+            .auth-links { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-    <main class="auth-page">
-        <section class="auth-shell" aria-label="Admin login">
-            <aside class="brand-panel">
-                <div class="brand">
-                    <span class="brand-mark"><i class="fas fa-film"></i></span>
-                    <span>Movie Admin</span>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert">
+                        <i class="fas fa-circle-info me-2"></i>{{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST" id="loginForm" novalidate>
+                {% csrf_token %}
+
+                <div class="field">
+                    <label for="username"><i class="fas fa-user"></i>Tên đăng nhập</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="Nhập username" required autocomplete="username" autocapitalize="none" spellcheck="false">
                 </div>
 
-                <div class="brand-copy">
-                    <h1>Trung tâm quản trị phim.</h1>
-                    <p>Theo dõi dữ liệu người dùng, phòng xem chung và các tín hiệu vận hành từ một giao diện gọn gàng.</p>
-                </div>
-
-                <div class="signal-grid" aria-hidden="true">
-                    <div class="signal-item">
-                        <i class="fas fa-database"></i>
-                        <strong>MongoDB</strong>
-                        <span>Kiểm soát users, comments, watch progress.</span>
-                    </div>
-                    <div class="signal-item">
-                        <i class="fas fa-server"></i>
-                        <strong>Server</strong>
-                        <span>Theo dõi API và trạng thái phòng xem.</span>
-                    </div>
-                    <div class="signal-item">
-                        <i class="fas fa-tv"></i>
-                        <strong>Responsive</strong>
-                        <span>Phù hợp laptop, iPad, mobile và màn hình lớn.</span>
-                    </div>
-                    <div class="signal-item">
-                        <i class="fas fa-shield-halved"></i>
-                        <strong>Admin only</strong>
-                        <span>Lối vào riêng cho tài khoản quản trị.</span>
-                    </div>
-                </div>
-            </aside>
-
-            <section class="form-panel">
-                <div class="form-wrap">
-                    <div class="eyebrow"><i class="fas fa-lock"></i> Đăng nhập bảo mật</div>
-                    <h2 class="form-title">Chào mừng trở lại</h2>
-                    <p class="form-subtitle">Dùng tài khoản admin để vào dashboard quản lý hệ thống phim.</p>
-
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                <i class="fas fa-circle-info me-2"></i>{{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-
-                    <form method="POST" id="loginForm" novalidate>
-                        {% csrf_token %}
-
-                        <div class="field">
-                            <label for="username"><i class="fas fa-user"></i>Tên đăng nhập</label>
-                            <input type="text" class="form-control" id="username" name="username" placeholder="Nhập username" required autocomplete="username" autocapitalize="none" spellcheck="false">
-                        </div>
-
-                        <div class="field">
-                            <label for="password"><i class="fas fa-key"></i>Mật khẩu</label>
-                            <div class="input-shell">
-                                <input type="password" class="form-control password-input" id="password" name="password" placeholder="Nhập password" required autocomplete="current-password">
-                                <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Hiện mật khẩu">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn-auth" id="loginBtn">
-                            <i class="fas fa-arrow-right-to-bracket"></i>
-                            <span>Đăng nhập</span>
+                <div class="field">
+                    <label for="password"><i class="fas fa-key"></i>Mật khẩu</label>
+                    <div class="input-shell">
+                        <input type="password" class="form-control password-input" id="password" name="password" placeholder="Nhập password" required autocomplete="current-password">
+                        <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Hiện mật khẩu">
+                            <i class="fas fa-eye"></i>
                         </button>
-                    </form>
-
-                    <div class="auth-links">
-                        <a class="auth-link" href="{% url 'admin_dashboard:register' %}">
-                            <i class="fas fa-user-plus"></i>Tạo tài khoản
-                        </a>
-                        <a class="auth-link" href="{% url 'admin:index' %}">
-                            <i class="fas fa-screwdriver-wrench"></i>Django Admin
-                        </a>
                     </div>
                 </div>
-            </section>
-        </section>
-    </main>
+
+                <button type="submit" class="btn-auth" id="loginBtn">
+                    <i class="fas fa-arrow-right-to-bracket"></i>
+                    <span>Đăng nhập</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a class="auth-link" href="{% url 'admin_dashboard:register' %}">
+                    <i class="fas fa-user-plus"></i>Tạo tài khoản
+                </a>
+                <a class="auth-link" href="{% url 'admin:index' %}">
+                    <i class="fas fa-screwdriver-wrench"></i>Django Admin
+                </a>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>

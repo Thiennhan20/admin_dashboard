@@ -1,0 +1,649 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Cache Manager - Movie Admin{% endblock %}
+{% block page_title %}Cache Manager{% endblock %}
+{% block page_i18n_key %}nav.cache{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cache-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .cache-toolbar .search-box {
+        flex: 1;
+        min-width: 200px;
+        max-width: 380px;
+    }
+
+    .cache-stats {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .cache-stat {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        min-width: 140px;
+        flex: 1;
+    }
+
+    .cache-stat-label {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+    }
+
+    .cache-stat-value {
+        font-size: 28px;
+        font-weight: 850;
+        line-height: 1.1;
+    }
+
+    .filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .filter-chip {
+        padding: 6px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--control);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 750;
+        cursor: pointer;
+        transition: all .15s;
+        white-space: nowrap;
+    }
+
+    .filter-chip:hover,
+    .filter-chip.active {
+        border-color: var(--blue);
+        color: var(--blue);
+        background: rgba(37, 99, 235, .06);
+    }
+
+    .cache-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+    }
+
+    .cache-table th {
+        background: var(--control-hover);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .cache-table td {
+        padding: 10px 14px;
+        font-size: 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+    }
+
+    .cache-table tr:last-child td { border-bottom: 0; }
+    .cache-table tr:hover td { background: var(--table-hover); }
+
+    .cache-key {
+        font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 13px;
+        word-break: break-all;
+        max-width: 480px;
+        color: var(--blue);
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        transition: text-decoration-color .2s ease;
+    }
+
+    .cache-key:hover { text-decoration-color: var(--blue); }
+    .cache-key .prefix { color: var(--muted); text-decoration: none; display: inline-block; }
+
+    .cat-badge {
+        display: inline-flex;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .cat-badge.trending { background: rgba(37, 99, 235, .1); color: var(--blue); }
+    .cat-badge.discover { background: rgba(15, 118, 110, .1); color: var(--teal); }
+    .cat-badge.search { background: rgba(180, 83, 9, .1); color: var(--amber); }
+    .cat-badge.genre { background: rgba(124, 58, 237, .1); color: #7c3aed; }
+    .cat-badge.detail { background: var(--control-hover); color: var(--muted); }
+
+    .ttl-badge { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ttl-badge.expiring { color: var(--amber); }
+    .ttl-badge.fresh { color: var(--green); }
+    .ttl-badge.no-ttl { color: var(--muted); }
+
+    .btn-delete-key {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--control);
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+    .btn-delete-key:hover {
+        border-color: var(--red);
+        color: var(--red);
+        background: rgba(185, 28, 28, .06);
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, var(--control-hover) 25%, var(--line) 50%, var(--control-hover) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 6px;
+        display: block;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .cache-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    @media (max-width: 768px) {
+        .cache-table th:nth-child(3),
+        .cache-table td:nth-child(3) { display: none; }
+    }
+
+    @media (max-width: 560px) {
+        .cache-stats { flex-direction: column; }
+        .cache-toolbar { flex-direction: column; align-items: stretch; }
+        .cache-toolbar .search-box { max-width: none; }
+    }
+
+    /* JSON Syntax Highlighting */
+    .json-key { color: #8b5cf6; }
+    .json-string { color: #10b981; }
+    .json-number { color: #f59e0b; }
+    .json-boolean { color: #3b82f6; font-weight: bold; }
+    .json-null { color: #ef4444; font-weight: bold; }
+    html[data-theme="dark"] .json-key { color: #c4b5fd; }
+    html[data-theme="dark"] .json-string { color: #6ee7b7; }
+    html[data-theme="dark"] .json-number { color: #fcd34d; }
+    html[data-theme="dark"] .json-boolean { color: #93c5fd; }
+    html[data-theme="dark"] .json-null { color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="csrfForm">{% csrf_token %}</form>
+
+<!-- Stats row -->
+<div class="cache-stats">
+    <div class="cache-stat">
+        <div class="cache-stat-label" data-i18n="cache.totalKeys">Total Keys</div>
+        <div class="cache-stat-value" style="color: var(--blue)" id="statTotal">
+            <span class="skeleton" style="width:48px;height:28px;display:inline-block"></span>
+        </div>
+    </div>
+    <div class="cache-stat">
+        <div class="cache-stat-label" data-i18n="cache.categories">Categories</div>
+        <div class="cache-stat-value" style="color: var(--teal)" id="statCategories">
+            <span class="skeleton" style="width:28px;height:28px;display:inline-block"></span>
+        </div>
+    </div>
+    <div class="cache-stat">
+        <div class="cache-stat-label" data-i18n="cache.provider">Provider</div>
+        <div class="cache-stat-value" style="font-size:18px; color: var(--ink)">Upstash Redis</div>
+    </div>
+    <div class="cache-stat">
+        <div class="cache-stat-label" data-i18n="cache.commands">Commands</div>
+        <div class="cache-stat-value d-flex align-items-baseline gap-2">
+            <span id="statCommands" style="font-size: 20px; font-weight: 850; color: var(--ink)"><span class="skeleton" style="width:48px;height:24px;display:inline-block"></span></span>
+            <span class="text-muted" style="font-size:11px; font-weight:700">/ 500k <span data-i18n="cache.perMonth">per month</span></span>
+        </div>
+        <div class="progress mt-2" style="height:4px; background:var(--line); border-radius:4px;">
+            <div class="progress-bar" id="statCommandsProgress" style="width: 0%; background: var(--green); border-radius:4px;"></div>
+        </div>
+    </div>
+    <div class="cache-stat">
+        <div class="cache-stat-label" data-i18n="cache.storage">Storage</div>
+        <div class="cache-stat-value d-flex align-items-baseline gap-2">
+            <span id="statStorage" style="font-size: 20px; font-weight: 850; color: var(--ink)"><span class="skeleton" style="width:48px;height:24px;display:inline-block"></span></span>
+            <span class="text-muted" style="font-size:11px; font-weight:700">/ <span id="statStorageMax">256 MB</span></span>
+        </div>
+        <div class="progress mt-2" style="height:4px; background:var(--line); border-radius:4px;">
+            <div class="progress-bar" id="statStorageProgress" style="width: 0%; background: var(--green); border-radius:4px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="errorBox"></div>
+
+<!-- Toolbar -->
+<div class="cache-toolbar">
+    <div class="input-group search-box">
+        <span class="input-group-text" style="background:var(--control);border-color:var(--line);color:var(--muted)">
+            <i class="fas fa-search"></i>
+        </span>
+        <input type="text" class="form-control" id="cacheSearch" placeholder="Search cache keys…" data-i18n-placeholder="cache.search" style="border-left:0">
+    </div>
+    <div class="filter-chips" id="filterChips">
+        <button class="filter-chip active" data-filter="" data-i18n="cache.all">All</button>
+    </div>
+    <div style="margin-left: auto">
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-3" id="flushAllBtn" disabled>
+            <i class="fas fa-trash me-1"></i> <span data-i18n="cache.flushAll">Flush All</span>
+        </button>
+    </div>
+</div>
+
+<!-- Table -->
+<div style="overflow-x:auto; border-radius: var(--radius);">
+    <table class="cache-table" id="cacheTable">
+        <thead>
+            <tr>
+                <th style="width: 36px">#</th>
+                <th data-i18n="cache.key">Key</th>
+                <th data-i18n="cache.category">Category</th>
+                <th style="width: 100px">TTL</th>
+                <th style="width: 50px"></th>
+            </tr>
+        </thead>
+        <tbody id="cacheBody">
+            <tr><td colspan="5"><div class="skeleton" style="height:42px"></div></td></tr>
+            <tr><td colspan="5"><div class="skeleton" style="height:42px"></div></td></tr>
+            <tr><td colspan="5"><div class="skeleton" style="height:42px"></div></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Footer: info + pagination -->
+<div class="cache-footer">
+    <span class="text-muted small" id="cachePageInfo"></span>
+    <nav>
+        <ul class="pagination pagination-sm mb-0" id="cachePagination"></ul>
+    </nav>
+</div>
+
+<!-- JSON Viewer Modal -->
+<div class="modal fade" id="cacheDataModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background: var(--panel); border-color: var(--line);">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title" style="font-size: 16px; font-weight: 800; color: var(--ink);">
+                    <i class="fas fa-file-code me-2 text-muted"></i><span data-i18n="cache.dataTitle">Cache Data</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.key">KEY</div>
+                    <div id="modalKey" class="cache-key p-2 rounded" style="background: var(--control); max-width: 100%;"></div>
+                </div>
+                <div>
+                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.value">VALUE</div>
+                    <div id="modalValueLoading" style="display:none;" class="p-4 text-center text-muted">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br><span data-i18n="common.loading">Fetching data...</span>
+                    </div>
+                    <pre id="modalValue" class="p-3 rounded" style="background: var(--control); color: var(--ink); font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const listUrl = '{% url "admin_dashboard:api_cache_list" %}';
+    const actionUrl = '{% url "admin_dashboard:api_cache_action" %}';
+
+    let state = { page: 1, category: '', search: '', loading: false };
+    let debounceTimer = null;
+
+    function escape(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+
+    async function loadPage() {
+        if (state.loading) return;
+        state.loading = true;
+
+        const body = document.getElementById('cacheBody');
+        body.innerHTML = Array.from({ length: 3 }, () =>
+            '<tr><td colspan="5"><div class="skeleton" style="height:42px"></div></td></tr>'
+        ).join('');
+
+        const params = new URLSearchParams({ page: state.page });
+        if (state.category) params.set('category', state.category);
+        if (state.search) params.set('q', state.search);
+
+        try {
+            const res = await fetch(`${listUrl}?${params}`);
+            const data = await res.json();
+
+            if (!data.success) {
+                document.getElementById('errorBox').innerHTML =
+                    `<div class="alert alert-danger mb-3"><i class="fas fa-circle-exclamation me-2"></i>${escape(data.error)}</div>`;
+                body.innerHTML = '';
+                state.loading = false;
+                return;
+            }
+
+            document.getElementById('errorBox').innerHTML = '';
+
+            // Stats
+            document.getElementById('statTotal').textContent = data.total_all;
+            document.getElementById('statCategories').textContent = data.categories.length;
+
+            if (data.stats) {
+                // Commands
+                let commands = parseInt(data.stats.commands || 0);
+                let commandsLimit = 500000;
+                let commandsPct = Math.min(100, (commands / commandsLimit) * 100);
+                document.getElementById('statCommands').textContent = commands >= 1000 ? (commands/1000).toFixed(1) + 'K' : commands;
+                document.getElementById('statCommandsProgress').style.width = commandsPct + '%';
+                
+                // Storage
+                document.getElementById('statStorage').textContent = data.stats.storage_used.replace(/\s+/g, ' ');
+                document.getElementById('statStorageMax').textContent = data.stats.storage_max.replace(/\s+/g, ' ');
+                let storageUsed = parseFloat(data.stats.storage_used_bytes || 0);
+                let storageMax = parseFloat(data.stats.storage_max_bytes || 268435456); // 256MB fallback
+                let storagePct = Math.min(100, (storageUsed / storageMax) * 100);
+                document.getElementById('statStorageProgress').style.width = storagePct + '%';
+            }
+
+            // Filter chips (only rebuild if categories changed)
+            const chipsEl = document.getElementById('filterChips');
+            const existingChips = chipsEl.querySelectorAll('.filter-chip').length;
+            if (existingChips !== data.categories.length + 1) {
+                chipsEl.innerHTML = `<button class="filter-chip ${!state.category ? 'active' : ''}" data-filter="">All</button>`
+                    + data.categories.map(cat =>
+                        `<button class="filter-chip ${state.category === cat ? 'active' : ''}" data-filter="${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</button>`
+                    ).join('');
+                bindChips();
+            }
+
+            // Flush button
+            document.getElementById('flushAllBtn').disabled = data.total_all === 0;
+
+            // Render rows
+            const keys = data.keys;
+            const startIdx = (data.page - 1) * 10;
+
+            body.innerHTML = keys.length ? keys.map((item, i) => {
+                const num = startIdx + i + 1;
+                const display = item.key.replace(/^tmdb:/, '');
+                const ttlHtml = item.ttl > 3600
+                    ? `<span class="ttl-badge fresh">${formatTTL(item.ttl)}</span>`
+                    : item.ttl > 0
+                        ? `<span class="ttl-badge expiring">${formatTTL(item.ttl)}</span>`
+                        : `<span class="ttl-badge no-ttl">∞</span>`;
+                return `<tr>
+                    <td style="color:var(--muted);font-weight:700">${num}</td>
+                    <td><div class="cache-key" data-key="${escape(item.key)}"><span class="prefix">tmdb:</span>${escape(display)}</div></td>
+                    <td><span class="cat-badge ${item.category}">${item.category}</span></td>
+                    <td>${ttlHtml}</td>
+                    <td><button class="btn-delete-key" data-key="${escape(item.key)}" title="Delete"><i class="fas fa-xmark"></i></button></td>
+                </tr>`;
+            }).join('') : `<tr><td colspan="5" class="text-muted text-center py-4">No keys match the filter</td></tr>`;
+
+            // Page info
+            const info = document.getElementById('cachePageInfo');
+            if (keys.length) {
+                info.textContent = `Showing ${startIdx + 1}–${startIdx + keys.length} of ${data.total}`;
+            } else {
+                info.textContent = '';
+            }
+
+            // Pagination
+            renderPagination(data.page, data.total_pages);
+            bindDeleteButtons();
+        } catch (e) {
+            document.getElementById('errorBox').innerHTML =
+                `<div class="alert alert-danger mb-3"><i class="fas fa-circle-exclamation me-2"></i>${escape(e.message)}</div>`;
+            body.innerHTML = '';
+        } finally {
+            state.loading = false;
+        }
+    }
+
+    function formatTTL(seconds) {
+        if (seconds >= 3600) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            return `${h}h ${m}m`;
+        }
+        if (seconds >= 60) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        return `${seconds}s`;
+    }
+
+    function renderPagination(current, total) {
+        const pag = document.getElementById('cachePagination');
+        if (!pag || total <= 1) { pag.innerHTML = ''; return; }
+
+        let html = `<li class="page-item ${current<=1?'disabled':''}"><a class="page-link border-0" href="#" data-page="${current-1}"><i class="fas fa-chevron-left"></i></a></li>`;
+        for (let p = 1; p <= total; p++) {
+            if (total > 7 && p > 2 && p < total - 1 && Math.abs(p - current) > 1) {
+                if (p === 3 || p === total - 2) html += `<li class="page-item disabled"><span class="page-link border-0">…</span></li>`;
+                continue;
+            }
+            html += `<li class="page-item ${p===current?'active':''}"><a class="page-link border-0" href="#" data-page="${p}">${p}</a></li>`;
+        }
+        html += `<li class="page-item ${current>=total?'disabled':''}"><a class="page-link border-0" href="#" data-page="${current+1}"><i class="fas fa-chevron-right"></i></a></li>`;
+        pag.innerHTML = html;
+    }
+
+    function bindChips() {
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                state.category = chip.dataset.filter;
+                state.page = 1;
+                loadPage();
+            });
+        });
+    }
+
+    function bindDeleteButtons() {
+        document.querySelectorAll('.btn-delete-key').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const key = btn.dataset.key;
+                if (!confirm(`Delete cache key?\n${key}`)) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    const res = await fetch(actionUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ action: 'delete', key })
+                    });
+                    if (res.ok) loadPage();
+                } catch (e) {
+                    alert('Failed: ' + e.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-xmark"></i>';
+                }
+            });
+        });
+    }
+
+    // Search with debounce
+    document.getElementById('cacheSearch')?.addEventListener('input', e => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            state.search = e.target.value.trim();
+            state.page = 1;
+            loadPage();
+        }, 350);
+    });
+
+    // Pagination clicks (delegated)
+    document.getElementById('cachePagination')?.addEventListener('click', e => {
+        e.preventDefault();
+        const a = e.target.closest('[data-page]');
+        if (!a || a.closest('.disabled')) return;
+        state.page = parseInt(a.dataset.page, 10);
+        loadPage();
+    });
+
+    // Flush all
+    document.getElementById('flushAllBtn')?.addEventListener('click', async () => {
+        if (!confirm('Flush ALL tmdb cache keys? This cannot be undone.')) return;
+        const btn = document.getElementById('flushAllBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Flushing...';
+        try {
+            const res = await fetch(actionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ action: 'flush' })
+            });
+            if (res.ok) { state.page = 1; loadPage(); }
+        } catch (e) {
+            alert('Failed: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash me-1"></i> Flush All';
+        }
+    });
+
+    function syntaxHighlight(json) {
+        if (typeof json !== 'string') {
+            json = JSON.stringify(json, undefined, 2);
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
+
+    if (window.AdminUI) {
+        window.AdminUI.addTranslations({
+            en: {
+                'cache.totalKeys': 'Total Keys',
+                'cache.categories': 'Categories',
+                'cache.provider': 'Provider',
+                'cache.search': 'Search cache keys…',
+                'cache.all': 'All',
+                'cache.flushAll': 'Flush All',
+                'cache.key': 'Key',
+                'cache.category': 'Category',
+                'cache.dataTitle': 'Cache Data',
+                'cache.value': 'Value',
+                'cache.commands': 'Commands',
+                'cache.perMonth': 'per month',
+                'cache.storage': 'Storage'
+            },
+            vi: {
+                'cache.totalKeys': 'Tổng số Key',
+                'cache.categories': 'Phân loại',
+                'cache.provider': 'Máy chủ',
+                'cache.search': 'Tìm kiếm từ khóa cache…',
+                'cache.all': 'Tất cả',
+                'cache.flushAll': 'Xóa toàn bộ',
+                'cache.key': 'Từ khóa (Key)',
+                'cache.category': 'Phân loại',
+                'cache.dataTitle': 'Dữ liệu Cache',
+                'cache.value': 'Dữ liệu',
+                'cache.commands': 'Lượt truy vấn',
+                'cache.perMonth': 'mỗi tháng',
+                'cache.storage': 'Lưu trữ'
+            }
+        });
+    }
+
+    // View Key Data
+    let cacheModalInstance = null;
+    document.getElementById('cacheBody')?.addEventListener('click', async e => {
+        const keyEl = e.target.closest('.cache-key[data-key]');
+        if (!keyEl) return;
+        
+        const key = keyEl.dataset.key;
+        document.getElementById('modalKey').textContent = key;
+        document.getElementById('modalValue').innerHTML = '';
+        document.getElementById('modalValueLoading').style.display = 'block';
+        
+        if (!cacheModalInstance) {
+            cacheModalInstance = new bootstrap.Modal(document.getElementById('cacheDataModal'));
+        }
+        cacheModalInstance.show();
+
+        try {
+            const res = await fetch(actionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ action: 'get', key })
+            });
+            const data = await res.json();
+            document.getElementById('modalValueLoading').style.display = 'none';
+            if (data.success) {
+                const val = data.data;
+                if (typeof val === 'object') {
+                    document.getElementById('modalValue').innerHTML = syntaxHighlight(val);
+                } else {
+                    try {
+                        const parsed = JSON.parse(val);
+                        document.getElementById('modalValue').innerHTML = syntaxHighlight(parsed);
+                    } catch {
+                        document.getElementById('modalValue').textContent = val;
+                    }
+                }
+            } else {
+                document.getElementById('modalValue').textContent = 'Error: ' + data.error;
+            }
+        } catch (err) {
+            document.getElementById('modalValueLoading').style.display = 'none';
+            document.getElementById('modalValue').textContent = 'Error fetching data: ' + err.message;
+        }
+    });
+
+    // Initial chips binding + first load
+    bindChips();
+    if (window.AdminUI) window.AdminUI.translate(document.querySelector('.cache-toolbar').parentNode);
+    loadPage();
+</script>
+{% endblock %}

@@ -900,3 +900,286 @@ def admin_delete(request, admin_id):
     except Exception as e:
         messages.error(request, f'Lỗi khi xóa admin: {str(e)}')
         return redirect('admin_dashboard:admin_list')
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def placeholder_movies(request):
+    context = {
+        'title': 'Movies',
+        'key': 'movies',
+        'columns': ['ID', 'Title', 'Release Date', 'Rating', 'Status'],
+        'data': [
+            ['MV-001', 'Dune: Part Two', '2024-03-01', '8.8', 'Active'],
+            ['MV-002', 'Oppenheimer', '2023-07-21', '8.4', 'Active'],
+            ['MV-003', 'The Batman', '2022-03-04', '7.9', 'Active'],
+            ['MV-004', 'Spider-Man: Across the Spider-Verse', '2023-06-02', '8.7', 'Active'],
+            ['MV-005', 'Interstellar', '2014-11-07', '8.6', 'Active'],
+        ]
+    }
+    return render(request, 'admin_dashboard/placeholder.html', context)
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def placeholder_tv(request):
+    context = {
+        'title': 'TV Shows',
+        'key': 'tvShows',
+        'columns': ['ID', 'Title', 'Seasons', 'Rating', 'Status'],
+        'data': [
+            ['TV-001', 'Breaking Bad', '5', '9.5', 'Active'],
+            ['TV-002', 'Game of Thrones', '8', '9.2', 'Active'],
+            ['TV-003', 'Stranger Things', '4', '8.7', 'Active'],
+            ['TV-004', 'The Office', '9', '8.9', 'Active'],
+            ['TV-005', 'Better Call Saul', '6', '8.9', 'Active'],
+        ]
+    }
+    return render(request, 'admin_dashboard/placeholder.html', context)
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def placeholder_comments(request):
+    context = {
+        'title': 'Comments',
+        'key': 'comments',
+        'columns': ['ID', 'User', 'Content', 'Target', 'Date'],
+        'data': [
+            ['CM-001', 'john_doe', 'Great movie!', 'MV-001', '2024-05-18'],
+            ['CM-002', 'jane_smith', 'I loved the ending.', 'TV-002', '2024-05-18'],
+            ['CM-003', 'movie_buff', 'Not bad, but could be better.', 'MV-003', '2024-05-17'],
+            ['CM-004', 'critic99', 'A masterpiece of cinema.', 'MV-002', '2024-05-17'],
+            ['CM-005', 'casual_watcher', 'Too long for my taste.', 'MV-005', '2024-05-16'],
+        ]
+    }
+    return render(request, 'admin_dashboard/placeholder.html', context)
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def placeholder_rooms(request):
+    context = {
+        'title': 'Watch Rooms',
+        'key': 'rooms',
+        'columns': ['ID', 'Host', 'Movie/TV', 'Viewers', 'Status'],
+        'data': [
+            ['RM-001', 'john_doe', 'Dune: Part Two', '12', 'Live'],
+            ['RM-002', 'jane_smith', 'Stranger Things', '5', 'Live'],
+            ['RM-003', 'movie_buff', 'The Batman', '8', 'Live'],
+        ]
+    }
+    return render(request, 'admin_dashboard/placeholder.html', context)
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def placeholder_notifications(request):
+    context = {
+        'title': 'Notifications',
+        'key': 'notifications',
+        'columns': ['ID', 'Type', 'Title', 'Sent', 'Status'],
+        'data': [
+            ['NT-001', 'System', 'Welcome to Movie Admin', '2024-05-18', 'Sent'],
+            ['NT-002', 'Alert', 'Server Maintenance', '2024-05-17', 'Sent'],
+            ['NT-003', 'Promo', 'New Features Added', '2024-05-15', 'Sent'],
+        ]
+    }
+    return render(request, 'admin_dashboard/placeholder.html', context)
+
+
+# ── Upstash Redis cache management ──────────────────────────────────
+
+def _upstash(command_args):
+    """Execute a single Upstash Redis REST command and return the result."""
+    url = settings.UPSTASH_REDIS_URL
+    token = settings.UPSTASH_REDIS_TOKEN
+    if not url or not token:
+        return None
+    resp = requests.post(
+        url,
+        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        json=command_args,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp.json().get('result')
+
+def _upstash_pipeline(commands):
+    """Execute multiple Redis commands in a single Upstash pipeline request."""
+    url = settings.UPSTASH_REDIS_URL
+    token = settings.UPSTASH_REDIS_TOKEN
+    if not url or not token:
+        return None
+    resp = requests.post(
+        f'{url}/pipeline',
+        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        json=commands,
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return [item.get('result') for item in resp.json()]
+
+
+def _classify_key(key):
+    """Parse a tmdb:* key into endpoint, params, and category."""
+    parts = key.split(':', 2)
+    endpoint = parts[1] if len(parts) > 1 else '—'
+    params = parts[2] if len(parts) > 2 else ''
+    ep = endpoint.lower()
+    if 'trending' in ep:
+        category = 'trending'
+    elif 'discover' in ep:
+        category = 'discover'
+    elif 'search' in ep:
+        category = 'search'
+    elif 'genre' in ep:
+        category = 'genre'
+    else:
+        category = 'detail'
+    return endpoint, params, category
+
+
+def _scan_all_tmdb_keys():
+    """SCAN all tmdb:* key names (fast — no data or TTL fetched)."""
+    cursor = '0'
+    raw_keys = []
+    while True:
+        result = _upstash(['SCAN', cursor, 'MATCH', 'tmdb:*', 'COUNT', '500'])
+        if result is None:
+            return None
+        cursor = str(result[0])
+        raw_keys.extend(result[1])
+        if cursor == '0':
+            break
+    return sorted(set(raw_keys))
+
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def cache_management(request):
+    """Upstash Redis TMDB cache viewer — shell page, data loads via AJAX."""
+    return render(request, 'admin_dashboard/cache/cache.html')
+
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def api_cache_list(request):
+    """AJAX: paginated cache key listing. Only fetches TTL for visible page."""
+    page = max(int(request.GET.get('page', 1)), 1)
+    limit = 10
+    cat_filter = request.GET.get('category', '')
+    search = request.GET.get('q', '').lower()
+
+    try:
+        all_keys = _scan_all_tmdb_keys()
+        if all_keys is None:
+            return JsonResponse({'success': False, 'error': 'Upstash Redis not configured'})
+
+        # Classify every key (cheap — no network call)
+        classified = []
+        categories = set()
+        for k in all_keys:
+            endpoint, params, category = _classify_key(k)
+            categories.add(category)
+            # Apply filters
+            if cat_filter and category != cat_filter:
+                continue
+            if search and search not in k.lower():
+                continue
+            classified.append({
+                'key': k,
+                'endpoint': endpoint,
+                'params': params,
+                'category': category,
+            })
+
+        total = len(classified)
+        total_pages = max(1, -(-total // limit))  # ceil division
+        if page > total_pages:
+            page = total_pages
+        start = (page - 1) * limit
+        page_keys = classified[start:start + limit]
+
+        # Pipeline: fetch TTL for only the visible 10 keys in ONE request
+        if page_keys:
+            ttl_commands = [['TTL', item['key']] for item in page_keys]
+            ttls = _upstash_pipeline(ttl_commands)
+            if ttls:
+                for item, ttl in zip(page_keys, ttls):
+                    item['ttl'] = ttl if ttl and ttl > 0 else -1
+            else:
+                for item in page_keys:
+                    item['ttl'] = -1
+
+        # Fetch Upstash INFO for stats
+        info_raw = _upstash(['INFO'])
+        stats = {}
+        if info_raw:
+            for line in info_raw.splitlines():
+                if ':' in line:
+                    k, v = line.split(':', 1)
+                    stats[k] = v
+
+        return JsonResponse({
+            'success': True,
+            'keys': page_keys,
+            'page': page,
+            'total': total,
+            'total_pages': total_pages,
+            'total_all': len(all_keys),
+            'categories': sorted(categories),
+            'stats': {
+                'commands': stats.get('total_commands_processed', '0'),
+                'storage_used': stats.get('total_data_size_human', '0 B'),
+                'storage_max': stats.get('max_data_size_human', '256 MB'),
+                'storage_used_bytes': stats.get('total_data_size', '0'),
+                'storage_max_bytes': stats.get('max_data_size', '268435456'),
+            }
+        })
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)})
+
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_http_methods(["POST"])
+def api_cache_action(request):
+    """Delete a single key or flush all tmdb:* cache."""
+    try:
+        body = json.loads(request.body)
+        action = body.get('action')
+
+        if action == 'delete':
+            key = body.get('key', '')
+            if not key.startswith('tmdb:'):
+                return JsonResponse({'success': False, 'error': 'Invalid key'}, status=400)
+            _upstash(['DEL', key])
+            return JsonResponse({'success': True, 'message': f'Deleted {key}'})
+
+        elif action == 'flush':
+            cursor = '0'
+            deleted = 0
+            while True:
+                result = _upstash(['SCAN', cursor, 'MATCH', 'tmdb:*', 'COUNT', '200'])
+                if result is None:
+                    break
+                cursor = str(result[0])
+                for k in result[1]:
+                    _upstash(['DEL', k])
+                    deleted += 1
+                if cursor == '0':
+                    break
+            return JsonResponse({'success': True, 'message': f'Flushed {deleted} keys'})
+
+        elif action == 'get':
+            key = body.get('key', '')
+            if not key.startswith('tmdb:'):
+                return JsonResponse({'success': False, 'error': 'Invalid key'}, status=400)
+            val = _upstash(['GET', key])
+            try:
+                # Try to parse it as JSON if it's a JSON string
+                parsed = json.loads(val) if val else None
+            except:
+                parsed = val
+            return JsonResponse({'success': True, 'data': parsed})
+
+        return JsonResponse({'success': False, 'error': 'Unknown action'}, status=400)
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
+

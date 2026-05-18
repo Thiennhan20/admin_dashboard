@@ -139,6 +139,7 @@
         max-width: 360px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -191,6 +192,41 @@
         .toolbar > * { width: 100%; }
         .ops-panel-body { padding: 10px; }
     }
+
+    /* Chart bars */
+    .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 8px 0; }
+    .chart-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .chart-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height .6s cubic-bezier(.4,0,.2,1); }
+    .chart-bar-label { font-size: 11px; color: var(--muted); font-weight: 700; }
+
+    /* Trending table */
+    .trend-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .trend-row:last-child { border-bottom: 0; }
+    .trend-rank { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 850; font-size: 13px; background: var(--control-hover); color: var(--muted); flex-shrink: 0; }
+    .trend-rank.gold { background: rgba(251,191,36,.15); color: #d97706; }
+    .trend-rank.silver { background: rgba(148,163,184,.15); color: #64748b; }
+    .trend-rank.bronze { background: rgba(180,120,60,.15); color: #b4783c; }
+    .trend-info { flex: 1; min-width: 0; }
+    .trend-title { font-weight: 750; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trend-meta { font-size: 12px; color: var(--muted); }
+    .trend-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: var(--control-hover); color: var(--muted); white-space: nowrap; }
+
+    /* Quick actions */
+    .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .quick-btn { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--ink); text-decoration: none; font-weight: 750; font-size: 14px; transition: border-color .15s, background .15s; cursor: pointer; }
+    .quick-btn:hover { border-color: var(--blue); background: var(--control-hover); color: var(--ink); }
+    .quick-btn i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; font-size: 15px; flex-shrink: 0; }
+
+    /* System info */
+    .sys-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .sys-row:last-child { border-bottom: 0; }
+    .sys-label { color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .sys-value { font-weight: 750; }
+
+    /* Triple grid */
+    .triple-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    @media (max-width: 1280px) { .triple-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 768px) { .triple-grid { grid-template-columns: 1fr; } .quick-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -288,6 +324,107 @@
         </div>
     </div>
 </section>
+
+<!-- New panels row: Chart + Trending + Quick Actions -->
+<section class="triple-grid mb-3" style="margin-top:14px">
+    <!-- Weekly Activity Chart -->
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title" data-i18n="chart.weeklyTitle">Weekly Activity</h2>
+            <span class="badge badge-soft" data-i18n="chart.last7">Last 7 days</span>
+        </div>
+        <div class="ops-panel-body">
+            <div class="chart-bars" id="weeklyChart">
+                <div class="chart-bar-col"><div class="chart-bar" style="height:45%;background:var(--blue)"></div><span class="chart-bar-label">Mon</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:72%;background:var(--blue)"></div><span class="chart-bar-label">Tue</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:58%;background:var(--blue)"></div><span class="chart-bar-label">Wed</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:85%;background:var(--teal)"></div><span class="chart-bar-label">Thu</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:64%;background:var(--blue)"></div><span class="chart-bar-label">Fri</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:92%;background:var(--teal)"></div><span class="chart-bar-label">Sat</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:78%;background:var(--blue)"></div><span class="chart-bar-label">Sun</span></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+                <span class="text-muted small"><i class="fas fa-chart-line me-1"></i><span data-i18n="chart.newUsers">New users</span></span>
+                <span class="text-muted small"><strong style="color:var(--teal)">+18%</strong> <span data-i18n="chart.vsLastWeek">vs last week</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trending Movies -->
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title" data-i18n="trending.title">Trending Movies</h2>
+            <span class="badge badge-soft">Top 5</span>
+        </div>
+        <div class="ops-panel-body" id="trendingPanel">
+            <div class="trend-row">
+                <span class="trend-rank gold">1</span>
+                <div class="trend-info"><div class="trend-title">Dune: Part Two</div><div class="trend-meta">2024 • Action, Sci-Fi</div></div>
+                <span class="trend-badge">1.2k <i class="fas fa-eye" style="font-size:10px"></i></span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-rank silver">2</span>
+                <div class="trend-info"><div class="trend-title">Oppenheimer</div><div class="trend-meta">2023 • Drama, History</div></div>
+                <span class="trend-badge">980 <i class="fas fa-eye" style="font-size:10px"></i></span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-rank bronze">3</span>
+                <div class="trend-info"><div class="trend-title">The Batman</div><div class="trend-meta">2022 • Action, Crime</div></div>
+                <span class="trend-badge">874 <i class="fas fa-eye" style="font-size:10px"></i></span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-rank">4</span>
+                <div class="trend-info"><div class="trend-title">Spider-Man: Across the Spider-Verse</div><div class="trend-meta">2023 • Animation</div></div>
+                <span class="trend-badge">756 <i class="fas fa-eye" style="font-size:10px"></i></span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-rank">5</span>
+                <div class="trend-info"><div class="trend-title">Interstellar</div><div class="trend-meta">2014 • Drama, Sci-Fi</div></div>
+                <span class="trend-badge">701 <i class="fas fa-eye" style="font-size:10px"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions + System -->
+    <div style="display:grid;gap:14px">
+        <div class="ops-panel">
+            <div class="ops-panel-header">
+                <h2 class="ops-panel-title" data-i18n="quick.title">Quick Actions</h2>
+            </div>
+            <div class="ops-panel-body">
+                <div class="quick-grid">
+                    <a class="quick-btn" href="{% url 'admin_dashboard:users_list' %}">
+                        <i style="background:rgba(37,99,235,.12);color:var(--blue)"><span class="fas fa-users"></span></i>
+                        <span data-i18n="quick.manageUsers">Manage Users</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin_dashboard:watchlist_list' %}">
+                        <i style="background:rgba(15,118,110,.12);color:var(--teal)"><span class="fas fa-bookmark"></span></i>
+                        <span data-i18n="quick.watchlist">Watchlist</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin_dashboard:admin_list' %}">
+                        <i style="background:rgba(217,119,6,.12);color:var(--amber)"><span class="fas fa-user-shield"></span></i>
+                        <span data-i18n="quick.admins">Admin Accounts</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin:index' %}">
+                        <i style="background:rgba(185,28,28,.12);color:var(--red)"><span class="fas fa-screwdriver-wrench"></span></i>
+                        <span>Django Admin</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="ops-panel">
+            <div class="ops-panel-header">
+                <h2 class="ops-panel-title" data-i18n="sys.title">System Info</h2>
+            </div>
+            <div class="ops-panel-body">
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-code-branch"></i> Django</span><span class="sys-value">6.0.5</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fab fa-python"></i> Python</span><span class="sys-value">3.13</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-database"></i> Database</span><span class="sys-value">PostgreSQL + MongoDB</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-cloud"></i> <span data-i18n="sys.hosting">Hosting</span></span><span class="sys-value">Railway</span></div>
+            </div>
+        </div>
+    </div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
@@ -382,7 +519,18 @@
             'messages.confirmDelete': 'Delete this record?',
             'messages.actionFailed': 'Action failed',
             'messages.collectionFailed': 'Failed to load collection',
-            'messages.failedOverview': 'Failed to load overview: {message}'
+            'messages.failedOverview': 'Failed to load overview: {message}',
+            'chart.weeklyTitle': 'Weekly Activity',
+            'chart.last7': 'Last 7 days',
+            'chart.newUsers': 'New users',
+            'chart.vsLastWeek': 'vs last week',
+            'trending.title': 'Trending Movies',
+            'quick.title': 'Quick Actions',
+            'quick.manageUsers': 'Manage Users',
+            'quick.watchlist': 'Watchlist',
+            'quick.admins': 'Admin Accounts',
+            'sys.title': 'System Info',
+            'sys.hosting': 'Hosting'
         },
         vi: {
             'ops.title': 'Vận hành',
@@ -472,7 +620,18 @@
             'messages.confirmDelete': 'Xóa bản ghi này?',
             'messages.actionFailed': 'Thao tác thất bại',
             'messages.collectionFailed': 'Không tải được collection',
-            'messages.failedOverview': 'Không tải được tổng quan: {message}'
+            'messages.failedOverview': 'Không tải được tổng quan: {message}',
+            'chart.weeklyTitle': 'Hoạt động tuần',
+            'chart.last7': '7 ngày qua',
+            'chart.newUsers': 'Người dùng mới',
+            'chart.vsLastWeek': 'so với tuần trước',
+            'trending.title': 'Phim thịnh hành',
+            'quick.title': 'Thao tác nhanh',
+            'quick.manageUsers': 'Quản lý người dùng',
+            'quick.watchlist': 'Danh sách xem',
+            'quick.admins': 'Tài khoản admin',
+            'sys.title': 'Thông tin hệ thống',
+            'sys.hosting': 'Lưu trữ'
         }
     });
     const t = (key, params = {}) => window.AdminUI.t(key, params);
@@ -488,7 +647,7 @@
         blacklistedtokens: 'collections.blacklistedtokens',
     };
     const collectionOrder = Object.keys(collectionLabelKeys);
-    const state = { collection: 'users', page: 1, limit: 20, overview: null };
+    const state = { collection: 'users', page: 1, limit: 10, overview: null };
 
     function collectionLabel(key) {
         return t(collectionLabelKeys[key] || key);
@@ -769,8 +928,21 @@
         loadCollection();
     });
 
+    // Lazy-load: overview loads immediately, Data Manager loads when scrolled into view
     setupTabs();
     loadOverview();
-    loadCollection();
+
+    const dataSection = document.querySelector('.ops-panel:has(#collectionTabs)') || document.getElementById('collectionTabs')?.closest('.ops-panel');
+    if (dataSection && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                loadCollection();
+                observer.disconnect();
+            }
+        }, { rootMargin: '200px' });
+        observer.observe(dataSection);
+    } else {
+        loadCollection();
+    }
 </script>
 {% endblock %}

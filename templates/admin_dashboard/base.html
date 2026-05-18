@@ -92,6 +92,15 @@
             letter-spacing: 0;
         }
 
+        /* Slim scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.45); }
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.18); }
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.35); }
+        * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.25) transparent; }
+
         a { color: inherit; }
         label,
         .form-label,
@@ -119,25 +128,41 @@
             color: var(--ink) !important;
         }
 
-        .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+        .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); transition: grid-template-columns .25s ease; }
+        .app-shell.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
         .sidebar {
             position: sticky;
             top: 0;
             height: 100vh;
-            overflow-y: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             background: var(--nav);
             color: #fff;
-            padding: 18px 14px;
             border-right: 1px solid #0b1220;
+            transition: width .25s ease, opacity .2s ease;
+        }
+        .app-shell.sidebar-collapsed .sidebar { width: 0; opacity: 0; pointer-events: none; }
+
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 14px 18px;
         }
 
         .brand {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 10px 18px;
+            min-height: 64px;
+            padding: 0 24px;
             text-decoration: none;
             font-weight: 800;
+            font-size: clamp(18px, 1.25vw, 26px);
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .brand-mark {
@@ -147,6 +172,7 @@
             display: grid;
             place-items: center;
             background: #0f766e;
+            flex-shrink: 0;
         }
 
         .nav-section {
@@ -155,6 +181,7 @@
             font-weight: 800;
             text-transform: uppercase;
             margin: 18px 10px 8px;
+            white-space: nowrap;
         }
 
         .side-link {
@@ -167,6 +194,7 @@
             text-decoration: none;
             font-weight: 650;
             min-height: 42px;
+            white-space: nowrap;
         }
 
         .side-link:hover,
@@ -175,7 +203,7 @@
             color: #fff;
         }
 
-        .side-link i { width: 18px; text-align: center; }
+        .side-link i { width: 18px; text-align: center; flex-shrink: 0; }
         .main { min-width: 0; }
         .topbar {
             position: sticky;
@@ -192,13 +220,16 @@
         }
 
         .menu-button {
-            display: none;
+            display: grid;
+            place-items: center;
             width: 40px;
             height: 40px;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: var(--control);
             color: var(--ink);
+            cursor: pointer;
+            flex-shrink: 0;
         }
 
         .page-title {
@@ -541,31 +572,73 @@
         }
 
         @media (max-width: 980px) {
-            .app-shell { display: block; }
+            .app-shell { display: block; grid-template-columns: none !important; }
+            .app-shell.sidebar-collapsed .sidebar { width: min(88vw, 320px); padding: 0 14px 18px; opacity: 1; pointer-events: auto; }
             .sidebar {
                 position: fixed;
                 z-index: 40;
                 transform: translateX(-100%);
                 transition: transform .18s ease;
                 width: min(88vw, 320px);
+                height: 100vh;
             }
             .sidebar.open { transform: translateX(0); }
             .sidebar-backdrop.show { display: block; }
-            .menu-button { display: grid; place-items: center; }
             .topbar { gap: 10px; }
         }
 
         @media (max-width: 560px) {
-            .topbar { align-items: flex-start; }
-            .user-chip span { display: none; }
+            .topbar { align-items: center; }
+            .user-chip > span:not(.avatar-dot) { display: none; }
+            .user-chip > i { display: none; }
             .content { padding: 12px; }
             .topbar-actions { gap: 6px; }
             .lang-button span { display: none; }
         }
+
+        /* Global Page Loader */
+        #globalLoader {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: none; /* hidden by default */
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #globalLoader.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255,255,255,.2);
+            border-bottom-color: var(--blue);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <div id="globalLoader">
+        <span class="spinner"></span>
+        <div style="font-weight:700;letter-spacing:.5px" data-i18n="common.loading">Loading...</div>
+    </div>
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
@@ -574,6 +647,7 @@
                 <span>Movie Admin</span>
             </a>
 
+            <div class="sidebar-menu">
             <div class="nav-section" data-i18n="nav.operate">Operate</div>
             <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
                 <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
@@ -585,7 +659,27 @@
                 <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
             </a>
 
+            <div class="nav-section" data-i18n="nav.media">Media & Content</div>
+            <a class="side-link {% if 'movies' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:movies' %}">
+                <i class="fas fa-film"></i><span data-i18n="nav.movies">Movies</span>
+            </a>
+            <a class="side-link {% if 'tv_shows' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:tv_shows' %}">
+                <i class="fas fa-tv"></i><span data-i18n="nav.tvShows">TV Shows</span>
+            </a>
+            <a class="side-link {% if 'comments' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:comments' %}">
+                <i class="fas fa-comments"></i><span data-i18n="nav.comments">Comments</span>
+            </a>
+            <a class="side-link {% if 'rooms' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:rooms' %}">
+                <i class="fas fa-video"></i><span data-i18n="nav.rooms">Watch Rooms</span>
+            </a>
+            <a class="side-link {% if 'notifications' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:notifications' %}">
+                <i class="fas fa-bell"></i><span data-i18n="nav.notifications">Notifications</span>
+            </a>
+
             <div class="nav-section" data-i18n="nav.system">System</div>
+            <a class="side-link {% if 'cache' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:cache' %}">
+                <i class="fas fa-database"></i><span data-i18n="nav.cache">Cache</span>
+            </a>
             <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
                 <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>
             </a>
@@ -595,6 +689,7 @@
             <a class="side-link" href="{% url 'admin_dashboard:logout' %}">
                 <i class="fas fa-right-from-bracket"></i><span data-i18n="nav.logout">Logout</span>
             </a>
+            </div>
         </aside>
 
         <section class="main">
@@ -606,16 +701,36 @@
                     <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}Admin Dashboard{% endblock %}</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme" title="Toggle theme">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <button class="lang-button" id="langToggle" type="button" aria-label="Switch language" title="Switch language">
-                        <i class="fas fa-language"></i><span>VI</span>
-                    </button>
-                    <a class="user-chip" href="{% url 'admin:password_change' %}">
-                        <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
-                        <span>{{ request.user.username }}</span>
-                    </a>
+                    <div class="dropdown">
+                        <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background:transparent; border:none; padding:0; gap:8px;">
+                            <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
+                            <span>{{ request.user.username }}</span>
+                            <i class="fas fa-chevron-down ms-1 text-muted" style="font-size: 12px;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-1 mt-2" style="min-width: 220px; border-radius: var(--radius); border-color: var(--line); background: var(--panel);">
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center gap-3 py-2" id="themeToggle" type="button" style="color: var(--ink);">
+                                    <i class="fas fa-moon fa-fw text-muted"></i> <span data-i18n="theme.toggle">Dark/Light Mode</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center gap-3 py-2" id="langToggle" type="button" style="color: var(--ink);">
+                                    <i class="fas fa-language fa-fw text-muted"></i> <span data-i18n="language.toggle">Switch Language</span>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider" style="border-color: var(--line);"></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin:password_change' %}" style="color: var(--ink);">
+                                    <i class="fas fa-key fa-fw text-muted"></i> <span data-i18n="nav.changePassword">Change Password</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-3 py-2 text-danger" href="{% url 'admin_dashboard:logout' %}">
+                                    <i class="fas fa-right-from-bracket fa-fw text-danger"></i> <span data-i18n="nav.logout">Logout</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </header>
 
@@ -642,12 +757,23 @@
                 'nav.users': 'Users',
                 'nav.watchlist': 'Watchlist',
                 'nav.system': 'System',
+                'nav.cache': 'Cache',
                 'nav.adminAccounts': 'Admin Accounts',
                 'nav.djangoAdmin': 'Django Admin',
+                'nav.changePassword': 'Change Password',
                 'nav.logout': 'Logout',
+                'nav.media': 'Media & Content',
+                'nav.movies': 'Movies',
+                'nav.tvShows': 'TV Shows',
+                'nav.comments': 'Comments',
+                'nav.rooms': 'Watch Rooms',
+                'nav.notifications': 'Notifications',
+                'theme.toggle': 'Dark/Light Mode',
                 'theme.light': 'Light mode',
                 'theme.dark': 'Dark mode',
-                'language.next': 'Switch language'
+                'language.toggle': 'Switch Language',
+                'language.next': 'Switch language',
+                'common.loading': 'Loading...'
             },
             vi: {
                 'nav.operate': 'Vận hành',
@@ -655,12 +781,23 @@
                 'nav.users': 'Người dùng',
                 'nav.watchlist': 'Danh sách xem',
                 'nav.system': 'Hệ thống',
+                'nav.cache': 'Bộ nhớ đệm',
                 'nav.adminAccounts': 'Tài khoản admin',
                 'nav.djangoAdmin': 'Django Admin',
+                'nav.changePassword': 'Đổi mật khẩu',
                 'nav.logout': 'Đăng xuất',
+                'nav.media': 'Đa phương tiện',
+                'nav.movies': 'Phim lẻ',
+                'nav.tvShows': 'Phim bộ',
+                'nav.comments': 'Bình luận',
+                'nav.rooms': 'Phòng xem',
+                'nav.notifications': 'Thông báo',
+                'theme.toggle': 'Giao diện Sáng/Tối',
                 'theme.light': 'Giao diện sáng',
                 'theme.dark': 'Giao diện tối',
-                'language.next': 'Đổi ngôn ngữ'
+                'language.toggle': 'Đổi ngôn ngữ',
+                'language.next': 'Đổi ngôn ngữ',
+                'common.loading': 'Đang tải...'
             }
         };
 
@@ -729,17 +866,39 @@
         const themeToggle = document.getElementById('themeToggle');
         const langToggle = document.getElementById('langToggle');
 
+        const appShell = document.querySelector('.app-shell');
+        const isMobile = () => window.innerWidth <= 980;
+
+        // Restore desktop sidebar state
+        if (!isMobile() && localStorage.getItem('sidebar-collapsed') === 'true') {
+            appShell?.classList.add('sidebar-collapsed');
+        }
+
         function closeSidebar() {
             sidebar.classList.remove('open');
             backdrop.classList.remove('show');
         }
 
         menuButton?.addEventListener('click', () => {
-            sidebar.classList.add('open');
-            backdrop.classList.add('show');
+            if (isMobile()) {
+                sidebar.classList.add('open');
+                backdrop.classList.add('show');
+            } else {
+                appShell.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebar-collapsed', appShell.classList.contains('sidebar-collapsed'));
+            }
         });
         backdrop?.addEventListener('click', closeSidebar);
-        document.querySelectorAll('.side-link').forEach(link => link.addEventListener('click', closeSidebar));
+        document.querySelectorAll('.side-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                closeSidebar();
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('#') && !link.classList.contains('active')) {
+                    const loader = document.getElementById('globalLoader');
+                    if (loader) loader.classList.add('active');
+                }
+            });
+        });
         themeToggle?.addEventListener('click', () => {
             applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
         });
