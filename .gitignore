@@ -36,3 +36,6 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+ADMIN_SETUP.md
+RAILWAY_DEPLOY.md
