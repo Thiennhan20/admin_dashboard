@@ -1,0 +1,286 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Notifications Management - Admin Panel{% endblock %}
+{% block page_title %}Notifications Management{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-2">
+                            <i class="fas fa-bell me-2"></i>Notifications & System Broadcasts
+                        </h5>
+                        <p class="text-muted mb-0">View user notification history and broadcast new system updates or announcements.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="row mb-4">
+    <div class="col-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="fas fa-info-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Dispatch Announcement Form -->
+    <div class="col-xl-4 col-lg-5 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-bullhorn me-2"></i>Broadcast System Update
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="broadcast">
+                    
+                    <div class="mb-3">
+                        <label for="broadcastType" class="form-label">Notification Type</label>
+                        <select class="form-select" id="broadcastType" name="type" required>
+                            <option value="version_updated">Version Updated / Announcement</option>
+                            <option value="friend_accept">System Alert</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="broadcastTitle" class="form-label">Broadcast Title</label>
+                        <input type="text" class="form-control" id="broadcastTitle" name="title" 
+                               placeholder="e.g. New Streaming Servers Added" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="broadcastMessage" class="form-label">Notification Message</label>
+                        <textarea class="form-control" id="broadcastMessage" name="message" rows="4" 
+                                  placeholder="Type the message detail that will be shown in user notifications..." required></textarea>
+                    </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to broadcast this announcement to ALL users on the platform?');">
+                            <i class="fas fa-paper-plane me-2"></i>Send Broadcast
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notifications Log -->
+    <div class="col-xl-8 col-lg-7 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Notification Dispatch History
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if notifications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Recipient</th>
+                                    <th>Details</th>
+                                    <th>Status</th>
+                                    <th>Sent At</th>
+                                    <th class="text-end" width="150">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for noti in notifications %}
+                                <tr id="noti-row-{{ noti.id }}">
+                                    <td>
+                                        <div class="fw-semibold">{{ noti.recipient_name|default:"Unknown User" }}</div>
+                                        <small class="text-muted">{{ noti.recipient_email|default:"" }}</small>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <span class="badge bg-secondary text-capitalize" style="font-size: 0.75rem;">{{ noti.type }}</span>
+                                        </div>
+                                        <div class="small text-dark mt-1" style="max-width: 300px; white-space: normal; word-break: break-word;">
+                                            {% if noti.metadata.versionMessage %}
+                                                {{ noti.metadata.versionMessage }}
+                                            {% elif noti.metadata.commentPreview %}
+                                                Comment: "{{ noti.metadata.commentPreview }}"
+                                            {% else %}
+                                                Notification event triggered.
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span id="status-badge-{{ noti.id }}">
+                                            {% if noti.read %}
+                                                <span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-envelope-open me-1"></i>Read</span>
+                                            {% else %}
+                                                <span class="badge bg-warning bg-opacity-10 text-warning"><i class="fas fa-envelope me-1"></i>Unread</span>
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ noti.createdAt|slice:":10" }} {{ noti.createdAt|slice:"11:16" }}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group">
+                                            <button onclick="toggleRead('{{ noti.id }}', {% if noti.read %}false{% else %}true{% endif %})" 
+                                                    id="btn-read-{{ noti.id }}"
+                                                    class="btn btn-sm {% if noti.read %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                                                {% if noti.read %}
+                                                    <i class="fas fa-envelope me-1"></i>Unread
+                                                {% else %}
+                                                    <i class="fas fa-envelope-open me-1"></i>Read
+                                                {% endif %}
+                                            </button>
+                                            <button onclick="deleteNotification('{{ noti.id }}')" 
+                                                    class="btn btn-sm btn-outline-danger ms-1">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if total_pages > 1 %}
+                    <div class="card-footer bg-white border-top-0 py-3 d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Showing page {{ page }} of {{ total_pages }}</span>
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                <a class="page-link border-0" href="?page={{ page|add:"-1" }}"><i class="fas fa-chevron-left"></i></a>
+                            </li>
+                            {% for p in "x"|rjust:total_pages %}
+                                <li class="page-item {% if forloop.counter == page %}active{% endif %}">
+                                    <a class="page-link border-0 {% if forloop.counter == page %}rounded{% endif %}" href="?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+                                </li>
+                            {% endfor %}
+                            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                <a class="page-link border-0" href="?page={{ page|add:"1" }}"><i class="fas fa-chevron-right"></i></a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5 text-muted h-100 d-flex flex-column justify-content-center">
+                        <div class="mb-4">
+                            <i class="fas fa-inbox fa-4x text-light-subtle"></i>
+                        </div>
+                        <h5>No Notifications</h5>
+                        <p class="small mb-0">No notifications found in dispatch history.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleRead(notiId, read) {
+        const action = read ? 'read' : 'unread';
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/dashboard/api/mongo/notifications/${notiId}/${action}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const badge = document.getElementById(`status-badge-${notiId}`);
+                const btn = document.getElementById(`btn-read-${notiId}`);
+                
+                if (read) {
+                    badge.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-envelope-open me-1"></i>Read</span>`;
+                    btn.className = 'btn btn-sm btn-outline-warning';
+                    btn.innerHTML = `<i class="fas fa-envelope me-1"></i>Unread`;
+                    btn.setAttribute('onclick', `toggleRead('${notiId}', false)`);
+                    showAlert('Notification marked as read.', 'success');
+                } else {
+                    badge.innerHTML = `<span class="badge bg-warning bg-opacity-10 text-warning"><i class="fas fa-envelope me-1"></i>Unread</span>`;
+                    btn.className = 'btn btn-sm btn-outline-success';
+                    btn.innerHTML = `<i class="fas fa-envelope-open me-1"></i>Read`;
+                    btn.setAttribute('onclick', `toggleRead('${notiId}', true)`);
+                    showAlert('Notification marked as unread.', 'warning');
+                }
+            } else {
+                showAlert(`Error: ${data.error}`, 'danger');
+            }
+        })
+        .catch(err => {
+            showAlert(`Network error: ${err.message}`, 'danger');
+        });
+    }
+
+    function deleteNotification(notiId) {
+        if (!confirm('Are you sure you want to permanently delete this notification?')) {
+            return;
+        }
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/dashboard/api/mongo/notifications/${notiId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.getElementById(`noti-row-${notiId}`);
+                row.style.transition = 'all 0.5s ease';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    showAlert('Notification permanently deleted.', 'success');
+                }, 500);
+            } else {
+                showAlert(`Error: ${data.error}`, 'danger');
+            }
+        })
+        .catch(err => {
+            showAlert(`Network error: ${err.message}`, 'danger');
+        });
+    }
+
+    function showAlert(message, type) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 z-3`;
+        alert.style.minWidth = '300px';
+        alert.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        alert.innerHTML = `
+            <i class="fas fa-info-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        }, 4000);
+    }
+</script>
+{% endblock %}

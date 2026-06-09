@@ -1,0 +1,275 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Comments Management - Admin Panel{% endblock %}
+{% block page_title %}Comments Management{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-2">
+                            <i class="fas fa-comments me-2"></i>User Comments Moderation
+                        </h5>
+                        <p class="text-muted mb-0">Search, monitor, and moderate comments posted on movies or TV shows.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-search me-2"></i>Search & Filter
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" id="filterForm">
+            <div class="row g-3">
+                <div class="col-lg-6 col-md-6">
+                    <label for="search" class="form-label">Search Content</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ search }}" placeholder="Search comment text...">
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Comments</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                        <option value="deleted" {% if status_filter == 'deleted' %}selected{% endif %}>Moderated/Hidden Only</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-12 d-flex align-items-end">
+                    <div class="d-grid gap-2 w-100">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter me-1"></i>Apply Filter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Comments List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Comments (Total: {{ total }})
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if comments %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>User</th>
+                            <th>Comment Text</th>
+                            <th>Target Media</th>
+                            <th>Likes</th>
+                            <th>Created At</th>
+                            <th>Status</th>
+                            <th class="text-end" width="180">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comment in comments %}
+                        <tr id="comment-row-{{ comment.id }}">
+                            <td>
+                                <div class="fw-semibold">{{ comment.user.name|default:"Unknown User" }}</div>
+                                <small class="text-muted">{{ comment.user.email|default:"" }}</small>
+                            </td>
+                            <td>
+                                <div style="max-width: 400px; white-space: normal; word-break: break-word;">
+                                    {{ comment.content }}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <span class="badge bg-info bg-opacity-10 text-info text-capitalize">{{ comment.type }}</span>
+                                    <small class="text-muted ms-1">ID: {{ comment.movieId }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-thumbs-up me-1"></i>{{ comment.likes|length|default:"0" }}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ comment.createdAt|slice:":10" }} {{ comment.createdAt|slice:"11:16" }}</small>
+                            </td>
+                            <td>
+                                <span id="status-badge-{{ comment.id }}">
+                                    {% if comment.isDeleted %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-eye-slash me-1"></i>Hidden</span>
+                                    {% else %}
+                                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <button onclick="toggleComment('{{ comment.id }}', '{{ comment.isDeleted }}' !== 'True')" 
+                                            id="btn-toggle-{{ comment.id }}"
+                                            class="btn btn-sm {% if comment.isDeleted %}btn-outline-success{% else %}btn-outline-warning{% endif %}">
+                                        {% if comment.isDeleted %}
+                                            <i class="fas fa-eye me-1"></i>Restore
+                                        {% else %}
+                                            <i class="fas fa-eye-slash me-1"></i>Hide
+                                        {% endif %}
+                                    </button>
+                                    <button onclick="deleteComment('{{ comment.id }}')" 
+                                            class="btn btn-sm btn-outline-danger ms-1">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="card-footer bg-white border-top-0 py-3 d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Showing page {{ page }} of {{ total_pages }}</span>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link border-0" href="?page={{ page|add:"-1" }}&search={{ search }}&status={{ status_filter }}"><i class="fas fa-chevron-left"></i></a>
+                    </li>
+                    {% for p in "x"|rjust:total_pages %}
+                        <li class="page-item {% if forloop.counter == page %}active{% endif %}">
+                            <a class="page-link border-0 {% if forloop.counter == page %}rounded{% endif %}" href="?page={{ forloop.counter }}&search={{ search }}&status={{ status_filter }}">{{ forloop.counter }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                        <a class="page-link border-0" href="?page={{ page|add:"1" }}&search={{ search }}&status={{ status_filter }}"><i class="fas fa-chevron-right"></i></a>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <div class="mb-4">
+                    <i class="fas fa-comments fa-4x text-light-subtle"></i>
+                </div>
+                <h5>No Comments Found</h5>
+                <p class="small mb-0">No user comments match the current filters.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleComment(commentId, hide) {
+        const action = hide ? 'hide' : 'restore';
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/dashboard/api/mongo/comments/${commentId}/${action}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const badge = document.getElementById(`status-badge-${commentId}`);
+                const btn = document.getElementById(`btn-toggle-${commentId}`);
+                
+                if (hide) {
+                    badge.innerHTML = `<span class="badge bg-warning text-dark"><i class="fas fa-eye-slash me-1"></i>Hidden</span>`;
+                    btn.className = 'btn btn-sm btn-outline-success';
+                    btn.innerHTML = `<i class="fas fa-eye me-1"></i>Restore`;
+                    btn.setAttribute('onclick', `toggleComment('${commentId}', false)`);
+                    showAlert('Comment has been hidden.', 'warning');
+                } else {
+                    badge.innerHTML = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Active</span>`;
+                    btn.className = 'btn btn-sm btn-outline-warning';
+                    btn.innerHTML = `<i class="fas fa-eye-slash me-1"></i>Hide`;
+                    btn.setAttribute('onclick', `toggleComment('${commentId}', true)`);
+                    showAlert('Comment has been restored.', 'success');
+                }
+            } else {
+                showAlert(`Error: ${data.error}`, 'danger');
+            }
+        })
+        .catch(err => {
+            showAlert(`Network error: ${err.message}`, 'danger');
+        });
+    }
+
+    function deleteComment(commentId) {
+        if (!confirm('Are you sure you want to permanently delete this comment and its replies? This action cannot be undone.')) {
+            return;
+        }
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/dashboard/api/mongo/comments/${commentId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.getElementById(`comment-row-${commentId}`);
+                row.style.transition = 'all 0.5s ease';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    showAlert('Comment permanently deleted.', 'success');
+                }, 500);
+            } else {
+                showAlert(`Error: ${data.error}`, 'danger');
+            }
+        })
+        .catch(err => {
+            showAlert(`Network error: ${err.message}`, 'danger');
+        });
+    }
+
+    function showAlert(message, type) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 z-3`;
+        alert.style.minWidth = '300px';
+        alert.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        alert.innerHTML = `
+            <i class="fas fa-info-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        }, 4000);
+    }
+</script>
+{% endblock %}

@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import user_passes_test
 from .models import AdminProfile
-from .services import MONGO_COLLECTIONS, mongo_admin, public_rooms, server_health
+from .services import MONGO_COLLECTIONS, mongo_admin, public_rooms, server_health, clean_value
 import requests
 import json
 from datetime import datetime
@@ -901,86 +901,501 @@ def admin_delete(request, admin_id):
         messages.error(request, f'Lỗi khi xóa admin: {str(e)}')
         return redirect('admin_dashboard:admin_list')
 
-@login_required
-@user_passes_test(check_admin_access, login_url='/dashboard/login/')
-def placeholder_movies(request):
-    context = {
-        'title': 'Movies',
-        'key': 'movies',
-        'columns': ['ID', 'Title', 'Release Date', 'Rating', 'Status'],
-        'data': [
-            ['MV-001', 'Dune: Part Two', '2024-03-01', '8.8', 'Active'],
-            ['MV-002', 'Oppenheimer', '2023-07-21', '8.4', 'Active'],
-            ['MV-003', 'The Batman', '2022-03-04', '7.9', 'Active'],
-            ['MV-004', 'Spider-Man: Across the Spider-Verse', '2023-06-02', '8.7', 'Active'],
-            ['MV-005', 'Interstellar', '2014-11-07', '8.6', 'Active'],
-        ]
-    }
-    return render(request, 'admin_dashboard/placeholder.html', context)
+# Helper to check if API is online
+def check_api_status():
+    try:
+        response = requests.get(f'{settings.SERVER_URL}/health', timeout=3)
+        if response.ok:
+            return {'status': 'online'}
+        return {'status': 'error', 'message': f'HTTP {response.status_code}'}
+    except Exception as e:
+        return {'status': 'offline', 'message': str(e)}
+
+def flat_list_to_dict(flat_list):
+    if not flat_list:
+        return {}
+    res = {}
+    for i in range(0, len(flat_list), 2):
+        if i + 1 < len(flat_list):
+            res[flat_list[i]] = flat_list[i+1]
+    return res
+
+def _upstash_rooms(command_args):
+    """Execute a single Upstash Redis REST command on the rooms database and return the result."""
+    url = settings.UPSTASH_REDIS_ROOMS_URL
+    token = settings.UPSTASH_REDIS_ROOMS_TOKEN
+    if not url or not token:
+        return None
+    resp = requests.post(
+        url,
+        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        json=command_args,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp.json().get('result')
+
+def _upstash_rooms_pipeline(commands):
+    """Execute multiple Redis commands in a single Upstash pipeline request on the rooms database."""
+    url = settings.UPSTASH_REDIS_ROOMS_URL
+    token = settings.UPSTASH_REDIS_ROOMS_TOKEN
+    if not url or not token:
+        return None
+    resp = requests.post(
+        f'{url}/pipeline',
+        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        json=commands,
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return [item.get('result') for item in resp.json()]
+
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
-def placeholder_tv(request):
-    context = {
-        'title': 'TV Shows',
-        'key': 'tvShows',
-        'columns': ['ID', 'Title', 'Seasons', 'Rating', 'Status'],
-        'data': [
-            ['TV-001', 'Breaking Bad', '5', '9.5', 'Active'],
-            ['TV-002', 'Game of Thrones', '8', '9.2', 'Active'],
-            ['TV-003', 'Stranger Things', '4', '8.7', 'Active'],
-            ['TV-004', 'The Office', '9', '8.9', 'Active'],
-            ['TV-005', 'Better Call Saul', '6', '8.9', 'Active'],
-        ]
-    }
-    return render(request, 'admin_dashboard/placeholder.html', context)
+def movies_list(request):
+    """Quản lý Movies"""
+    db = mongo_admin.db()
+    
+    # Xử lý xóa phim khỏi hệ thống
+    if request.method == 'POST' and request.POST.get('action') == 'delete_media':
+        media_id = request.POST.get('media_id')
+        is_tv = request.POST.get('is_tv') == 'true'
+        if media_id:
+            try:
+                # 1. Xóa lịch sử xem phim
+                del_progress = db.watchprogresses.delete_many({
+                    'contentId': media_id,
+                    'isTVShow': is_tv
+                })
+                # 2. Xóa khỏi watchlist của tất cả người dùng
+                try:
+                    media_id_int = int(media_id)
+                except ValueError:
+                    media_id_int = media_id
+                
+                del_watchlist = db.users.update_many(
+                    {},
+                    {'$pull': {'watchlist': {'id': media_id_int}}}
+                )
+                messages.success(request, f'Đã xóa phim thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists và {del_progress.deleted_count} watch histories.')
+            except Exception as e:
+                messages.error(request, f'Lỗi khi xóa phim: {str(e)}')
+            return redirect('admin_dashboard:movies')
+
+    try:
+        # Aggregation: lấy danh sách phim từ watchlist và watch progress
+        users = list(db.users.find({}, {'watchlist': 1}))
+        movies_map = {}
+        total_watchlist_count = 0
+        
+        for u in users:
+            for item in u.get('watchlist', []):
+                item_type = item.get('type', 'movie')
+                if item_type == 'movie':
+                    total_watchlist_count += 1
+                    movie_id = str(item.get('id'))
+                    if movie_id not in movies_map:
+                        movies_map[movie_id] = {
+                            'id': movie_id,
+                            'title': item.get('title'),
+                            'poster': item.get('poster_path'),
+                            'watchlist_count': 0,
+                            'progress_count': 0,
+                            'last_watched': None
+                        }
+                    movies_map[movie_id]['watchlist_count'] += 1
+
+        progresses = list(db.watchprogresses.find({'isTVShow': {'$ne': True}}))
+        for p in progresses:
+            movie_id = str(p.get('contentId'))
+            if movie_id not in movies_map:
+                movies_map[movie_id] = {
+                    'id': movie_id,
+                    'title': p.get('title', 'Phim ' + movie_id),
+                    'poster': p.get('poster', ''),
+                    'watchlist_count': 0,
+                    'progress_count': 0,
+                    'last_watched': None
+                }
+            movies_map[movie_id]['progress_count'] += 1
+            p_last = p.get('lastWatched')
+            if p_last:
+                p_last_str = p_last.isoformat() if isinstance(p_last, datetime) else str(p_last)
+                if not movies_map[movie_id]['last_watched'] or p_last_str > movies_map[movie_id]['last_watched']:
+                    movies_map[movie_id]['last_watched'] = p_last_str
+                    
+        movies_list_data = sorted(movies_map.values(), key=lambda x: x['watchlist_count'], reverse=True)
+        context = {
+            'movies': movies_list_data,
+            'total_movies': len(movies_list_data),
+            'total_watchlist_count': total_watchlist_count,
+            'api_status': check_api_status()
+        }
+    except Exception as e:
+        context = {
+            'movies': [],
+            'total_movies': 0,
+            'total_watchlist_count': 0,
+            'error': f'Lỗi MongoDB: {str(e)}',
+            'api_status': {'status': 'offline'}
+        }
+    return render(request, 'admin_dashboard/movies/movies_list.html', context)
+
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
-def placeholder_comments(request):
-    context = {
-        'title': 'Comments',
-        'key': 'comments',
-        'columns': ['ID', 'User', 'Content', 'Target', 'Date'],
-        'data': [
-            ['CM-001', 'john_doe', 'Great movie!', 'MV-001', '2024-05-18'],
-            ['CM-002', 'jane_smith', 'I loved the ending.', 'TV-002', '2024-05-18'],
-            ['CM-003', 'movie_buff', 'Not bad, but could be better.', 'MV-003', '2024-05-17'],
-            ['CM-004', 'critic99', 'A masterpiece of cinema.', 'MV-002', '2024-05-17'],
-            ['CM-005', 'casual_watcher', 'Too long for my taste.', 'MV-005', '2024-05-16'],
-        ]
-    }
-    return render(request, 'admin_dashboard/placeholder.html', context)
+def tv_shows_list(request):
+    """Quản lý TV Shows"""
+    db = mongo_admin.db()
+    
+    # Xử lý xóa TV show khỏi hệ thống
+    if request.method == 'POST' and request.POST.get('action') == 'delete_media':
+        media_id = request.POST.get('media_id')
+        is_tv = request.POST.get('is_tv') == 'true'
+        if media_id:
+            try:
+                # 1. Xóa lịch sử xem phim
+                del_progress = db.watchprogresses.delete_many({
+                    'contentId': media_id,
+                    'isTVShow': is_tv
+                })
+                # 2. Xóa khỏi watchlist của tất cả người dùng
+                try:
+                    media_id_int = int(media_id)
+                except ValueError:
+                    media_id_int = media_id
+                
+                del_watchlist = db.users.update_many(
+                    {},
+                    {'$pull': {'watchlist': {'id': media_id_int}}}
+                )
+                messages.success(request, f'Đã xóa TV Show thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists và {del_progress.deleted_count} watch histories.')
+            except Exception as e:
+                messages.error(request, f'Lỗi khi xóa TV Show: {str(e)}')
+            return redirect('admin_dashboard:tv_shows')
+
+    try:
+        users = list(db.users.find({}, {'watchlist': 1}))
+        tv_map = {}
+        total_watchlist_count = 0
+        
+        for u in users:
+            for item in u.get('watchlist', []):
+                item_type = item.get('type', 'movie')
+                if item_type == 'tv':
+                    total_watchlist_count += 1
+                    show_id = str(item.get('id'))
+                    if show_id not in tv_map:
+                        tv_map[show_id] = {
+                            'id': show_id,
+                            'title': item.get('title'),
+                            'poster': item.get('poster_path'),
+                            'watchlist_count': 0,
+                            'progress_count': 0,
+                            'last_watched': None
+                        }
+                    tv_map[show_id]['watchlist_count'] += 1
+
+        progresses = list(db.watchprogresses.find({'isTVShow': True}))
+        for p in progresses:
+            show_id = str(p.get('contentId'))
+            if show_id not in tv_map:
+                tv_map[show_id] = {
+                    'id': show_id,
+                    'title': p.get('title', 'Phim bộ ' + show_id),
+                    'poster': p.get('poster', ''),
+                    'watchlist_count': 0,
+                    'progress_count': 0,
+                    'last_watched': None
+                }
+            tv_map[show_id]['progress_count'] += 1
+            p_last = p.get('lastWatched')
+            if p_last:
+                p_last_str = p_last.isoformat() if isinstance(p_last, datetime) else str(p_last)
+                if not tv_map[show_id]['last_watched'] or p_last_str > tv_map[show_id]['last_watched']:
+                    tv_map[show_id]['last_watched'] = p_last_str
+                    
+        tv_list = sorted(tv_map.values(), key=lambda x: x['watchlist_count'], reverse=True)
+        context = {
+            'tv_shows': tv_list,
+            'total_tv': len(tv_list),
+            'total_watchlist_count': total_watchlist_count,
+            'api_status': check_api_status()
+        }
+    except Exception as e:
+        context = {
+            'tv_shows': [],
+            'total_tv': 0,
+            'total_watchlist_count': 0,
+            'error': f'Lỗi MongoDB: {str(e)}',
+            'api_status': {'status': 'offline'}
+        }
+    return render(request, 'admin_dashboard/tv_shows/tv_shows_list.html', context)
+
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
-def placeholder_rooms(request):
-    context = {
-        'title': 'Watch Rooms',
-        'key': 'rooms',
-        'columns': ['ID', 'Host', 'Movie/TV', 'Viewers', 'Status'],
-        'data': [
-            ['RM-001', 'john_doe', 'Dune: Part Two', '12', 'Live'],
-            ['RM-002', 'jane_smith', 'Stranger Things', '5', 'Live'],
-            ['RM-003', 'movie_buff', 'The Batman', '8', 'Live'],
-        ]
-    }
-    return render(request, 'admin_dashboard/placeholder.html', context)
+def comments_list(request):
+    """Danh sách và kiểm duyệt bình luận"""
+    page = int(request.GET.get('page', 1))
+    limit = int(request.GET.get('limit', 20))
+    search = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '')
+    
+    try:
+        query = {}
+        if search:
+            query['content'] = {'$regex': search, '$options': 'i'}
+            
+        if status_filter == 'deleted':
+            query['isDeleted'] = True
+        elif status_filter == 'active':
+            query['isDeleted'] = {'$ne': True}
+            
+        db = mongo_admin.db()
+        pipeline = []
+        if query:
+            pipeline.append({'$match': query})
+            
+        pipeline.extend([
+            {'$sort': {'createdAt': -1}},
+            {'$skip': (page - 1) * limit},
+            {'$limit': limit},
+            {'$lookup': {
+                'from': 'users',
+                'localField': 'userId',
+                'foreignField': '_id',
+                'as': 'user',
+            }},
+            {'$unwind': {'path': '$user', 'preserveNullAndEmptyArrays': True}},
+            {'$project': {
+                'movieId': 1,
+                'type': 1,
+                'content': 1,
+                'likes': 1,
+                'isDeleted': 1,
+                'createdAt': 1,
+                'user.name': 1,
+                'user.email': 1,
+            }}
+        ])
+        
+        comments = list(db.comments.aggregate(pipeline))
+        comments = clean_value(comments)
+        for c in comments:
+            c['id'] = c.get('_id')
+        
+        total = db.comments.count_documents(query)
+        total_pages = max(1, -(-total // limit))
+        
+        context = {
+            'comments': comments,
+            'page': page,
+            'limit': limit,
+            'total': total,
+            'total_pages': total_pages,
+            'search': search,
+            'status_filter': status_filter,
+            'api_status': check_api_status()
+        }
+    except Exception as e:
+        context = {
+            'comments': [],
+            'page': page,
+            'limit': limit,
+            'total': 0,
+            'total_pages': 1,
+            'error': f'Lỗi MongoDB: {str(e)}',
+            'api_status': {'status': 'offline'}
+        }
+    return render(request, 'admin_dashboard/comments/comments_list.html', context)
+
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
-def placeholder_notifications(request):
-    context = {
-        'title': 'Notifications',
-        'key': 'notifications',
-        'columns': ['ID', 'Type', 'Title', 'Sent', 'Status'],
-        'data': [
-            ['NT-001', 'System', 'Welcome to Movie Admin', '2024-05-18', 'Sent'],
-            ['NT-002', 'Alert', 'Server Maintenance', '2024-05-17', 'Sent'],
-            ['NT-003', 'Promo', 'New Features Added', '2024-05-15', 'Sent'],
+def rooms_list(request):
+    """Danh sách và quản lý phòng xem chung (Watch Rooms) từ Redis"""
+    if request.method == 'POST' and request.POST.get('action') == 'delete':
+        room_id = request.POST.get('room_id')
+        if room_id:
+            try:
+                _upstash_rooms(['DEL', f'room:{room_id}'])
+                _upstash_rooms(['DEL', f'room:{room_id}:users'])
+                _upstash_rooms(['DEL', f'room:{room_id}:grace'])
+                messages.success(request, f'Đã kết thúc phòng {room_id} thành công!')
+            except Exception as e:
+                messages.error(request, f'Lỗi khi đóng phòng: {str(e)}')
+            return redirect('admin_dashboard:rooms')
+            
+    try:
+        keys = []
+        cursor = '0'
+        while True:
+            res = _upstash_rooms(['SCAN', cursor, 'MATCH', 'room:ROOM-*', 'COUNT', '500'])
+            if not res:
+                break
+            cursor = str(res[0])
+            keys.extend(res[1])
+            if cursor == '0':
+                break
+        
+        room_keys = [k for k in keys if ':' not in k.replace('room:ROOM-', '')]
+        
+        rooms_data = []
+        if room_keys:
+            commands = []
+            for k in room_keys:
+                commands.append(['HGETALL', k])
+                commands.append(['TTL', k])
+                room_id = k.split(':')[-1]
+                commands.append(['SCARD', f'room:{room_id}:users'])
+                
+            pipeline_res = _upstash_rooms_pipeline(commands)
+            
+            for i, k in enumerate(room_keys):
+                room_id = k.split(':')[-1]
+                raw_hash = pipeline_res[3*i]
+                ttl = pipeline_res[3*i + 1]
+                member_count = pipeline_res[3*i + 2]
+                
+                data = flat_list_to_dict(raw_hash)
+                if not data or not data.get('host_id'):
+                    continue
+                
+                try:
+                    created_at_ms = int(data.get('created_at', 0))
+                    created_time = datetime.fromtimestamp(created_at_ms / 1000.0) if created_at_ms else None
+                except:
+                    created_time = None
+                    
+                rooms_data.append({
+                    'room_id': room_id,
+                    'title': data.get('title', 'Phòng xem phim'),
+                    'host_id': data.get('host_id'),
+                    'host_name': data.get('host_name', 'Host'),
+                    'host_avatar': data.get('host_avatar', ''),
+                    'content_type': data.get('content_type', 'movie'),
+                    'season': data.get('season'),
+                    'current_episode': data.get('current_episode'),
+                    'status': data.get('status', 'WAITING'),
+                    'member_count': member_count,
+                    'max_users': data.get('max_users', 2),
+                    'created_at': created_time,
+                    'ttl': ttl,
+                    'stream_url': data.get('stream_url', '')
+                })
+        
+        rooms_data.sort(key=lambda x: x['created_at'] or datetime.min, reverse=True)
+        context = {
+            'rooms': rooms_data,
+            'total_rooms': len(rooms_data),
+            'api_status': check_api_status()
+        }
+    except Exception as e:
+        context = {
+            'rooms': [],
+            'total_rooms': 0,
+            'error': f'Lỗi kết nối Redis: {str(e)}',
+            'api_status': {'status': 'offline'}
+        }
+    return render(request, 'admin_dashboard/rooms/rooms_list.html', context)
+
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+def notifications_list(request):
+    """Lịch sử thông báo và phát thông báo hệ thống"""
+    db = mongo_admin.db()
+    
+    if request.method == 'POST' and request.POST.get('action') == 'broadcast':
+        noti_type = request.POST.get('type', 'version_updated')
+        title = request.POST.get('title', 'Thông báo hệ thống').strip()
+        message = request.POST.get('message', '').strip()
+        
+        try:
+            users = list(db.users.find({}, {'_id': 1}))
+            meta = {
+                'versionHash': 'SYSTEM_' + datetime.utcnow().strftime('%Y%m%d%H%M%S'),
+                'versionMessage': f"{title}: {message}"
+            }
+            
+            notifications_to_insert = []
+            for u in users:
+                notifications_to_insert.append({
+                    'recipient': u['_id'],
+                    'actor': None,
+                    'type': noti_type,
+                    'read': False,
+                    'readAt': None,
+                    'metadata': meta,
+                    'createdAt': datetime.utcnow(),
+                    'updatedAt': datetime.utcnow()
+                })
+                
+            if notifications_to_insert:
+                batch_size = 500
+                for idx in range(0, len(notifications_to_insert), batch_size):
+                    db.notifications.insert_many(notifications_to_insert[idx : idx + batch_size])
+                    
+            messages.success(request, f'Đã phát thông báo thành công tới {len(users)} người dùng!')
+        except Exception as e:
+            messages.error(request, f'Lỗi gửi thông báo: {str(e)}')
+        return redirect('admin_dashboard:notifications')
+        
+    page = int(request.GET.get('page', 1))
+    limit = 20
+    
+    try:
+        pipeline = [
+            {'$sort': {'createdAt': -1}},
+            {'$skip': (page - 1) * limit},
+            {'$limit': limit},
+            {'$lookup': {
+                'from': 'users',
+                'localField': 'recipient',
+                'foreignField': '_id',
+                'as': 'recipient_user',
+            }},
+            {'$unwind': {'path': '$recipient_user', 'preserveNullAndEmptyArrays': True}},
+            {'$project': {
+                'recipient': 1,
+                'actor': 1,
+                'type': 1,
+                'read': 1,
+                'readAt': 1,
+                'metadata': 1,
+                'createdAt': 1,
+                'recipient_name': '$recipient_user.name',
+                'recipient_email': '$recipient_user.email',
+            }}
         ]
-    }
-    return render(request, 'admin_dashboard/placeholder.html', context)
+        
+        notifications = list(db.notifications.aggregate(pipeline))
+        notifications = clean_value(notifications)
+        for n in notifications:
+            n['id'] = n.get('_id')
+        
+        total = db.notifications.count_documents({})
+        total_pages = max(1, -(-total // limit))
+        
+        context = {
+            'notifications': notifications,
+            'page': page,
+            'total': total,
+            'total_pages': total_pages,
+            'api_status': check_api_status()
+        }
+    except Exception as e:
+        context = {
+            'notifications': [],
+            'page': page,
+            'total': 0,
+            'total_pages': 1,
+            'error': f'Lỗi MongoDB: {str(e)}',
+            'api_status': {'status': 'offline'}
+        }
+    return render(request, 'admin_dashboard/notifications/notifications_list.html', context)
 
 
 # ── Upstash Redis cache management ──────────────────────────────────

@@ -1,1 +1,0 @@
-web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn admin_pannel.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level warning --access-logfile - --error-logfile -

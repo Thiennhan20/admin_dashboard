@@ -74,11 +74,11 @@ DEBUG = env_bool('DEBUG', True)
 
 ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
-    ['localhost', '127.0.0.1', '.railway.app', '.up.railway.app'],
+    ['localhost', '127.0.0.1'],
 )
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
-    ['https://*.railway.app', 'https://*.up.railway.app'],
+    [],
 )
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', not DEBUG)
@@ -134,36 +134,36 @@ TEMPLATES = [
 WSGI_APPLICATION = 'admin_pannel.wsgi.application'
 
 
-# Database: Railway Postgres
-# Set DATABASE_URL to the Railway public connection URL, for example:
-# postgresql://postgres:password@ballast.proxy.rlwy.net:39266/railway
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Database: PostgreSQL
+# Set DATABASE_URL to your PostgreSQL connection URL, for example:
+# postgresql://user:password@host:port/dbname
+USE_SQLITE = env_bool('USE_SQLITE', False) or not os.environ.get('DATABASE_URL')
 
-if not DATABASE_URL:
-    raise ImproperlyConfigured(
-        'DATABASE_URL is required. Set it to your Railway Postgres connection URL.'
-    )
-
-parsed_database_url = urlparse(DATABASE_URL)
-
-if parsed_database_url.scheme not in ('postgres', 'postgresql'):
-    raise ImproperlyConfigured('DATABASE_URL must start with postgres:// or postgresql://')
-
-database_options = dict(parse_qsl(parsed_database_url.query))
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'admin_pannel.db.backends.postgresql_retry',
-        'NAME': unquote(parsed_database_url.path.lstrip('/')),
-        'USER': unquote(parsed_database_url.username or ''),
-        'PASSWORD': unquote(parsed_database_url.password or ''),
-        'HOST': parsed_database_url.hostname or '',
-        'PORT': str(parsed_database_url.port or ''),
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
-
-if database_options:
-    DATABASES['default']['OPTIONS'] = database_options
+else:
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    parsed_database_url = urlparse(DATABASE_URL)
+    if parsed_database_url.scheme not in ('postgres', 'postgresql'):
+        raise ImproperlyConfigured('DATABASE_URL must start with postgres:// or postgresql://')
+    database_options = dict(parse_qsl(parsed_database_url.query))
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': unquote(parsed_database_url.path.lstrip('/')),
+            'USER': unquote(parsed_database_url.username or ''),
+            'PASSWORD': unquote(parsed_database_url.password or ''),
+            'HOST': parsed_database_url.hostname or '',
+            'PORT': str(parsed_database_url.port or ''),
+        }
+    }
+    if database_options:
+        DATABASES['default']['OPTIONS'] = database_options
 
 
 # Deployed app endpoints
@@ -175,6 +175,8 @@ MONGODB_URI = os.environ.get('MONGODB_URI', '')
 MONGODB_NAME = os.environ.get('MONGODB_NAME', '')
 UPSTASH_REDIS_URL = os.environ.get('UPSTASH_REDIS_REST_CACHE_URL', '')
 UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_REST_CACHE_TOKEN', '')
+UPSTASH_REDIS_ROOMS_URL = os.environ.get('UPSTASH_REDIS_REST_URL', '')
+UPSTASH_REDIS_ROOMS_TOKEN = os.environ.get('UPSTASH_REDIS_REST_TOKEN', '')
 
 
 # Password validation

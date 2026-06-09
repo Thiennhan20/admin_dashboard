@@ -1,0 +1,251 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Watch Rooms Management - Admin Panel{% endblock %}
+{% block page_title %}Watch Rooms Management{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-2">
+                            <i class="fas fa-tv me-2"></i>Active Watch Rooms
+                        </h5>
+                        <p class="text-muted mb-0">Monitor and manage active Watch Party room sessions hosted by users.</p>
+                    </div>
+                    <div>
+                        <button onclick="window.location.reload()" class="btn btn-success">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh Rooms
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                    <i class="fas fa-video text-primary fa-lg"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1 text-primary">{{ total_rooms }}</h4>
+                    <p class="text-muted mb-0">Total Active Rooms</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                    <i class="fas fa-users text-success fa-lg"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1 text-success" id="viewerCount">Calculating...</h4>
+                    <p class="text-muted mb-0">Total Active Viewers</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                    <i class="fas fa-hourglass-half text-info fa-lg"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1 text-info">6 Hours</h4>
+                    <p class="text-muted mb-0">Max Session TTL</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rooms Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Room Listing
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if rooms %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Room ID</th>
+                            <th>Host</th>
+                            <th>Streaming Title</th>
+                            <th>Info</th>
+                            <th>Viewers</th>
+                            <th>TTL</th>
+                            <th class="text-end" width="150">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for room in rooms %}
+                        <tr class="room-row" data-viewers="{{ room.member_count }}">
+                            <td>
+                                <span class="badge bg-secondary font-monospace" style="font-size: 0.9rem;">{{ room.room_id }}</span>
+                                {% if room.status == 'LIVE' %}
+                                    <span class="badge bg-danger ms-1 animate-pulse"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>LIVE</span>
+                                {% else %}
+                                    <span class="badge bg-warning ms-1 text-dark">WAITING</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if room.host_avatar %}
+                                        <img src="{{ room.host_avatar }}" alt="{{ room.host_name }}" 
+                                             class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                             style="width: 32px; height: 32px;">
+                                            <i class="fas fa-user text-white" style="font-size: 0.8rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-semibold">{{ room.host_name }}</div>
+                                        <small class="text-muted" style="font-size: 0.75rem;">ID: {{ room.host_id|truncatechars:10 }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ room.title }}</div>
+                                <div class="text-muted small text-truncate" style="max-width: 280px; font-size: 0.75rem;">
+                                    {{ room.stream_url }}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <span class="badge bg-info bg-opacity-10 text-info text-capitalize">{{ room.content_type }}</span>
+                                    {% if room.content_type == 'tvshow' %}
+                                        <span class="badge bg-teal bg-opacity-10 text-teal ms-1">
+                                            S{{ room.season|default:"1" }} E{{ room.current_episode|default:"1" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="fw-bold text-dark me-2">{{ room.member_count }}</span>
+                                    <div class="progress flex-grow-1" style="height: 6px; width: 60px; max-width: 60px;">
+                                        <div class="progress-bar {% if room.member_count >= room.max_users %}bg-danger{% else %}bg-success{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {% widthratio room.member_count room.max_users 100 %}%"></div>
+                                    </div>
+                                    <span class="text-muted small ms-1" style="font-size: 0.7rem;">/{{ room.max_users }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div id="ttl-{{ room.room_id }}" class="ttl-countdown text-muted small fw-semibold font-monospace" data-seconds="{{ room.ttl }}">
+                                    --:--:--
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to terminate this watch room? All users inside will be disconnected.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="room_id" value="{{ room.room_id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
+                                        <i class="fas fa-times-circle me-1"></i>Close Room
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <div class="mb-4">
+                    <i class="fas fa-door-closed fa-4x text-light-subtle"></i>
+                </div>
+                <h5>No Active Watch Parties</h5>
+                <p class="small mb-0">Users are not currently streaming in any rooms.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+    }
+    .animate-pulse {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate total viewers
+        let totalViewers = 0;
+        document.querySelectorAll('.room-row').forEach(row => {
+            const count = parseInt(row.dataset.viewers) || 0;
+            totalViewers += count;
+        });
+        const viewerCountEl = document.getElementById('viewerCount');
+        if (viewerCountEl) {
+            viewerCountEl.textContent = totalViewers;
+        }
+
+        // Format TTL counters
+        function updateCounters() {
+            document.querySelectorAll('.ttl-countdown').forEach(el => {
+                let seconds = parseInt(el.dataset.seconds);
+                if (isNaN(seconds) || seconds <= 0) {
+                    el.textContent = 'Expired';
+                    return;
+                }
+                
+                seconds -= 1;
+                el.dataset.seconds = seconds;
+                
+                const hrs = Math.floor(seconds / 3600);
+                const mins = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                
+                el.textContent = 
+                    (hrs < 10 ? '0' : '') + hrs + ':' +
+                    (mins < 10 ? '0' : '') + mins + ':' +
+                    (secs < 10 ? '0' : '') + secs;
+            });
+        }
+        
+        updateCounters();
+        setInterval(updateCounters, 1000);
+    });
+</script>
+{% endblock %}

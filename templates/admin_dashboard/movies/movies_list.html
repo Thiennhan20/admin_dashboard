@@ -1,0 +1,165 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Movies Management - Admin Panel{% endblock %}
+{% block page_title %}Movies Management{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-2">
+                            <i class="fas fa-film me-2"></i>Movies on Platform
+                        </h5>
+                        <p class="text-muted mb-0">Monitor movies in user watchlists and watch history. Remove copyright-infringed or inactive media from all accounts.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="row mb-4">
+    <div class="col-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="fas fa-info-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                    <i class="fas fa-film text-primary fa-lg"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1 text-primary">{{ total_movies }}</h4>
+                    <p class="text-muted mb-0">Total Unique Movies</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                    <i class="fas fa-heart text-success fa-lg"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1 text-success">{{ total_watchlist_count }}</h4>
+                    <p class="text-muted mb-0">Total Watchlist Saves</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Movies List -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Active Movies List</h6>
+    </div>
+    <div class="card-body p-0">
+        {% if movies %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="80">Poster</th>
+                            <th>TMDb ID</th>
+                            <th>Movie Title</th>
+                            <th>Watchlist Saves</th>
+                            <th>Watch History</th>
+                            <th>Last Watched</th>
+                            <th class="text-end" width="180">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movie in movies %}
+                        <tr>
+                            <td>
+                                {% if movie.poster %}
+                                    <img src="{% if 'http' in movie.poster %}{{ movie.poster }}{% else %}https://image.tmdb.org/t/p/w92{{ movie.poster }}{% endif %}" 
+                                         alt="{{ movie.title }}" 
+                                         class="rounded shadow-sm" style="width: 45px; height: 68px; object-fit: cover;">
+                                {% else %}
+                                    <div class="bg-secondary rounded d-flex align-items-center justify-content-center" 
+                                         style="width: 45px; height: 68px;">
+                                        <i class="fas fa-image text-white" style="font-size: 1.2rem;"></i>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary font-monospace" style="font-size: 0.95rem;">{{ movie.id }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ movie.title }}</div>
+                                <div class="text-muted small">ID: {{ movie.id }}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ movie.watchlist_count }} users</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ movie.progress_count }} plays</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if movie.last_watched %}
+                                        {{ movie.last_watched|slice:":10" }} {{ movie.last_watched|slice:"11:16" }}
+                                    {% else %}
+                                        Not watched yet
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="text-end">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete movie &quot;{{ movie.title }}&quot;? This will remove it from all users watchlists and watch history records.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_media">
+                                    <input type="hidden" name="media_id" value="{{ movie.id }}">
+                                    <input type="hidden" name="is_tv" value="false">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
+                                        <i class="fas fa-trash-alt me-1"></i>Delete from Platform
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <div class="mb-4">
+                    <i class="fas fa-film fa-4x text-light-subtle"></i>
+                </div>
+                <h5>No Movies Found</h5>
+                <p class="small mb-0">No movies are currently present in user watchlists or watch progress records.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+    }
+</style>
+{% endblock %}

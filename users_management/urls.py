@@ -33,11 +33,11 @@ urlpatterns = [
     path('admins/<int:admin_id>/delete/', views.admin_delete, name='admin_delete'),
     
     # Media Management
-    path('movies/', views.placeholder_movies, name='movies'),
-    path('tv-shows/', views.placeholder_tv, name='tv_shows'),
-    path('comments/', views.placeholder_comments, name='comments'),
-    path('rooms/', views.placeholder_rooms, name='rooms'),
-    path('notifications/', views.placeholder_notifications, name='notifications'),
+    path('movies/', views.movies_list, name='movies'),
+    path('tv-shows/', views.tv_shows_list, name='tv_shows'),
+    path('comments/', views.comments_list, name='comments'),
+    path('rooms/', views.rooms_list, name='rooms'),
+    path('notifications/', views.notifications_list, name='notifications'),
     path('cache/', views.cache_management, name='cache'),
     path('api/cache/', views.api_cache_action, name='api_cache_action'),
     path('api/cache/list/', views.api_cache_list, name='api_cache_list'),
