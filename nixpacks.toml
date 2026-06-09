@@ -1,0 +1,2 @@
+[start]
+cmd = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn admin_pannel.wsgi --bind 0.0.0.0:$PORT"
