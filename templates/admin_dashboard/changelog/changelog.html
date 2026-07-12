@@ -1,0 +1,98 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Changelog - Admin Panel{% endblock %}
+{% block page_title %}Changelog{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-list-check me-2"></i><span data-i18n="nav.changelog">Changelog</span></h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addEntry"><i class="fas fa-plus me-1"></i><span data-i18n="cl.btn_new">New Entry</span></button>
+    </div>
+    <div class="collapse" id="addEntry">
+        <div class="card-body" style="border-bottom:1px solid var(--line);">
+            <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="create">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label" data-i18n="cl.form_version">Version</label><input type="text" class="form-control" name="version" required placeholder="1.0.0" data-i18n-placeholder="cl.ph_version"></div>
+                    <div class="col-md-5"><label class="form-label" data-i18n="cl.form_title">Title</label><input type="text" class="form-control" name="title" required></div>
+                    <div class="col-md-4">
+                        <label class="form-label" data-i18n="cl.form_category">Category</label>
+                        <select class="form-select" name="category">
+                            <option value="feature" data-i18n="cl.cat_feature">New Feature</option>
+                            <option value="fix" data-i18n="cl.cat_fix">Bug Fix</option>
+                            <option value="improvement" data-i18n="cl.cat_improvement">Improvement</option>
+                            <option value="security" data-i18n="cl.cat_security">Security</option>
+                            <option value="breaking" data-i18n="cl.cat_breaking">Breaking Change</option>
+                        </select>
+                    </div>
+                    <div class="col-12"><label class="form-label" data-i18n="cl.form_content">Content (Markdown)</label><textarea class="form-control" name="content" rows="4" required></textarea></div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="cl.btn_create">Create Entry</span></button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if entries %}
+        {% for e in entries %}
+        <div class="p-3" style="border-bottom:1px solid var(--line);">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-primary">v{{ e.version }}</span>
+                        <span class="badge bg-{% if e.category == 'feature' %}success{% elif e.category == 'fix' %}danger{% elif e.category == 'improvement' %}info{% elif e.category == 'security' %}warning{% else %}dark{% endif %}" data-i18n="cl.cat_{{ e.category }}">{{ e.get_category_display }}</span>
+                        {% if not e.is_published %}<span class="badge bg-secondary" data-i18n="cl.status_draft">Draft</span>{% endif %}
+                        <h6 class="mb-0">{{ e.title }}</h6>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">{{ e.content|linebreaksbr|truncatechars:200 }}</p>
+                    <small class="text-muted">{{ e.published_at|date:"M d, Y" }} · by {{ e.created_by|default:"Unknown" }}</small>
+                </div>
+                <div class="d-flex gap-1">
+                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning" title="Toggle"><i class="fas fa-eye{% if e.is_published %}-slash{% endif %}"></i></button></form>
+                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}<div class="text-center py-5 text-muted" data-i18n="cl.no_entries">No changelog entries yet.</div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'cl.btn_new': 'New Entry',
+        'cl.form_version': 'Version',
+        'cl.ph_version': '1.0.0',
+        'cl.form_title': 'Title',
+        'cl.form_category': 'Category',
+        'cl.cat_feature': 'New Feature',
+        'cl.cat_fix': 'Bug Fix',
+        'cl.cat_improvement': 'Improvement',
+        'cl.cat_security': 'Security',
+        'cl.cat_breaking': 'Breaking Change',
+        'cl.form_content': 'Content (Markdown)',
+        'cl.btn_create': 'Create Entry',
+        'cl.status_draft': 'Draft',
+        'cl.no_entries': 'No changelog entries yet.'
+    },
+    vi: {
+        'cl.btn_new': 'Bản ghi mới',
+        'cl.form_version': 'Phiên bản',
+        'cl.ph_version': '1.0.0',
+        'cl.form_title': 'Tiêu đề',
+        'cl.form_category': 'Phân loại',
+        'cl.cat_feature': 'Tính năng mới',
+        'cl.cat_fix': 'Sửa lỗi',
+        'cl.cat_improvement': 'Cải tiến',
+        'cl.cat_security': 'Bảo mật',
+        'cl.cat_breaking': 'Thay đổi cấu trúc',
+        'cl.form_content': 'Nội dung (Markdown)',
+        'cl.btn_create': 'Tạo bản ghi',
+        'cl.status_draft': 'Nháp',
+        'cl.no_entries': 'Chưa có bản ghi cập nhật nào.'
+    }
+});
+</script>
+{% endblock %}

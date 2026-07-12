@@ -129,7 +129,7 @@
                     </a>
                                             <a href="{% url 'admin_dashboard:watchlist_delete' item.id %}" 
                        class="btn btn-danger"
-                       onclick="return confirm('Bạn có chắc muốn xóa item này?')">
+                       onclick="event.preventDefault(); confirmAction('Xóa mục Watchlist', 'Bạn có chắc chắn muốn xóa mục này khỏi Watchlist?', () => { window.location.href = this.href; })">
                         <i class="fas fa-trash"></i> Delete Item
                     </a>
                     <a href="{% url 'admin_dashboard:watchlist_list' %}" 

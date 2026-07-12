@@ -1,0 +1,149 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Webhooks - Admin Panel{% endblock %}
+{% block page_title %}Webhooks & Integrations{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-link me-2"></i><span data-i18n="wh.title">Webhook Endpoints</span></h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addWebhook"><i class="fas fa-plus me-1"></i><span data-i18n="wh.btn_new">New Webhook</span></button>
+    </div>
+    <div class="collapse" id="addWebhook">
+        <div class="card-body" style="border-bottom:1px solid var(--line);">
+            <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="create">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label" data-i18n="wh.form_name">Name</label><input type="text" class="form-control" name="name" required placeholder="Slack Notification" data-i18n-placeholder="wh.ph_name"></div>
+                    <div class="col-md-8"><label class="form-label" data-i18n="wh.form_url">URL</label><input type="url" class="form-control" name="url" required placeholder="https://hooks.slack.com/..." data-i18n-placeholder="wh.ph_url"></div>
+                    <div class="col-md-8"><label class="form-label" data-i18n="wh.form_secret">Secret (optional HMAC key)</label><input type="text" class="form-control" name="secret" placeholder="optional-secret-key" data-i18n-placeholder="wh.ph_secret"></div>
+                    <div class="col-md-4"><div class="form-check mt-4"><input type="checkbox" class="form-check-input" name="is_active" id="wh_active" checked><label class="form-check-label" for="wh_active" data-i18n="wh.form_active">Active</label></div></div>
+                    <div class="col-12">
+                        <label class="form-label" data-i18n="wh.form_events">Events</label>
+                        <div class="row g-2">{% for evt in available_events %}<div class="col-md-4 col-6"><div class="form-check"><input type="checkbox" class="form-check-input" name="events" value="{{ evt }}" id="evt_{{ forloop.counter }}"><label class="form-check-label small" for="evt_{{ forloop.counter }}">{{ evt }}</label></div></div>{% endfor %}</div>
+                    </div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="wh.btn_create">Create Webhook</span></button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if endpoints %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="wh.col_name">Name</th><th data-i18n="wh.col_url">URL</th><th data-i18n="wh.col_events">Events</th><th data-i18n="wh.col_status">Status</th><th data-i18n="wh.col_actions">Actions</th></tr></thead>
+            <tbody>{% for ep in endpoints %}<tr>
+                <td><strong>{{ ep.name }}</strong></td>
+                <td><code class="small">{{ ep.url|truncatechars:40 }}</code></td>
+                <td><small>{{ ep.events|join:", "|truncatechars:40 }}</small></td>
+                <td>
+                    {% if ep.is_active %}
+                    <span class="badge bg-success" data-i18n="wh.badge_active">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary" data-i18n="wh.badge_inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-primary" onclick="testWebhook('{{ ep.id }}')" title="Test"><i class="fas fa-paper-plane"></i></button>
+                    <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if ep.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                    <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+                </td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="wh.no_webhooks">No webhooks configured.</div>{% endif %}
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="wh.recent_deliveries">Recent Webhook Deliveries</span></h6></div>
+    <div class="card-body p-0">
+        {% if recent_logs %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="wh.col_endpoint">Endpoint</th><th data-i18n="wh.col_event">Event</th><th data-i18n="wh.col_status">Status</th><th data-i18n="wh.col_response">Response</th><th data-i18n="wh.col_time">Time</th></tr></thead>
+            <tbody>{% for log in recent_logs %}<tr>
+                <td><small>{{ log.endpoint.name }}</small></td>
+                <td><code class="small">{{ log.event }}</code></td>
+                <td><span class="badge bg-{% if log.response_status >= 200 and log.response_status < 300 %}success{% elif log.response_status == 0 %}danger{% else %}warning{% endif %}">{{ log.response_status }}</span></td>
+                <td><small class="text-muted">{{ log.response_body|truncatechars:50 }}</small></td>
+                <td><small class="text-muted">{{ log.sent_at|timesince }} ago</small></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="wh.no_deliveries">No webhook deliveries yet.</div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'wh.title': 'Webhook Endpoints',
+        'wh.btn_new': 'New Webhook',
+        'wh.form_name': 'Name',
+        'wh.ph_name': 'Slack Notification',
+        'wh.form_url': 'URL',
+        'wh.ph_url': 'https://hooks.slack.com/...',
+        'wh.form_secret': 'Secret (optional HMAC key)',
+        'wh.ph_secret': 'optional-secret-key',
+        'wh.form_active': 'Active',
+        'wh.form_events': 'Events',
+        'wh.btn_create': 'Create Webhook',
+        'wh.col_name': 'Name',
+        'wh.col_url': 'URL',
+        'wh.col_events': 'Events',
+        'wh.col_status': 'Status',
+        'wh.col_actions': 'Actions',
+        'wh.badge_active': 'Active',
+        'wh.badge_inactive': 'Inactive',
+        'wh.no_webhooks': 'No webhooks configured.',
+        'wh.recent_deliveries': 'Recent Webhook Deliveries',
+        'wh.col_endpoint': 'Endpoint',
+        'wh.col_event': 'Event',
+        'wh.col_response': 'Response',
+        'wh.col_time': 'Time',
+        'wh.no_deliveries': 'No webhook deliveries yet.',
+        'wh.confirm_test_title': 'Test Webhook',
+        'wh.confirm_test_body': 'Send a test payload to this endpoint?',
+        'wh.btn_send_test': 'Send Test'
+    },
+    vi: {
+        'wh.title': 'Webhook nhận tin',
+        'wh.btn_new': 'Thêm Webhook mới',
+        'wh.form_name': 'Tên Webhook',
+        'wh.ph_name': 'Thông báo Slack',
+        'wh.form_url': 'Địa chỉ URL',
+        'wh.ph_url': 'https://hooks.slack.com/...',
+        'wh.form_secret': 'Mã bí mật (chữ ký HMAC)',
+        'wh.ph_secret': 'ma-bi-mat-tuy-chon',
+        'wh.form_active': 'Hoạt động',
+        'wh.form_events': 'Sự kiện nhận',
+        'wh.btn_create': 'Tạo Webhook',
+        'wh.col_name': 'Tên Webhook',
+        'wh.col_url': 'Địa chỉ URL',
+        'wh.col_events': 'Sự kiện',
+        'wh.col_status': 'Trạng thái',
+        'wh.col_actions': 'Thao tác',
+        'wh.badge_active': 'Hoạt động',
+        'wh.badge_inactive': 'Không hoạt động',
+        'wh.no_webhooks': 'Chưa cấu hình webhook nào.',
+        'wh.recent_deliveries': 'Lịch sử lượt gửi webhook gần đây',
+        'wh.col_endpoint': 'Điểm nhận',
+        'wh.col_event': 'Sự kiện',
+        'wh.col_response': 'Phản hồi',
+        'wh.col_time': 'Thời gian',
+        'wh.no_deliveries': 'Chưa có lượt gửi webhook nào.',
+        'wh.confirm_test_title': 'Thử nghiệm Webhook',
+        'wh.confirm_test_body': 'Gửi gói tin test thử nghiệm tới webhook này?',
+        'wh.btn_send_test': 'Gửi thử'
+    }
+});
+
+function testWebhook(id) {
+    confirmAction(t('wh.confirm_test_title'), t('wh.confirm_test_body'), () => {
+        fetch(`/dashboard/webhooks/${id}/test/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
+        .then(r=>r.json()).then(d=>{ alert(d.success ? `Success! Status: ${d.status_code}` : 'Error: ' + d.error); location.reload(); });
+    }, {btnClass:'primary', btnText:t('wh.btn_send_test')});
+}
+</script>
+{% endblock %}

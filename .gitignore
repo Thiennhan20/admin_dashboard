@@ -36,6 +36,13 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+.history/
+
+# Temporary and backup files
+*.bak
+*.backup
+*.tmp
+*.temp
 
 ADMIN_SETUP.md
 RAILWAY_DEPLOY.md

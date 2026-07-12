@@ -22,7 +22,7 @@
             --muted: #667085;
             --line: #d8dee8;
             --nav: #111827;
-            --nav-soft: #1f2937;
+            --nav-soft: #2563eb;
             --topbar: rgba(255, 255, 255, 0.92);
             --control: #ffffff;
             --control-hover: #f3f6fb;
@@ -65,7 +65,7 @@
             --muted: #9ca3af;
             --line: #263244;
             --nav: #07111f;
-            --nav-soft: #172033;
+            --nav-soft: #3b82f6;
             --topbar: rgba(17, 24, 39, 0.9);
             --control: #182235;
             --control-hover: #233047;
@@ -204,10 +204,15 @@
             white-space: nowrap;
         }
 
-        .side-link:hover,
+        .side-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
         .side-link.active {
             background: var(--nav-soft);
             color: #fff;
+            font-weight: 700;
         }
 
         .side-link i { width: 18px; text-align: center; flex-shrink: 0; }
@@ -312,6 +317,87 @@
             background-color: var(--panel);
             border-color: var(--line);
             color: var(--ink);
+        }
+
+        /* ── Global Tables Grid & Button Spacing Upgrade ── */
+        .table {
+            border: 1px solid var(--line) !important;
+            border-collapse: collapse !important;
+        }
+        .table th,
+        .table td {
+            border-left: 1px solid var(--line) !important;
+            border-right: 1px solid var(--line) !important;
+            border-bottom: 1px solid var(--line) !important;
+            border-top: 1px solid var(--line) !important;
+            vertical-align: middle;
+        }
+        .table td .btn-group,
+        .table td .btn-group[role="group"],
+        .btn-group[role="group"] {
+            display: inline-flex !important;
+            gap: 8px !important;
+        }
+        .table td .btn-group .btn,
+        .table td .btn-group[role="group"] .btn,
+        .btn-group[role="group"] .btn {
+            border-radius: var(--radius) !important;
+            margin: 0 !important;
+        }
+
+        /* ── Sticky Table Header ── */
+        .table-responsive {
+            max-height: 650px;
+            overflow-y: auto;
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: var(--panel) !important;
+            box-shadow: inset 0 -1px 0 var(--line);
+        }
+
+        /* ── Pulsating Green Dot ── */
+        .status-pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #22c55e;
+            margin-right: 6px;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+            vertical-align: middle;
+        }
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        /* ── Skeleton Loader ── */
+        .skeleton-line {
+            display: inline-block;
+            height: 14px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--control-hover) 25%, var(--line) 50%, var(--control-hover) 75%);
+            background-size: 200% 100%;
+            animation: shimmer-load 1.6s infinite linear;
+            border-radius: 4px;
+        }
+        @keyframes shimmer-load {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
 
         .btn {
@@ -423,6 +509,27 @@
         .btn-outline-danger,
         .btn-outline-success {
             background: var(--control);
+        }
+
+        .page-link {
+            background-color: var(--control) !important;
+            border-color: var(--line) !important;
+            color: var(--ink) !important;
+        }
+        .page-link:hover {
+            background-color: var(--control-hover) !important;
+            color: var(--blue) !important;
+        }
+        .page-item.active .page-link {
+            background-color: var(--blue) !important;
+            border-color: var(--blue) !important;
+            color: #fff !important;
+        }
+        .page-item.disabled .page-link {
+            background-color: var(--control-hover) !important;
+            border-color: var(--line) !important;
+            color: var(--muted) !important;
+            opacity: 0.6;
         }
 
         html[data-theme="dark"] .card,
@@ -543,6 +650,21 @@
             gap: 8px;
         }
 
+        #globalSearch {
+            height: 38px !important;
+            background: var(--control) !important;
+            border: 1px solid var(--line) !important;
+            color: var(--ink) !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        #globalSearch:focus {
+            border-color: var(--blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+            outline: 0;
+        }
+
         .icon-button,
         .lang-button {
             height: 38px;
@@ -654,16 +776,34 @@
                 <span>Movie Admin</span>
             </a>
 
+
             <div class="sidebar-menu">
             <div class="nav-section" data-i18n="nav.operate">Operate</div>
             <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
                 <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
+            </a>
+            <a class="side-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" href="{% url 'admin_dashboard:analytics' %}">
+                <i class="fas fa-chart-line"></i><span data-i18n="nav.analytics">Analytics</span>
             </a>
             <a class="side-link {% if 'users' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:users_list' %}">
                 <i class="fas fa-users"></i><span data-i18n="nav.users">Users</span>
             </a>
             <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
                 <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
+            </a>
+
+            <div class="nav-section" data-i18n="nav.sectionData">Data</div>
+            <a class="side-link {% if 'watch_progress' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watch_progress' %}">
+                <i class="fas fa-history"></i><span data-i18n="nav.watchProgress">Watch Progress</span>
+            </a>
+            <a class="side-link {% if 'search_history' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:search_history' %}">
+                <i class="fas fa-clock-rotate-left"></i><span data-i18n="nav.searchHistory">Search History</span>
+            </a>
+            <a class="side-link {% if 'password_resets' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:password_resets' %}">
+                <i class="fas fa-key"></i><span data-i18n="nav.passwordTokens">Password Tokens</span>
+            </a>
+            <a class="side-link {% if 'blacklisted_tokens' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:blacklisted_tokens' %}">
+                <i class="fas fa-ban"></i><span data-i18n="nav.blacklistedTokens">Blacklisted Tokens</span>
             </a>
 
             <div class="nav-section" data-i18n="nav.media">Media & Content</div>
@@ -682,14 +822,51 @@
             <a class="side-link {% if 'notifications' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:notifications' %}">
                 <i class="fas fa-bell"></i><span data-i18n="nav.notifications">Notifications</span>
             </a>
+            <a class="side-link {% if 'content_management' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:content_management' %}">
+                <i class="fas fa-star"></i><span data-i18n="nav.featuredContent">Featured Content</span>
+            </a>
 
             <div class="nav-section" data-i18n="nav.system">System</div>
             <a class="side-link {% if 'cache' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:cache' %}">
                 <i class="fas fa-database"></i><span data-i18n="nav.cache">Cache</span>
             </a>
+            <a class="side-link {% if 'monitoring' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:monitoring' %}">
+                <i class="fas fa-heartbeat"></i><span data-i18n="nav.monitoring">Monitoring</span>
+            </a>
+            <a class="side-link {% if 'audit_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:audit_logs' %}">
+                <i class="fas fa-scroll"></i><span data-i18n="nav.auditLogs">Audit Logs</span>
+            </a>
+            <a class="side-link {% if 'error_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:error_logs' %}">
+                <i class="fas fa-bug"></i><span data-i18n="nav.errorLogs">Error Logs</span>
+            </a>
             <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
                 <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>
             </a>
+
+            <div class="nav-section" data-i18n="nav.sectionExtensions">Extensions</div>
+            <a class="side-link {% if 'reports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:reports' %}">
+                <i class="fas fa-flag"></i><span data-i18n="nav.reports">Reports</span>
+            </a>
+            <a class="side-link {% if 'changelog' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:changelog' %}">
+                <i class="fas fa-list-check"></i><span data-i18n="nav.changelog">Changelog</span>
+            </a>
+            <a class="side-link {% if 'email' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:email' %}">
+                <i class="fas fa-envelope"></i><span data-i18n="nav.email">Email</span>
+            </a>
+            <a class="side-link {% if 'scheduled_tasks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:scheduled_tasks' %}">
+                <i class="fas fa-clock"></i><span data-i18n="nav.scheduledTasks">Scheduled Tasks</span>
+            </a>
+            <a class="side-link {% if 'webhooks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:webhooks' %}">
+                <i class="fas fa-link"></i><span data-i18n="nav.webhooks">Webhooks</span>
+            </a>
+            {% if request.user.is_superuser %}
+            <a class="side-link {% if 'system_settings' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:system_settings' %}">
+                <i class="fas fa-cog"></i><span data-i18n="nav.settings">Settings</span>
+            </a>
+            <a class="side-link {% if 'backup' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:backup' %}">
+                <i class="fas fa-shield-halved"></i><span data-i18n="nav.backup">Backup</span>
+            </a>
+            {% endif %}
             <a class="side-link" href="{% url 'admin:index' %}">
                 <i class="fas fa-screwdriver-wrench"></i><span data-i18n="nav.djangoAdmin">Django Admin</span>
             </a>
@@ -708,6 +885,24 @@
                     <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}Admin Dashboard{% endblock %}</h1>
                 </div>
                 <div class="topbar-actions">
+                    <!-- Global Search -->
+                    <div class="position-relative d-none d-md-block" style="min-width:280px;">
+                        <input type="text" class="form-control form-control-sm" id="globalSearch" placeholder="Search users, movies, comments..." data-i18n-placeholder="search.globalPlaceholder" style="padding-left:36px;">
+                        <i class="fas fa-search position-absolute text-muted" style="left:12px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;"></i>
+                        <div class="dropdown-menu shadow p-0" id="searchResults" style="width:100%;max-height:400px;overflow-y:auto;display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--panel);border-color:var(--line);"></div>
+                    </div>
+                    <!-- Notification Bell -->
+                    <div class="dropdown">
+                        <button class="icon-button position-relative" type="button" data-bs-toggle="dropdown" id="notifBell" title="Notifications">
+                            <i class="fas fa-bell"></i>
+                            {% if admin_notif_count %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px;" id="notifBadge">{{ admin_notif_count }}</span>{% else %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:10px;" id="notifBadge">0</span>{% endif %}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow p-0" style="width:320px;max-height:400px;overflow-y:auto;background:var(--panel);border-color:var(--line);">
+                            <li class="px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><strong class="small">Recent Events (24h)</strong></li>
+                            <li id="notifList"><div class="text-center py-3 text-muted small">Loading...</div></li>
+                        </ul>
+                    </div>
+                    <!-- User Menu -->
                     <div class="dropdown">
                         <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background:transparent; border:none; padding:0; gap:8px;">
                             <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
@@ -715,6 +910,11 @@
                             <i class="fas fa-chevron-down ms-1 text-muted" style="font-size: 12px;"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-1 mt-2" style="min-width: 220px; border-radius: var(--radius); border-color: var(--line); background: var(--panel);">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin_dashboard:admin_profile' %}" style="color: var(--ink);">
+                                    <i class="fas fa-user fa-fw text-muted"></i> <span>My Profile</span>
+                                </a>
+                            </li>
                             <li>
                                 <button class="dropdown-item d-flex align-items-center gap-3 py-2" id="themeToggle" type="button" style="color: var(--ink);">
                                     <i class="fas fa-moon fa-fw text-muted"></i> <span data-i18n="theme.toggle">Dark/Light Mode</span>
@@ -727,7 +927,7 @@
                             </li>
                             <li><hr class="dropdown-divider" style="border-color: var(--line);"></li>
                             <li>
-                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin:password_change' %}" style="color: var(--ink);">
+                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin_dashboard:admin_profile' %}" style="color: var(--ink);">
                                     <i class="fas fa-key fa-fw text-muted"></i> <span data-i18n="nav.changePassword">Change Password</span>
                                 </a>
                             </li>
@@ -755,16 +955,27 @@
         </section>
     </div>
 
+    {% include 'admin_dashboard/includes/confirm_modal.html' %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         window.AdminI18N = {
             en: {
                 'nav.operate': 'Operate',
                 'nav.dashboard': 'Dashboard',
+                'nav.analytics': 'Analytics',
                 'nav.users': 'Users',
                 'nav.watchlist': 'Watchlist',
+                'nav.sectionData': 'Data',
+                'nav.watchProgress': 'Watch Progress',
+                'nav.searchHistory': 'Search History',
+                'nav.passwordTokens': 'Password Tokens',
+                'nav.blacklistedTokens': 'Blacklisted Tokens',
                 'nav.system': 'System',
                 'nav.cache': 'Cache',
+                'nav.monitoring': 'Monitoring',
+                'nav.auditLogs': 'Audit Logs',
+                'nav.errorLogs': 'Error Logs',
                 'nav.adminAccounts': 'Admin Accounts',
                 'nav.djangoAdmin': 'Django Admin',
                 'nav.changePassword': 'Change Password',
@@ -775,20 +986,50 @@
                 'nav.comments': 'Comments',
                 'nav.rooms': 'Watch Rooms',
                 'nav.notifications': 'Notifications',
+                'nav.featuredContent': 'Featured Content',
+                'nav.sectionExtensions': 'Extensions',
+                'nav.reports': 'Reports',
+                'nav.changelog': 'Changelog',
+                'nav.email': 'Email',
+                'nav.scheduledTasks': 'Scheduled Tasks',
+                'nav.webhooks': 'Webhooks',
+                'nav.settings': 'Settings',
+                'nav.backup': 'Backup',
                 'theme.toggle': 'Dark/Light Mode',
                 'theme.light': 'Light mode',
                 'theme.dark': 'Dark mode',
                 'language.toggle': 'Switch Language',
                 'language.next': 'Switch language',
-                'common.loading': 'Loading...'
+                'common.loading': 'Loading...',
+                'search.globalPlaceholder': 'Search users, movies, comments...',
+                'common.confirm': 'Confirm',
+                'common.cancel': 'Cancel',
+                'admin.delete_title': 'Delete Admin Account',
+                'admin.delete_body': 'Are you sure you want to delete admin "{username}"? This action cannot be undone.',
+                'common.btn_export': 'Export Data',
+                'common.export_csv': 'Export CSV',
+                'common.export_excel': 'Export Excel (.xls)',
+                'common.export_pdf': 'Export PDF / Print',
+                'nav.admin_create': 'Create Admin',
+                'nav.admin_edit': 'Edit Admin',
+                'nav.admin_detail': 'Admin Detail'
             },
             vi: {
                 'nav.operate': 'Vận hành',
                 'nav.dashboard': 'Bảng điều khiển',
+                'nav.analytics': 'Phân tích',
                 'nav.users': 'Người dùng',
                 'nav.watchlist': 'Danh sách xem',
+                'nav.sectionData': 'Dữ liệu',
+                'nav.watchProgress': 'Tiến trình xem',
+                'nav.searchHistory': 'Lịch sử tìm kiếm',
+                'nav.passwordTokens': 'Token mật khẩu',
+                'nav.blacklistedTokens': 'Token Blacklist',
                 'nav.system': 'Hệ thống',
                 'nav.cache': 'Bộ nhớ đệm',
+                'nav.monitoring': 'Giám sát hệ thống',
+                'nav.auditLogs': 'Nhật ký vận hành',
+                'nav.errorLogs': 'Nhật ký lỗi',
                 'nav.adminAccounts': 'Tài khoản admin',
                 'nav.djangoAdmin': 'Django Admin',
                 'nav.changePassword': 'Đổi mật khẩu',
@@ -799,12 +1040,33 @@
                 'nav.comments': 'Bình luận',
                 'nav.rooms': 'Phòng xem',
                 'nav.notifications': 'Thông báo',
+                'nav.featuredContent': 'Nội dung nổi bật',
+                'nav.sectionExtensions': 'Tiện ích mở rộng',
+                'nav.reports': 'Báo cáo vi phạm',
+                'nav.changelog': 'Nhật ký cập nhật',
+                'nav.email': 'Gửi Email',
+                'nav.scheduledTasks': 'Tác vụ định kỳ',
+                'nav.webhooks': 'Webhooks',
+                'nav.settings': 'Cài đặt hệ thống',
+                'nav.backup': 'Sao lưu dữ liệu',
                 'theme.toggle': 'Giao diện Sáng/Tối',
                 'theme.light': 'Giao diện sáng',
                 'theme.dark': 'Giao diện tối',
                 'language.toggle': 'Đổi ngôn ngữ',
                 'language.next': 'Đổi ngôn ngữ',
-                'common.loading': 'Đang tải...'
+                'common.loading': 'Đang tải...',
+                'search.globalPlaceholder': 'Tìm người dùng, phim lẻ, bình luận...',
+                'common.confirm': 'Xác nhận',
+                'common.cancel': 'Hủy',
+                'admin.delete_title': 'Xóa tài khoản admin',
+                'admin.delete_body': 'Bạn có chắc chắn muốn xóa admin "{username}"? Thao tác này không thể hoàn tác.',
+                'common.btn_export': 'Xuất dữ liệu',
+                'common.export_csv': 'Xuất CSV',
+                'common.export_excel': 'Xuất Excel (.xls)',
+                'common.export_pdf': 'Xuất PDF / In',
+                'nav.admin_create': 'Tạo Admin Mới',
+                'nav.admin_edit': 'Chỉnh sửa Admin',
+                'nav.admin_detail': 'Chi tiết Admin'
             }
         };
 
@@ -812,6 +1074,9 @@
             Object.entries(extra || {}).forEach(([lang, messages]) => {
                 window.AdminI18N[lang] = Object.assign(window.AdminI18N[lang] || {}, messages || {});
             });
+            if (typeof translatePage === 'function') {
+                translatePage();
+            }
         }
 
         function currentLanguage() {
@@ -820,6 +1085,11 @@
 
         function translateValue(key, params = {}) {
             const lang = currentLanguage();
+            const hasLangKey = window.AdminI18N[lang] && (key in window.AdminI18N[lang]);
+            const hasEnKey = window.AdminI18N.en && (key in window.AdminI18N.en);
+            if (!hasLangKey && !hasEnKey) {
+                return undefined;
+            }
             const fallback = window.AdminI18N.en?.[key] || key;
             let value = window.AdminI18N[lang]?.[key] || fallback;
             Object.entries(params).forEach(([name, paramValue]) => {
@@ -832,10 +1102,28 @@
             const lang = currentLanguage();
             document.documentElement.lang = lang;
             root.querySelectorAll('[data-i18n]').forEach(el => {
-                el.textContent = translateValue(el.dataset.i18n);
+                const key = el.dataset.i18n;
+                if (!el.hasOwnProperty('i18nOriginal')) {
+                    el.i18nOriginal = el.textContent;
+                }
+                const translated = translateValue(key);
+                el.textContent = (translated !== undefined && translated !== key) ? translated : el.i18nOriginal;
             });
             root.querySelectorAll('[data-i18n-title]').forEach(el => {
-                el.title = translateValue(el.dataset.i18nTitle);
+                const key = el.dataset.i18nTitle;
+                if (!el.hasOwnProperty('i18nOriginalTitle')) {
+                    el.i18nOriginalTitle = el.title;
+                }
+                const translated = translateValue(key);
+                el.title = (translated !== undefined && translated !== key) ? translated : el.i18nOriginalTitle;
+            });
+            root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.dataset.i18nPlaceholder;
+                if (!el.hasOwnProperty('i18nOriginalPlaceholder')) {
+                    el.i18nOriginalPlaceholder = el.placeholder;
+                }
+                const translated = translateValue(key);
+                el.placeholder = (translated !== undefined && translated !== key) ? translated : el.i18nOriginalPlaceholder;
             });
             const langToggle = document.getElementById('langToggle');
             if (langToggle) {
@@ -851,6 +1139,7 @@
             const button = document.getElementById('themeToggle');
             if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             if (button) button.title = translateValue(theme === 'dark' ? 'theme.light' : 'theme.dark');
+            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
         }
 
         function initializePreferences() {
@@ -923,6 +1212,124 @@
             const loader = document.getElementById('globalLoader');
             if (loader) loader.classList.remove('active');
         });
+    </script>
+    <script>
+    // ── Global Search ──────────────────────────────────────────────
+    (function() {
+        const input = document.getElementById('globalSearch');
+        const results = document.getElementById('searchResults');
+        if (!input || !results) return;
+        let debounce;
+        input.addEventListener('input', () => {
+            clearTimeout(debounce);
+            const q = input.value.trim();
+            if (q.length < 2) { results.style.display = 'none'; return; }
+            debounce = setTimeout(() => {
+                fetch(`/dashboard/api/global-search/?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success || !Object.keys(data.results).length) {
+                        results.innerHTML = '<div class="p-3 text-muted small">No results found</div>';
+                        results.style.display = 'block'; return;
+                    }
+                    let html = '';
+                    const sections = {users: {icon: 'fa-user', label: 'Users', url: '/dashboard/users/'}, comments: {icon: 'fa-comment', label: 'Comments', url: '#'}, movies: {icon: 'fa-film', label: 'Movies', url: '#'}};
+                    Object.entries(data.results).forEach(([key, items]) => {
+                        const sec = sections[key] || {icon: 'fa-circle', label: key};
+                        html += `<div class="px-3 py-1 border-bottom small fw-bold text-muted" style="background:var(--control-hover);border-color:var(--line)!important;"><i class="fas ${sec.icon} me-1"></i>${sec.label}</div>`;
+                        items.forEach(item => {
+                            const title = item.name || item.title || item.content || item.id;
+                            const sub = item.email || item.movieId || item.type || '';
+                            let href = '#';
+                            if (key === 'users') href = `/dashboard/users/${item.id}/`;
+                            else if (key === 'movies') href = item.type === 'tv' ? `/dashboard/tv-shows/${item.id}/` : `/dashboard/movies/${item.id}/`;
+                            html += `<a href="${href}" class="d-block px-3 py-2 text-decoration-none border-bottom" style="color:var(--ink);border-color:var(--line)!important;" onmouseover="this.style.background='var(--control-hover)'" onmouseout="this.style.background=''"><div class="small">${title}</div>${sub ? `<div class="text-muted" style="font-size:11px;">${sub}</div>` : ''}</a>`;
+                        });
+                    });
+                    results.innerHTML = html;
+                    results.style.display = 'block';
+                });
+            }, 300);
+        });
+        input.addEventListener('blur', () => setTimeout(() => results.style.display = 'none', 200));
+        input.addEventListener('focus', () => { if (results.innerHTML && input.value.length >= 2) results.style.display = 'block'; });
+    })();
+
+    // ── Notification Bell Polling ──────────────────────────────────
+    (function() {
+        const list = document.getElementById('notifList');
+        const badge = document.getElementById('notifBadge');
+        if (!list) return;
+        function fetchNotifs() {
+            fetch('/dashboard/api/admin-notifications/')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                if (badge) { badge.textContent = data.count > 99 ? '99+' : data.count; badge.classList.toggle('d-none', !data.count); }
+                if (!data.events.length) { list.innerHTML = '<div class="text-center py-3 text-muted small">No recent events</div>'; return; }
+                list.innerHTML = data.events.map(e => `<div class="d-flex gap-2 px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><i class="fas ${e.icon} text-muted mt-1" style="font-size:12px;"></i><div class="small">${e.title}<br><span class="text-muted" style="font-size:11px;">${e.time || ''}</span></div></div>`).join('');
+            }).catch(() => {});
+        }
+        fetchNotifs();
+        setInterval(fetchNotifs, 30000);
+    })();
+
+    // ── CSRF Helper for AJAX ───────────────────────────────────────
+    window.getCsrfToken = function() {
+        const cookie = document.cookie.match(/csrftoken=([^;]+)/);
+        if (cookie) return cookie[1];
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    };
+
+    // ── Shimmering Table Skeleton Loader Helper ────────────────────
+    window.getTableSkeleton = function(cols = 5, rows = 5) {
+        let html = '';
+        for (let r = 0; r < rows; r++) {
+            html += '<tr>';
+            for (let c = 0; c < cols; c++) {
+                const width = 45 + Math.floor(Math.random() * 45);
+                html += `<td><span class="skeleton-line" style="width: ${width}%;"></span></td>`;
+            }
+            html += '</tr>';
+        }
+        return html;
+    };
+    </script>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
+
+    <script>
+    // ── Global Toast Notification helper ───────────────────────────
+    window.showToast = function(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white border-0 bg-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'}`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas ${type === 'error' ? 'fa-circle-xmark' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-check'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        container.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    };
     </script>
     {% block extra_js %}{% endblock %}
 </body>

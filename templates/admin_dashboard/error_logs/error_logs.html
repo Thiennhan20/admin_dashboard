@@ -1,0 +1,92 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Error Logs - Admin Panel{% endblock %}
+{% block page_title %}Error Logs{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-danger">{{ stats.error|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_error">Errors</small></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-warning">{{ stats.warning|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_warning">Warnings</small></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1" style="color:var(--red);" data-i18n="err.level_critical">Critical</h3><small class="text-muted">Critical</small></div></div></div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-bug me-2"></i><span data-i18n="nav.errorLogs">Error Logs</span> ({{ total }})</h6>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?level='+this.value}">
+                <option value="" data-i18n="err.all_levels">All Levels</option>
+                <option value="error" {% if level == 'error' %}selected{% endif %} data-i18n="err.level_error">Error</option>
+                <option value="warning" {% if level == 'warning' %}selected{% endif %} data-i18n="err.level_warning">Warning</option>
+                <option value="critical" {% if level == 'critical' %}selected{% endif %} data-i18n="err.level_critical">Critical</option>
+            </select>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()"><i class="fas fa-trash me-1"></i><span data-i18n="err.btn_clear_all">Clear All</span></button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if logs %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="err.col_level">Level</th><th data-i18n="err.col_message">Message</th><th data-i18n="err.col_path">Path</th><th data-i18n="err.col_time">Time</th></tr></thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="cursor:pointer;" onclick="this.nextElementSibling?.classList.toggle('d-none')">
+                    <td><span class="badge bg-{% if log.level == 'critical' %}danger{% elif log.level == 'warning' %}warning{% else %}secondary{% endif %}">{{ log.level }}</span></td>
+                    <td><small>{{ log.message|truncatechars:80 }}</small></td>
+                    <td><code class="small">{{ log.request_method }} {{ log.request_path|truncatechars:30 }}</code></td>
+                    <td><small class="text-muted">{{ log.timestamp|timesince }} ago</small></td>
+                </tr>
+                <tr class="d-none"><td colspan="4"><pre class="mb-0 small p-2 rounded" style="background:var(--control-hover);color:var(--ink);max-height:200px;overflow:auto;white-space:pre-wrap;">{{ log.traceback_text|default:"No traceback" }}</pre></td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}
+        <div class="text-center py-5 text-muted"><i class="fas fa-check-circle fa-3x mb-3 d-block text-success opacity-50"></i><span data-i18n="err.no_errors">No errors! Everything looks good.</span></div>
+        {% endif %}
+    </div>
+</div>
+{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&level={{ level }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&level={{ level }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'err.level_error': 'Error',
+        'err.level_warning': 'Warning',
+        'err.level_critical': 'Critical',
+        'err.all_levels': 'All Levels',
+        'err.btn_clear_all': 'Clear All',
+        'err.col_level': 'Level',
+        'err.col_message': 'Message',
+        'err.col_path': 'Path',
+        'err.col_time': 'Time',
+        'err.no_errors': 'No errors! Everything looks good.',
+        'err.confirm_clear_title': 'Clear All Logs',
+        'err.confirm_clear_body': 'This will permanently delete all error logs.'
+    },
+    vi: {
+        'err.level_error': 'Lỗi',
+        'err.level_warning': 'Cảnh báo',
+        'err.level_critical': 'Nghiêm trọng',
+        'err.all_levels': 'Tất cả mức độ',
+        'err.btn_clear_all': 'Xóa toàn bộ',
+        'err.col_level': 'Mức độ',
+        'err.col_message': 'Thông điệp',
+        'err.col_path': 'Đường dẫn',
+        'err.col_time': 'Thời gian',
+        'err.no_errors': 'Tuyệt vời! Không có lỗi nào xảy ra.',
+        'err.confirm_clear_title': 'Xóa sạch nhật ký lỗi',
+        'err.confirm_clear_body': 'Hành động này sẽ xóa vĩnh viễn toàn bộ nhật ký lỗi.'
+    }
+});
+
+function clearLogs() {
+    confirmAction(t('err.confirm_clear_title'), t('err.confirm_clear_body'), () => {
+        fetch('{% url "admin_dashboard:api_error_logs_clear" %}', { method:'POST', headers:{'X-CSRFToken':csrf} }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); });
+    }, { requireText: 'DELETE' });
+}
+</script>
+{% endblock %}

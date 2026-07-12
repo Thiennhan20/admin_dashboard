@@ -673,16 +673,18 @@
 
     function setStatus(el, ok, label, detail) {
         const dot = el.querySelector('.dot');
-        dot.className = `dot ${ok ? 'ok' : 'bad'}`;
+        dot.className = `dot ${ok ? 'ok status-pulse' : 'bad'}`;
         const textNode = el.querySelector('[data-i18n]') || el.lastElementChild;
         textNode.textContent = detail ? `${label}: ${detail}` : label;
     }
 
-    function metric(label, value, note, color) {
+    function metric(label, value, note, color, pulse = false) {
         return `
             <div class="metric-card">
                 <div class="metric-label">${escapeHtml(label)}</div>
-                <div class="metric-value" style="color:${color}">${escapeHtml(value)}</div>
+                <div class="metric-value" style="color:${color}">
+                    ${pulse ? '<span class="status-pulse" style="width:12px;height:12px;margin-right:8px;"></span>' : ''}${escapeHtml(value)}
+                </div>
                 <div class="metric-note">${escapeHtml(note)}</div>
             </div>
         `;
@@ -698,7 +700,7 @@
             metric(t('metrics.watchProgress'), counts.watchprogresses ?? 0, t('metrics.watchProgressNote'), 'var(--green)'),
             metric(t('metrics.searchDocs'), counts.searchhistories ?? 0, t('metrics.searchDocsNote'), 'var(--amber)'),
             metric(t('metrics.notifications'), counts.notifications ?? 0, t('metrics.notificationsNote'), 'var(--red)'),
-            metric(t('metrics.rooms'), (data.rooms || []).length, health.ok ? t('metrics.serverOnline') : t('metrics.serverOffline'), 'var(--ink)'),
+            metric(t('metrics.rooms'), (data.rooms || []).length, health.ok ? t('metrics.serverOnline') : t('metrics.serverOffline'), 'var(--ink)', true),
         ].join('');
     }
 
@@ -876,7 +878,7 @@
 
     async function loadCollection() {
         document.getElementById('dataHead').innerHTML = `<tr>${headers().map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
-        document.getElementById('dataBody').innerHTML = '<tr><td colspan="6"><div class="skeleton" style="height:42px"></div></td></tr>';
+        document.getElementById('dataBody').innerHTML = window.getTableSkeleton(headers().length, 5);
         document.getElementById('collectionMeta').textContent = t('data.metaLoading', { label: collectionLabel(state.collection) });
         try {
             const response = await fetch(`/dashboard/api/mongo/${state.collection}/?page=${state.page}&limit=${state.limit}`);
@@ -931,6 +933,7 @@
     // Lazy-load: overview loads immediately, Data Manager loads when scrolled into view
     setupTabs();
     loadOverview();
+    setInterval(loadOverview, 15000);
 
     const dataSection = document.querySelector('.ops-panel:has(#collectionTabs)') || document.getElementById('collectionTabs')?.closest('.ops-panel');
     if (dataSection && 'IntersectionObserver' in window) {

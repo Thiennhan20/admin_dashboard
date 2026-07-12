@@ -1,0 +1,47 @@
+<!-- Reusable confirmation modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:var(--panel);border-color:var(--line);color:var(--ink);">
+            <div class="modal-header" style="border-color:var(--line);">
+                <h5 class="modal-title" id="confirmModalTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalBody">Are you sure?</p>
+                <div id="confirmInputWrap" class="d-none mt-3">
+                    <label class="form-label text-muted small">Type <strong id="confirmInputHint"></strong> to confirm:</label>
+                    <input type="text" class="form-control" id="confirmInput" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer" style="border-color:var(--line);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmModalBtn" disabled data-i18n="common.confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+window.confirmAction = function(title, message, onConfirm, opts) {
+    opts = opts || {};
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalBody').innerHTML = message;
+    const btn = document.getElementById('confirmModalBtn');
+    const inputWrap = document.getElementById('confirmInputWrap');
+    const input = document.getElementById('confirmInput');
+    btn.disabled = false;
+    btn.className = 'btn btn-' + (opts.btnClass || 'danger');
+    btn.textContent = opts.btnText || (window.AdminUI ? window.AdminUI.t('common.confirm') : 'Confirm');
+    if (opts.requireText) {
+        inputWrap.classList.remove('d-none');
+        document.getElementById('confirmInputHint').textContent = opts.requireText;
+        input.value = '';
+        btn.disabled = true;
+        input.oninput = () => { btn.disabled = input.value !== opts.requireText; };
+    } else {
+        inputWrap.classList.add('d-none');
+    }
+    btn.onclick = function() { modal.hide(); onConfirm(); };
+    modal.show();
+};
+</script>

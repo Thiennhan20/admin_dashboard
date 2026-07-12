@@ -13,18 +13,25 @@
                 <div class="row align-items-center">
                     <div class="col-lg-8">
                         <h5 class="mb-2">
-                            <i class="fas fa-users me-2"></i>Manage Users
+                            <i class="fas fa-users me-2"></i><span data-i18n="usr.manage_title">Manage Users</span>
                         </h5>
-                        <p class="text-muted mb-0">Search, filter, and manage user accounts from your platform.</p>
+                        <p class="text-muted mb-0" data-i18n="usr.manage_subtitle">Search, filter, and manage user accounts from your platform.</p>
                     </div>
                     <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
                         <div class="d-flex gap-2 justify-content-center justify-content-lg-end">
                             <button onclick="refreshData()" class="btn btn-success">
-                                <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                                <i class="fas fa-sync-alt me-2"></i><span data-i18n="usr.btn_refresh">Refresh Data</span>
                             </button>
-                            <button class="btn btn-outline-primary" onclick="exportUsers()">
-                                <i class="fas fa-file-export me-2"></i>Export
-                            </button>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-file-export me-2"></i><span data-i18n="common.btn_export">Export Data</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--panel); border-color: var(--line);">
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'users' %}?format=csv"><i class="fas fa-file-csv me-2 text-primary"></i>CSV</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'users' %}?format=excel"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xls)</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'users' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF / In</a></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -37,46 +44,54 @@
 <div class="card mb-4">
     <div class="card-header">
         <h6 class="mb-0">
-            <i class="fas fa-search me-2"></i>Search & Filter
+            <i class="fas fa-search me-2"></i><span data-i18n="usr.search_filter">Search & Filter</span>
         </h6>
     </div>
     <div class="card-body">
         <form method="GET" id="searchForm">
             <div class="row g-3">
-                <div class="col-lg-4 col-md-6">
-                    <label for="search" class="form-label">Search Users</label>
+                <div class="col-lg-3 col-md-6">
+                    <label for="search" class="form-label" data-i18n="usr.search_label">Search Users</label>
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="fas fa-search"></i>
                         </span>
                         <input type="text" class="form-control" id="search" name="search" 
-                               value="{{ search }}" placeholder="Search by name or email...">
+                               value="{{ search }}" placeholder="Search by name or email..." data-i18n-placeholder="usr.placeholder_search">
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6">
-                    <label for="verified" class="form-label">Verification Status</label>
+                <div class="col-lg-2 col-md-6">
+                    <label for="verified" class="form-label" data-i18n="usr.verified_label">Verification Status</label>
                     <select class="form-select" id="verified" name="verified">
-                        <option value="">All Users</option>
-                        <option value="true" {% if verified_filter == 'true' %}selected{% endif %}>Verified Only</option>
-                        <option value="false" {% if verified_filter == 'false' %}selected{% endif %}>Unverified Only</option>
+                        <option value="" data-i18n="usr.all_users">All Users</option>
+                        <option value="true" {% if verified_filter == 'true' %}selected{% endif %} data-i18n="usr.verified_only">Verified Only</option>
+                        <option value="false" {% if verified_filter == 'false' %}selected{% endif %} data-i18n="usr.unverified_only">Unverified Only</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <label for="banned" class="form-label" data-i18n="usr.banned_label">Ban Status</label>
+                    <select class="form-select" id="banned" name="banned">
+                        <option value="" data-i18n="usr.all_status">All Status</option>
+                        <option value="true" {% if banned_filter == 'true' %}selected{% endif %} data-i18n="usr.banned_only">Banned Only</option>
+                        <option value="false" {% if banned_filter == 'false' %}selected{% endif %} data-i18n="usr.active_only">Active Only</option>
                     </select>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                    <label for="sort" class="form-label">Sort By</label>
+                    <label for="sort" class="form-label" data-i18n="usr.sort_label">Sort By</label>
                     <select class="form-select" id="sort" name="sort">
-                        <option value="created_at" {% if sort == 'created_at' %}selected{% endif %}>Date Created</option>
-                        <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-                        <option value="email" {% if sort == 'email' %}selected{% endif %}>Email</option>
+                        <option value="created_at" {% if sort == 'created_at' %}selected{% endif %} data-i18n="usr.sort_date">Date Created</option>
+                        <option value="name" {% if sort == 'name' %}selected{% endif %} data-i18n="usr.sort_name">Name</option>
+                        <option value="email" {% if sort == 'email' %}selected{% endif %} data-i18n="usr.sort_email">Email</option>
                     </select>
                 </div>
                 <div class="col-lg-2 col-md-6">
                     <label class="form-label">&nbsp;</label>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search me-2"></i>Search
+                            <i class="fas fa-search me-2"></i><span data-i18n="usr.btn_search">Search</span>
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
-                            <i class="fas fa-times me-2"></i>Clear
+                            <i class="fas fa-times me-2"></i><span data-i18n="usr.btn_clear">Clear</span>
                         </button>
                     </div>
                 </div>
@@ -88,60 +103,60 @@
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-        <div class="card stats-card">
+        <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
                         <i class="fas fa-users text-primary"></i>
                     </div>
                     <div>
-                        <h4 class="mb-1 text-primary">{{ total_users }}</h4>
-                        <p class="text-muted mb-0">Total Users</p>
+                        <h4 class="mb-1 text-primary">{{ stats.total }}</h4>
+                        <p class="text-muted mb-0" data-i18n="usr.stat_total">Total Users</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-        <div class="card stats-card">
+        <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
                         <i class="fas fa-check-circle text-success"></i>
                     </div>
                     <div>
-                        <h4 class="mb-1 text-success">{{ users|length }}</h4>
-                        <p class="text-muted mb-0">Displayed</p>
+                        <h4 class="mb-1 text-success">{{ stats.verified }}</h4>
+                        <p class="text-muted mb-0" data-i18n="usr.stat_verified">Verified</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-        <div class="card stats-card">
+        <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
-                    <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
-                        <i class="fas fa-link text-info"></i>
+                    <div class="bg-danger bg-opacity-10 rounded-circle p-3 me-3">
+                        <i class="fas fa-ban text-danger"></i>
                     </div>
                     <div>
-                        <h4 class="mb-1 text-info">{{ users_with_api_id }}</h4>
-                        <p class="text-muted mb-0">With API ID</p>
+                        <h4 class="mb-1 text-danger">{{ stats.banned }}</h4>
+                        <p class="text-muted mb-0" data-i18n="usr.stat_banned">Banned</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-        <div class="card stats-card">
+        <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
                         <i class="fas fa-heart text-warning"></i>
                     </div>
                     <div>
-                        <h4 class="mb-1 text-warning">{{ users_with_watchlist }}</h4>
-                        <p class="text-muted mb-0">With Watchlist</p>
+                        <h4 class="mb-1 text-warning">{{ stats.with_watchlist }}</h4>
+                        <p class="text-muted mb-0" data-i18n="usr.stat_watchlist">With Watchlist</p>
                     </div>
                 </div>
             </div>
@@ -153,15 +168,11 @@
 <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
         <h6 class="mb-0">
-            <i class="fas fa-list me-2"></i>Users List ({{ users.count }} users)
+            <i class="fas fa-list me-2"></i><span data-i18n="usr.list_title">Users List</span> ({{ total_users }})
         </h6>
         <div class="d-flex gap-2">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="selectAll">
-                <label class="form-check-label" for="selectAll">Select All</label>
-            </div>
             <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()" disabled id="bulkDeleteBtn">
-                <i class="fas fa-trash me-1"></i>Delete Selected
+                <i class="fas fa-trash me-1"></i><span data-i18n="usr.btn_delete_selected">Delete Selected</span>
             </button>
         </div>
     </div>
@@ -174,12 +185,12 @@
                             <th width="50">
                                 <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
                             </th>
-                            <th>User</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                            <th>Watchlist</th>
-                            <th>Created</th>
-                            <th width="150">Actions</th>
+                            <th data-i18n="usr.col_user">User</th>
+                            <th data-i18n="usr.col_email">Email</th>
+                            <th data-i18n="usr.col_status">Status</th>
+                            <th data-i18n="usr.col_watchlist">Watchlist</th>
+                            <th data-i18n="usr.col_created">Created</th>
+                            <th width="150" data-i18n="usr.col_actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -203,52 +214,41 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="mb-1">{{ user.name }}</h6>
-                                                                                 {% if user.id %}
-                                             <small class="text-muted">API ID: {{ user.id|truncatechars:10 }}</small>
-                                         {% endif %}
+                                        {% if user.id %}
+                                            <small class="text-muted">ID: {{ user.id|truncatechars:15 }}</small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 <div>
                                     <div>{{ user.email }}</div>
-                                    {% if user.is_email_verified %}
-                                        <small class="text-success">
-                                            <i class="fas fa-check-circle me-1"></i>Verified
-                                        </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    {% if user.isEmailVerified %}
+                                        <span class="badge bg-success" style="width:fit-content" data-i18n="usr.badge_verified">Verified</span>
                                     {% else %}
-                                        <small class="text-warning">
-                                            <i class="fas fa-clock me-1"></i>Unverified
-                                        </small>
+                                        <span class="badge bg-warning text-dark" style="width:fit-content" data-i18n="usr.badge_unverified">Unverified</span>
+                                    {% endif %}
+                                    {% if user.isBanned %}
+                                        <span class="badge bg-danger" style="width:fit-content" data-i18n="usr.badge_banned">Banned</span>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
-                                {% if user.is_email_verified %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check-circle me-1"></i>Verified
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock me-1"></i>Unverified
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td>
                                 {% if user.watchlist %}
                                     <span class="badge bg-info">
-                                        <i class="fas fa-heart me-1"></i>{{ user.watchlist|length }} movies
+                                        <i class="fas fa-heart me-1"></i>{{ user.watchlist|length }}
                                     </span>
                                 {% else %}
-                                    <span class="text-muted">
-                                        <i class="fas fa-heart me-1"></i>No movies
-                                    </span>
+                                    <span class="text-muted small">0</span>
                                 {% endif %}
                             </td>
                             <td>
                                 <div>
-                                    <div>{{ user.created_at|date:"M d, Y" }}</div>
-                                    <small class="text-muted">{{ user.created_at|date:"H:i" }}</small>
+                                    <div>{{ user.createdAt|default:"—" }}</div>
                                 </div>
                             </td>
                             <td>
@@ -277,28 +277,23 @@
                 <div class="mb-4">
                     <i class="fas fa-users fa-4x text-muted"></i>
                 </div>
-                <h5 class="text-muted mb-3">No users found</h5>
-                <p class="text-muted mb-4">
-                    {% if search or verified_filter %}
-                        Try adjusting your search criteria or clear the filters.
-                    {% else %}
-                        No users have been synced from the API yet.
-                    {% endif %}
-                </p>
+                <h5 class="text-muted mb-3" data-i18n="usr.no_users">No users found</h5>
+                <p class="text-muted mb-4" data-i18n="usr.no_users_desc">Try adjusting your search criteria or clear the filters.</p>
                 <div class="d-flex gap-2 justify-content-center">
                     <button onclick="refreshData()" class="btn btn-primary">
-                        <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                        <i class="fas fa-sync-alt me-2"></i><span data-i18n="usr.btn_refresh">Refresh Data</span>
                     </button>
-                    {% if search or verified_filter %}
-                        <button class="btn btn-outline-secondary" onclick="clearFilters()">
-                            <i class="fas fa-times me-2"></i>Clear Filters
-                        </button>
-                    {% endif %}
+                    <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-2"></i><span data-i18n="usr.btn_clear">Clear Filters</span>
+                    </button>
                 </div>
             </div>
         {% endif %}
     </div>
 </div>
+
+{% include 'admin_dashboard/includes/pagination.html' %}
+
 {% endblock %}
 
 {% block extra_css %}
@@ -307,62 +302,140 @@
         transition: all 0.3s ease;
         border: 1px solid var(--border-color);
     }
-    
     .stats-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
     }
-    
     .table th {
         border-top: none;
         font-weight: 600;
         color: var(--dark-color);
         background-color: var(--light-color);
     }
-    
     .table td {
         vertical-align: middle;
         border-color: var(--border-color);
     }
-    
     .table tbody tr:hover {
         background-color: rgba(99, 102, 241, 0.05);
     }
-    
     .btn-group .btn {
         border-radius: 0.5rem !important;
         margin: 0 1px;
-    }
-    
-    .form-check-input:checked {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-    }
-    
-    @media (max-width: 768px) {
-        .table-responsive {
-            font-size: 0.875rem;
-        }
-        
-        .btn-group .btn {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-        }
-        
-        .card-body {
-            padding: 1rem;
-        }
     }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    const t = window.AdminUI.t;
+
+    window.AdminUI.addTranslations({
+        en: {
+            'usr.manage_title': 'Manage Users',
+            'usr.manage_subtitle': 'Search, filter, and manage user accounts from your platform.',
+            'usr.btn_refresh': 'Refresh Data',
+            'usr.btn_export': 'Export CSV',
+            'usr.search_filter': 'Search & Filter',
+            'usr.search_label': 'Search Users',
+            'usr.placeholder_search': 'Search by name or email...',
+            'usr.verified_label': 'Verification Status',
+            'usr.all_users': 'All Users',
+            'usr.verified_only': 'Verified Only',
+            'usr.unverified_only': 'Unverified Only',
+            'usr.banned_label': 'Ban Status',
+            'usr.all_status': 'All Status',
+            'usr.banned_only': 'Banned Only',
+            'usr.active_only': 'Active Only',
+            'usr.sort_label': 'Sort By',
+            'usr.sort_date': 'Date Created',
+            'usr.sort_name': 'Name',
+            'usr.sort_email': 'Email',
+            'usr.btn_search': 'Search',
+            'usr.btn_clear': 'Clear Filters',
+            'usr.stat_total': 'Total Users',
+            'usr.stat_verified': 'Verified',
+            'usr.stat_banned': 'Banned',
+            'usr.stat_watchlist': 'With Watchlist',
+            'usr.list_title': 'Users List',
+            'usr.btn_delete_selected': 'Delete Selected',
+            'usr.col_user': 'User',
+            'usr.col_email': 'Email',
+            'usr.col_status': 'Status',
+            'usr.col_watchlist': 'Watchlist',
+            'usr.col_created': 'Created',
+            'usr.col_actions': 'Actions',
+            'usr.badge_verified': 'Verified',
+            'usr.badge_unverified': 'Unverified',
+            'usr.badge_banned': 'Banned',
+            'usr.no_users': 'No users found',
+            'usr.no_users_desc': 'Try adjusting your search criteria or clear the filters.',
+            'usr.confirm_delete_title': 'Delete User',
+            'usr.confirm_delete_body': 'Are you sure you want to delete user "{name}"? This action cannot be undone.',
+            'usr.confirm_bulk_title': 'Bulk Delete Users',
+            'usr.confirm_bulk_body': 'Are you sure you want to delete {count} selected users? This action cannot be undone.',
+            'usr.alert_deleting': 'Deleting user...',
+            'usr.alert_deleting_bulk': 'Deleting selected users...',
+            'usr.alert_deleted': '{count} user(s) deleted successfully!',
+            'usr.alert_select_err': 'Please select users to delete.'
+        },
+        vi: {
+            'usr.manage_title': 'Quản lý người dùng',
+            'usr.manage_subtitle': 'Tìm kiếm, lọc và quản lý tài khoản người dùng của nền tảng.',
+            'usr.btn_refresh': 'Làm mới dữ liệu',
+            'usr.btn_export': 'Xuất CSV',
+            'usr.search_filter': 'Tìm kiếm & Bộ lọc',
+            'usr.search_label': 'Tìm kiếm người dùng',
+            'usr.placeholder_search': 'Tìm theo tên hoặc email...',
+            'usr.verified_label': 'Trạng thái xác thực',
+            'usr.all_users': 'Tất cả người dùng',
+            'usr.verified_only': 'Đã xác thực',
+            'usr.unverified_only': 'Chưa xác thực',
+            'usr.banned_label': 'Trạng thái khóa',
+            'usr.all_status': 'Tất cả trạng thái',
+            'usr.banned_only': 'Đã bị khóa',
+            'usr.active_only': 'Đang hoạt động',
+            'usr.sort_label': 'Sắp xếp theo',
+            'usr.sort_date': 'Ngày đăng ký',
+            'usr.sort_name': 'Tên người dùng',
+            'usr.sort_email': 'Email',
+            'usr.btn_search': 'Tìm kiếm',
+            'usr.btn_clear': 'Xóa bộ lọc',
+            'usr.stat_total': 'Tổng số user',
+            'usr.stat_verified': 'Đã xác thực',
+            'usr.stat_banned': 'Đã bị khóa',
+            'usr.stat_watchlist': 'Có Watchlist',
+            'usr.list_title': 'Danh sách người dùng',
+            'usr.btn_delete_selected': 'Xóa mục đã chọn',
+            'usr.col_user': 'Người dùng',
+            'usr.col_email': 'Email',
+            'usr.col_status': 'Trạng thái',
+            'usr.col_watchlist': 'Watchlist',
+            'usr.col_created': 'Tạo lúc',
+            'usr.col_actions': 'Thao tác',
+            'usr.badge_verified': 'Đã xác thực',
+            'usr.badge_unverified': 'Chưa xác thực',
+            'usr.badge_banned': 'Đã khóa',
+            'usr.no_users': 'Không tìm thấy người dùng',
+            'usr.no_users_desc': 'Hãy thử thay đổi điều kiện tìm kiếm hoặc xóa các bộ lọc.',
+            'usr.confirm_delete_title': 'Xóa người dùng',
+            'usr.confirm_delete_body': 'Bạn có chắc chắn muốn xóa người dùng "{name}"? Hành động này không thể hoàn tác.',
+            'usr.confirm_bulk_title': 'Xóa nhiều người dùng',
+            'usr.confirm_bulk_body': 'Bạn có chắc chắn muốn xóa {count} người dùng đã chọn? Hành động này không thể hoàn tác.',
+            'usr.alert_deleting': 'Đang xóa người dùng...',
+            'usr.alert_deleting_bulk': 'Đang xóa các người dùng đã chọn...',
+            'usr.alert_deleted': 'Đã xóa {count} người dùng thành công!',
+            'usr.alert_select_err': 'Vui lòng chọn người dùng cần xóa.'
+        }
+    });
+
     // Auto-submit form when filter changes
     document.getElementById('verified').addEventListener('change', function() {
         document.getElementById('searchForm').submit();
     });
-    
+    document.getElementById('banned')?.addEventListener('change', function() {
+        document.getElementById('searchForm').submit();
+    });
     document.getElementById('sort').addEventListener('change', function() {
         document.getElementById('searchForm').submit();
     });
@@ -371,64 +444,55 @@
     function clearFilters() {
         document.getElementById('search').value = '';
         document.getElementById('verified').value = '';
+        if (document.getElementById('banned')) document.getElementById('banned').value = '';
         document.getElementById('sort').value = 'created_at';
         document.getElementById('searchForm').submit();
     }
     
     // Export users
     function exportUsers() {
-        const button = event.target.closest('button');
-        const icon = button.querySelector('i');
-        
-        // Add loading animation
-        icon.classList.remove('fa-file-export');
-        icon.classList.add('fa-spinner', 'fa-spin');
-        button.disabled = true;
-        
-        // Simulate export
-        setTimeout(() => {
-            icon.classList.remove('fa-spinner', 'fa-spin');
-            icon.classList.add('fa-file-export');
-            button.disabled = false;
-            
-            // Show success message
-            showAlert('Users exported successfully!', 'success');
-        }, 2000);
+        window.location.href = '{% url "admin_dashboard:api_export" "users" %}';
     }
     
     // Delete user
     function deleteUser(userId, userName) {
-        if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
-            // Show loading
-            showAlert('Deleting user...', 'info');
-            
-            // Redirect to delete URL
+        confirmAction(t('usr.confirm_delete_title'), t('usr.confirm_delete_body', {name: userName}), () => {
             window.location.href = `/dashboard/users/${userId}/delete/`;
-        }
+        });
     }
     
     // Bulk delete
     function bulkDelete() {
         const selectedUsers = document.querySelectorAll('.user-checkbox:checked');
         if (selectedUsers.length === 0) {
-            showAlert('Please select users to delete.', 'warning');
+            alert(t('usr.alert_select_err'));
             return;
         }
         
-        if (confirm(`Are you sure you want to delete ${selectedUsers.length} selected users? This action cannot be undone.`)) {
-            // Show loading
-            showAlert('Deleting selected users...', 'info');
-            
-            // Here you would typically send an AJAX request to delete multiple users
-            // For now, we'll just show a success message
-            setTimeout(() => {
-                showAlert(`${selectedUsers.length} users deleted successfully!`, 'success');
-                // Uncheck all checkboxes
-                document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
-                document.getElementById('selectAllCheckbox').checked = false;
-                updateBulkDeleteButton();
-            }, 2000);
-        }
+        confirmAction(t('usr.confirm_bulk_title'), t('usr.confirm_bulk_body', {count: selectedUsers.length}), () => {
+            const ids = [...selectedUsers].map(cb => cb.value);
+            fetch('/dashboard/api/bulk-action/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    collection: 'users',
+                    action: 'delete',
+                    ids: ids
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(t('usr.alert_deleted', {count: selectedUsers.length}));
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        });
     }
     
     // Select all functionality
@@ -445,10 +509,10 @@
         
         if (selectedCount > 0) {
             bulkDeleteBtn.disabled = false;
-            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>Delete ${selectedCount}`;
+            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>${t('usr.btn_delete_selected')} (${selectedCount})`;
         } else {
             bulkDeleteBtn.disabled = true;
-            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>Delete Selected`;
+            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>${t('usr.btn_delete_selected')}`;
         }
     }
     
@@ -475,26 +539,6 @@
         }
     });
     
-    // Show alert function
-    function showAlert(message, type) {
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type} alert-dismissible fade show`;
-        alert.innerHTML = `
-            <i class="fas fa-info-circle me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        const content = document.querySelector('.content');
-        content.insertBefore(alert, content.firstChild);
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            setTimeout(() => alert.remove(), 300);
-        }, 5000);
-    }
-    
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         updateBulkDeleteButton();
@@ -504,12 +548,9 @@
     function refreshData() {
         const button = event.target.closest('button');
         const icon = button.querySelector('i');
-        
-        // Add loading animation
         icon.classList.add('fa-spin');
         button.disabled = true;
         
-        // Call API to refresh data
         fetch('{% url "admin_dashboard:api_refresh" %}', {
             method: 'POST',
             headers: {
@@ -521,26 +562,17 @@
         .then(data => {
             icon.classList.remove('fa-spin');
             button.disabled = false;
-            
             if (data.success) {
-                // Show success message
-                showAlert(data.message, 'success');
-                
-                // Refresh page after 2 seconds
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+                alert(data.message);
+                location.reload();
             } else {
-                // Show error message
-                showAlert(`Error: ${data.error}`, 'danger');
+                alert(`Error: ${data.error}`);
             }
         })
         .catch(error => {
             icon.classList.remove('fa-spin');
             button.disabled = false;
-            
-            // Show error message
-            showAlert(`Network error: ${error.message}`, 'danger');
+            alert(`Network error: ${error.message}`);
         });
     }
 </script>

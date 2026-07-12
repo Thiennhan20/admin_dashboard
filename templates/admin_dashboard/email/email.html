@@ -1,0 +1,98 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Email Management - Admin Panel{% endblock %}
+{% block page_title %}Email Management{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-paper-plane me-2"></i><span data-i18n="em.compose_title">Compose Email</span></h6></div>
+            <div class="card-body">
+                <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="send">
+                    <div class="mb-3">
+                        <label class="form-label" data-i18n="em.form_type">Recipient Type</label>
+                        <select class="form-select" name="recipient_type" id="recipientType" onchange="document.getElementById('singleRecipient').classList.toggle('d-none', this.value!=='single')">
+                            <option value="single" data-i18n="em.type_single">Single User</option>
+                            <option value="broadcast" data-i18n="em.type_broadcast">All Users (Broadcast)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="singleRecipient">
+                        <label class="form-label" data-i18n="em.form_email">Email Address</label>
+                        <input type="email" class="form-control" name="recipient_email" placeholder="user@example.com" data-i18n-placeholder="em.ph_email">
+                    </div>
+                    <div class="mb-3"><label class="form-label" data-i18n="em.form_subject">Subject</label><input type="text" class="form-control" name="subject" required></div>
+                    <div class="mb-3"><label class="form-label" data-i18n="em.form_body">Body</label><textarea class="form-control" name="body" rows="6" required></textarea></div>
+                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-paper-plane me-1"></i><span data-i18n="em.btn_send">Send Email</span></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-inbox me-2"></i><span data-i18n="em.history_title">Email History</span></h6></div>
+            <div class="card-body p-0">
+                {% if logs %}
+                <div class="table-responsive"><table class="table table-hover mb-0">
+                    <thead><tr><th data-i18n="em.col_subject">Subject</th><th data-i18n="em.col_type">Type</th><th data-i18n="em.col_recipients">Recipients</th><th data-i18n="em.col_status">Status</th><th data-i18n="em.col_sent">Sent</th></tr></thead>
+                    <tbody>{% for log in logs %}<tr>
+                        <td><strong>{{ log.subject|truncatechars:30 }}</strong></td>
+                        <td><span class="badge bg-{% if log.recipient_type == 'broadcast' %}warning{% else %}info{% endif %}" data-i18n="em.type_{{ log.recipient_type }}">{{ log.recipient_type }}</span></td>
+                        <td><small>{{ log.recipients|length }} <span data-i18n="em.val_recipients">recipient(s)</span></small></td>
+                        <td><span class="badge bg-{% if log.status == 'sent' %}success{% elif log.status == 'failed' %}danger{% else %}warning{% endif %}" data-i18n="em.status_{{ log.status }}">{{ log.status }}</span></td>
+                        <td><small class="text-muted">{{ log.sent_at|timesince }} ago</small></td>
+                    </tr>{% endfor %}</tbody>
+                </table></div>
+                {% else %}<div class="text-center py-4 text-muted" data-i18n="em.no_emails">No emails sent yet.</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'em.compose_title': 'Compose Email',
+        'em.form_type': 'Recipient Type',
+        'em.type_single': 'Single User',
+        'em.type_broadcast': 'All Users (Broadcast)',
+        'em.form_email': 'Email Address',
+        'em.ph_email': 'user@example.com',
+        'em.form_subject': 'Subject',
+        'em.form_body': 'Body',
+        'em.btn_send': 'Send Email',
+        'em.history_title': 'Email History',
+        'em.col_subject': 'Subject',
+        'em.col_type': 'Type',
+        'em.col_recipients': 'Recipients',
+        'em.col_status': 'Status',
+        'em.col_sent': 'Sent',
+        'em.val_recipients': 'recipient(s)',
+        'em.status_sent': 'Sent',
+        'em.status_failed': 'Failed',
+        'em.no_emails': 'No emails sent yet.'
+    },
+    vi: {
+        'em.compose_title': 'Soạn thư điện tử',
+        'em.form_type': 'Đối tượng nhận',
+        'em.type_single': 'Một người dùng',
+        'em.type_broadcast': 'Gửi toàn bộ (Phát sóng)',
+        'em.form_email': 'Địa chỉ Email',
+        'em.ph_email': 'user@viethoa.com',
+        'em.form_subject': 'Tiêu đề thư',
+        'em.form_body': 'Nội dung thư',
+        'em.btn_send': 'Gửi Email',
+        'em.history_title': 'Lịch sử gửi thư',
+        'em.col_subject': 'Tiêu đề',
+        'em.col_type': 'Phân loại',
+        'em.col_recipients': 'Người nhận',
+        'em.col_status': 'Trạng thái',
+        'em.col_sent': 'Thời gian gửi',
+        'em.val_recipients': 'người nhận',
+        'em.status_sent': 'Đã gửi',
+        'em.status_failed': 'Thất bại',
+        'em.no_emails': 'Chưa gửi email nào gần đây.'
+    }
+});
+</script>
+{% endblock %}

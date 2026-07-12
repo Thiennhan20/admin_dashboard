@@ -1,0 +1,131 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Search History - Admin Panel{% endblock %}
+{% block page_title %}Search History{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+
+{% if top_terms %}
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-fire me-2"></i><span data-i18n="sh.top_terms">Top Search Terms</span></h6></div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            {% for term in top_terms %}
+            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2" style="font-size:.85rem;">{{ term.term }} <span class="badge bg-primary ms-1">{{ term.count }}</span></span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if error %}<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-search me-2"></i><span data-i18n="sh.filter">Filter</span></h6></div>
+    <div class="card-body">
+        <form method="GET"><div class="row g-3">
+            <div class="col-md-9"><input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search by keyword..." data-i18n-placeholder="sh.placeholder_search"></div>
+            <div class="col-md-3"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i><span data-i18n="sh.btn_filter">Filter</span></button></div>
+        </div></form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i><span data-i18n="nav.searchHistory">Search History</span> ({{ total }})</h6>
+        <div>
+            <button class="btn btn-sm btn-outline-danger d-none" id="bulkDeleteBtn" onclick="bulkDelete()"><i class="fas fa-trash me-1"></i><span data-i18n="sh.btn_delete_selected">Delete Selected</span></button>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download me-1"></i><span data-i18n="common.btn_export">Export Data</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--panel); border-color: var(--line);">
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'searchhistories' %}?format=csv"><i class="fas fa-file-csv me-2 text-primary"></i>CSV</a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'searchhistories' %}?format=excel"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xls)</a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'searchhistories' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF / In</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if items %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th><input type="checkbox" id="selectAll"></th><th data-i18n="sh.col_user">User</th><th data-i18n="sh.col_queries">Search Queries</th><th data-i18n="sh.col_updated">Last Updated</th></tr></thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><input type="checkbox" class="row-check" value="{{ item.id }}"></td>
+                    <td>{{ item.user.name|default:"Unknown" }}<br><small class="text-muted">{{ item.user.email|default:"" }}</small></td>
+                    <td><div class="d-flex flex-wrap gap-1">{% for q in item.queries %}<span class="badge bg-secondary bg-opacity-10 text-secondary">{{ q }}</span>{% endfor %}</div></td>
+                    <td><small>{{ item.updated_at|default:"—" }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}
+        <div class="text-center py-5 text-muted"><i class="fas fa-search fa-3x mb-3 d-block opacity-25"></i><span data-i18n="sh.no_records">No search history found.</span></div>
+        {% endif %}
+    </div>
+</div>
+{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&search={{ search }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&search={{ search }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'sh.top_terms': 'Top Search Terms',
+        'sh.filter': 'Filter',
+        'sh.placeholder_search': 'Search by keyword...',
+        'sh.btn_filter': 'Filter',
+        'sh.btn_delete_selected': 'Delete Selected',
+        'sh.btn_export': 'Export CSV',
+        'sh.col_user': 'User',
+        'sh.col_queries': 'Search Queries',
+        'sh.col_updated': 'Last Updated',
+        'sh.no_records': 'No search history found.',
+        'sh.confirm_delete_title': 'Delete Search History',
+        'sh.confirm_delete_body': 'Delete {count} record(s)?'
+    },
+    vi: {
+        'sh.top_terms': 'Từ khóa tìm kiếm hot',
+        'sh.filter': 'Bộ lọc',
+        'sh.placeholder_search': 'Tìm theo từ khóa...',
+        'sh.btn_filter': 'Lọc',
+        'sh.btn_delete_selected': 'Xóa các mục đã chọn',
+        'sh.btn_export': 'Xuất CSV',
+        'sh.col_user': 'Người dùng',
+        'sh.col_queries': 'Truy vấn tìm kiếm',
+        'sh.col_updated': 'Cập nhật cuối',
+        'sh.no_records': 'Không tìm thấy lịch sử tìm kiếm nào.',
+        'sh.confirm_delete_title': 'Xóa lịch sử tìm kiếm',
+        'sh.confirm_delete_body': 'Bạn có chắc chắn muốn xóa {count} bản ghi đã chọn?'
+    }
+});
+
+document.getElementById('selectAll')?.addEventListener('change', e => {
+    document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked);
+    toggleBulk();
+});
+document.querySelectorAll('.row-check').forEach(c => c.addEventListener('change', toggleBulk));
+function toggleBulk() {
+    const checked = document.querySelectorAll('.row-check:checked').length;
+    const btn = document.getElementById('bulkDeleteBtn');
+    if (btn) {
+        btn.classList.toggle('d-none', checked === 0);
+        btn.querySelector('span').textContent = checked > 0 ? t('sh.btn_delete_selected') + ' (' + checked + ')' : t('sh.btn_delete_selected');
+    }
+}
+function bulkDelete() {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+    confirmAction(t('sh.confirm_delete_title'), t('sh.confirm_delete_body', {count: ids.length}), () => {
+        fetch('{% url "admin_dashboard:api_search_history_delete" %}', {
+            method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+            body: JSON.stringify({ids})
+        }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+    });
+}
+</script>
+{% endblock %}

@@ -398,13 +398,13 @@
 <script>
     // Delete user function
     function deleteUser(userId, userName) {
-        if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+        confirmAction('Delete User', `Are you sure you want to delete user "${userName}"? This action cannot be undone.`, () => {
             // Show loading
             showAlert('Deleting user...', 'info');
             
             // Redirect to delete URL
             window.location.href = `/dashboard/users/${userId}/delete/`;
-        }
+        });
     }
     
     // Export watchlist
@@ -468,10 +468,9 @@
     
     // Verify user
     function verifyUser() {
-        if (confirm('Are you sure you want to verify this user\'s email? This will activate their account.')) {
-            const button = event.target.closest('button');
-            const icon = button.querySelector('i');
-            
+        const button = event.target.closest('button');
+        const icon = button.querySelector('i');
+        confirmAction('Verify User Email', 'Are you sure you want to verify this user\'s email? This will activate their account.', () => {
             // Add loading animation
             icon.classList.add('fa-spin');
             button.disabled = true;
@@ -489,7 +488,7 @@
                     window.location.reload();
                 }, 1000);
             }, 1500);
-        }
+        });
     }
     
     // Sync user watchlist
@@ -516,24 +515,9 @@
         }, 2000);
     }
     
-    // Show alert function
+    // Show alert function using global Toast system
     function showAlert(message, type) {
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type} alert-dismissible fade show`;
-        alert.innerHTML = `
-            <i class="fas fa-info-circle me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        const content = document.querySelector('.content');
-        content.insertBefore(alert, content.firstChild);
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            setTimeout(() => alert.remove(), 300);
-        }, 5000);
+        window.showToast(message, type);
     }
     
     // Initialize

@@ -1,0 +1,157 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Content Management - Admin Panel{% endblock %}
+{% block page_title %}Content Management{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+
+<!-- Featured Content -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-star me-2"></i><span data-i18n="con.feat_title">Featured Content</span></h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addFeatured"><i class="fas fa-plus me-1"></i><span data-i18n="con.btn_add">Add</span></button>
+    </div>
+    <div class="collapse" id="addFeatured">
+        <div class="card-body" style="border-bottom:1px solid var(--line);">
+            <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="add_featured">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label" data-i18n="con.form_type">Type</label><select class="form-select" name="content_type"><option value="movie" data-i18n="con.type_movie">Movie</option><option value="tv" data-i18n="con.type_tv">TV Show</option></select></div>
+                    <div class="col-md-3"><label class="form-label" data-i18n="con.form_tmdb">TMDB ID</label><input type="text" class="form-control" name="tmdb_id" required></div>
+                    <div class="col-md-3"><label class="form-label" data-i18n="con.form_title">Title</label><input type="text" class="form-control" name="title" required></div>
+                    <div class="col-md-3"><label class="form-label" data-i18n="con.form_position">Position</label><input type="number" class="form-control" name="position" value="0"></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="con.form_poster">Poster Path</label><input type="text" class="form-control" name="poster_path" placeholder="/path/to/poster.jpg"></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="con.form_backdrop">Backdrop Path</label><input type="text" class="form-control" name="backdrop_path"></div>
+                    <div class="col-12"><label class="form-label" data-i18n="con.form_desc">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+                    <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="feat_active" checked><label class="form-check-label" for="feat_active" data-i18n="con.form_active">Active</label></div></div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="con.btn_add_featured">Add Featured</span></button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if featured %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_type">Type</th><th data-i18n="con.col_tmdb">TMDB ID</th><th data-i18n="con.col_position">Position</th><th data-i18n="con.col_status">Status</th><th data-i18n="con.col_actions">Actions</th></tr></thead>
+            <tbody>{% for f in featured %}<tr>
+                <td><strong>{{ f.title }}</strong></td>
+                <td><span class="badge bg-{% if f.content_type == 'movie' %}success{% else %}info{% endif %}" data-i18n="{% if f.content_type == 'movie' %}con.type_movie{% else %}con.type_tv{% endif %}">{{ f.content_type }}</span></td>
+                <td><code>{{ f.tmdb_id }}</code></td><td>{{ f.position }}</td>
+                <td>
+                    {% if f.is_active %}
+                    <span class="badge bg-success" data-i18n="con.status_active">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary" data-i18n="con.status_inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td><form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if f.is_active %}on{% else %}off{% endif %}"></i></button></form> <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="con.no_featured">No featured content. Add some above!</div>{% endif %}
+    </div>
+</div>
+
+<!-- Maintenance Notices -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i><span data-i18n="con.notice_title">Maintenance Notices</span></h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addNotice"><i class="fas fa-plus me-1"></i><span data-i18n="con.btn_add">Add</span></button>
+    </div>
+    <div class="collapse" id="addNotice">
+        <div class="card-body" style="border-bottom:1px solid var(--line);">
+            <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="add_notice">
+                <div class="row g-3">
+                    <div class="col-12"><label class="form-label" data-i18n="con.form_title">Title</label><input type="text" class="form-control" name="title" required></div>
+                    <div class="col-12"><label class="form-label" data-i18n="con.form_msg">Message</label><textarea class="form-control" name="message" rows="3" required></textarea></div>
+                    <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="notice_active"><label class="form-check-label" for="notice_active" data-i18n="con.form_active_now">Active immediately</label></div></div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="con.btn_create_notice">Create Notice</span></button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if notices %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_status">Status</th><th data-i18n="con.col_created">Created</th><th data-i18n="con.col_actions">Actions</th></tr></thead>
+            <tbody>{% for n in notices %}<tr>
+                <td><strong>{{ n.title }}</strong><br><small class="text-muted">{{ n.message|truncatechars:60 }}</small></td>
+                <td>
+                    {% if n.is_active %}
+                    <span class="badge bg-danger" data-i18n="con.status_active">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary" data-i18n="con.status_inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td><small>{{ n.created_at|date:"M d, Y" }}</small></td>
+                <td><form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if n.is_active %}on{% else %}off{% endif %}"></i></button></form> <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="con.no_notices">No maintenance notices.</div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'con.feat_title': 'Featured Content',
+        'con.btn_add': 'Add',
+        'con.form_type': 'Type',
+        'con.type_movie': 'Movie',
+        'con.type_tv': 'TV Show',
+        'con.form_tmdb': 'TMDB ID',
+        'con.form_title': 'Title',
+        'con.form_position': 'Position',
+        'con.form_poster': 'Poster Path',
+        'con.form_backdrop': 'Backdrop Path',
+        'con.form_desc': 'Description',
+        'con.form_active': 'Active',
+        'con.btn_add_featured': 'Add Featured',
+        'con.col_title': 'Title',
+        'con.col_type': 'Type',
+        'con.col_tmdb': 'TMDB ID',
+        'con.col_position': 'Position',
+        'con.col_status': 'Status',
+        'con.col_actions': 'Actions',
+        'con.status_active': 'Active',
+        'con.status_inactive': 'Inactive',
+        'con.no_featured': 'No featured content. Add some above!',
+        'con.notice_title': 'Maintenance Notices',
+        'con.form_msg': 'Message',
+        'con.form_active_now': 'Active immediately',
+        'con.btn_create_notice': 'Create Notice',
+        'con.col_created': 'Created',
+        'con.no_notices': 'No maintenance notices.'
+    },
+    vi: {
+        'con.feat_title': 'Nội dung nổi bật',
+        'con.btn_add': 'Thêm',
+        'con.form_type': 'Thể loại',
+        'con.type_movie': 'Phim lẻ',
+        'con.type_tv': 'Phim bộ',
+        'con.form_tmdb': 'Mã TMDB',
+        'con.form_title': 'Tiêu đề',
+        'con.form_position': 'Vị trí',
+        'con.form_poster': 'Đường dẫn Poster',
+        'con.form_backdrop': 'Đường dẫn ảnh nền',
+        'con.form_desc': 'Mô tả',
+        'con.form_active': 'Hoạt động',
+        'con.btn_add_featured': 'Thêm nổi bật',
+        'con.col_title': 'Tiêu đề',
+        'con.col_type': 'Thể loại',
+        'con.col_tmdb': 'Mã TMDB',
+        'con.col_position': 'Vị trí',
+        'con.col_status': 'Trạng thái',
+        'con.col_actions': 'Thao tác',
+        'con.status_active': 'Hoạt động',
+        'con.status_inactive': 'Ngừng hoạt động',
+        'con.no_featured': 'Chưa có nội dung nổi bật nào. Hãy thêm mới bên trên!',
+        'con.notice_title': 'Thông báo bảo trì',
+        'con.form_msg': 'Nội dung thông báo',
+        'con.form_active_now': 'Kích hoạt ngay lập tức',
+        'con.btn_create_notice': 'Tạo thông báo',
+        'con.col_created': 'Ngày tạo',
+        'con.no_notices': 'Không có thông báo bảo trì nào.'
+    }
+});
+</script>
+{% endblock %}

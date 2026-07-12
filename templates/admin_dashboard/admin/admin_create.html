@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block title %}Tạo Admin Mới{% endblock %}
+{% block page_title %}Tạo Admin Mới{% endblock %}
+{% block page_i18n_key %}nav.admin_create{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -137,19 +139,16 @@
         <!-- Page Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h1 class="h3 mb-0 text-gray-800">
-                    <i class="fas fa-user-plus"></i> Tạo Admin Mới
-                </h1>
-                <nav aria-label="breadcrumb" class="mt-2">
-                    <ol class="breadcrumb">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
                         <li class="breadcrumb-item active">Tạo mới</li>
                     </ol>
                 </nav>
             </div>
-            <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Quay lại
+            <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Quay lại
             </a>
         </div>
 

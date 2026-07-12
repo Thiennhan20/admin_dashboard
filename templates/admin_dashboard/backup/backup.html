@@ -1,0 +1,98 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Backup - Admin Panel{% endblock %}
+{% block page_title %}Database Backup{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="mb-1"><i class="fas fa-shield-halved me-2"></i><span data-i18n="bk.title">Database Backup</span></h5>
+        <p class="text-muted mb-0" data-i18n="bk.subtitle">Export MongoDB collections as JSON files for safekeeping.</p>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-download me-2"></i><span data-i18n="bk.create_title">Create Backup</span></h6></div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'admin_dashboard:backup_download' %}">{% csrf_token %}
+                    <p class="text-muted small" data-i18n="bk.select_prompt">Select collections to include in the backup:</p>
+                    {% for c in collections %}
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="collections" value="{{ c }}" id="col_{{ c }}" checked>
+                        <label class="form-check-label" for="col_{{ c }}">{{ c }}</label>
+                    </div>
+                    {% endfor %}
+                    <div class="mt-3 d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('[name=collections]').forEach(c=>c.checked=true)" data-i18n="bk.btn_select_all">Select All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('[name=collections]').forEach(c=>c.checked=false)" data-i18n="bk.btn_deselect_all">Deselect All</button>
+                    </div>
+                    <hr style="border-color:var(--line);">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-cloud-arrow-down me-1"></i><span data-i18n="bk.btn_download">Download Backup (JSON)</span></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i><span data-i18n="bk.history_title">Backup History</span></h6></div>
+            <div class="card-body p-0">
+                {% if logs %}
+                <div class="table-responsive"><table class="table table-hover mb-0">
+                    <thead><tr><th data-i18n="bk.col_date">Date</th><th data-i18n="bk.col_collections">Collections</th><th data-i18n="bk.col_size">Size</th><th data-i18n="bk.col_status">Status</th><th data-i18n="bk.col_by">By</th></tr></thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td><small>{{ log.timestamp|date:"M d, Y H:i" }}</small></td>
+                            <td><small>{{ log.collections|join:", "|truncatechars:30 }}</small></td>
+                            <td><small>{{ log.file_size|filesizeformat }}</small></td>
+                            <td><span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'failed' %}danger{% else %}warning{% endif %}">{{ log.status }}</span></td>
+                            <td><small>{{ log.created_by|default:"—" }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table></div>
+                {% else %}<div class="text-center py-4 text-muted" data-i18n="bk.no_backups">No backups yet.</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'bk.title': 'Database Backup',
+        'bk.subtitle': 'Export MongoDB collections as JSON files for safekeeping.',
+        'bk.create_title': 'Create Backup',
+        'bk.select_prompt': 'Select collections to include in the backup:',
+        'bk.btn_select_all': 'Select All',
+        'bk.btn_deselect_all': 'Deselect All',
+        'bk.btn_download': 'Download Backup (JSON)',
+        'bk.history_title': 'Backup History',
+        'bk.col_date': 'Date',
+        'bk.col_collections': 'Collections',
+        'bk.col_size': 'Size',
+        'bk.col_status': 'Status',
+        'bk.col_by': 'By',
+        'bk.no_backups': 'No backups yet.'
+    },
+    vi: {
+        'bk.title': 'Sao lưu dữ liệu',
+        'bk.subtitle': 'Xuất các bộ sưu tập MongoDB thành file JSON để lưu trữ an toàn.',
+        'bk.create_title': 'Tạo bản sao lưu',
+        'bk.select_prompt': 'Chọn các bộ sưu tập cần sao lưu:',
+        'bk.btn_select_all': 'Chọn tất cả',
+        'bk.btn_deselect_all': 'Bỏ chọn tất cả',
+        'bk.btn_download': 'Tải bản sao lưu (JSON)',
+        'bk.history_title': 'Lịch sử sao lưu',
+        'bk.col_date': 'Thời gian',
+        'bk.col_collections': 'Bộ sưu tập',
+        'bk.col_size': 'Dung lượng',
+        'bk.col_status': 'Trạng thái',
+        'bk.col_by': 'Người thực hiện',
+        'bk.no_backups': 'Chưa có bản sao lưu nào.'
+    }
+});
+</script>
+{% endblock %}

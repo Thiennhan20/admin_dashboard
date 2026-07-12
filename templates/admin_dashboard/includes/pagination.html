@@ -1,0 +1,19 @@
+<!-- Reusable pagination component. Expects: page, total_pages, and current GET params preserved -->
+{% if total_pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination justify-content-center mb-0">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page|add:'-1' }}&{{ preserved_params }}">&laquo;</a>
+        </li>
+        {% for p in page_range %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}&{{ preserved_params }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page|add:'1' }}&{{ preserved_params }}">&raquo;</a>
+        </li>
+    </ul>
+    <p class="text-center text-muted small mt-1 mb-0">Page {{ page }} of {{ total_pages }} ({{ total }} items)</p>
+</nav>
+{% endif %}

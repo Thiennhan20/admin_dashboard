@@ -1,0 +1,115 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}System Settings - Admin Panel{% endblock %}
+{% block page_title %}System Settings{% endblock %}
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="mb-1"><i class="fas fa-cog me-2"></i><span data-i18n="settings.config_title">System Configuration</span></h5>
+        <p class="text-muted mb-0" data-i18n="settings.config_subtitle">Global settings that affect the entire application. Only Super Admin can modify.</p>
+    </div>
+</div>
+<form method="POST">{% csrf_token %}
+<div class="card">
+    <div class="card-body">
+        <div class="row g-4">
+            {% for s in settings_data %}
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background:var(--control-hover);border:1px solid var(--line);">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <label class="form-label fw-bold mb-0" for="{{ s.key }}" data-i18n="settings.key.{{ s.key }}">{{ s.key }}</label>
+                        {% if s.type == 'bool' %}
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" name="{{ s.key }}" id="{{ s.key }}" {% if s.value %}checked{% endif %}>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted small mb-2" data-i18n="settings.desc.{{ s.key }}">{{ s.description }}</p>
+                    {% if s.type == 'int' %}
+                    <input type="number" class="form-control" name="{{ s.key }}" id="{{ s.key }}" value="{{ s.value }}">
+                    {% elif s.type == 'str' %}
+                    <input type="text" class="form-control" name="{{ s.key }}" id="{{ s.key }}" value="{{ s.value }}">
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end" style="border-color:var(--line);">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="settings.btn_save">Save Settings</span></button>
+    </div>
+</div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'settings.config_title': 'System Configuration',
+        'settings.config_subtitle': 'Global settings that affect the entire application. Only Super Admin can modify.',
+        'settings.btn_save': 'Save Settings',
+        'settings.key.registration_enabled': 'Registration Enabled',
+        'settings.desc.registration_enabled': 'Allow new user registration on app/web.',
+        'settings.key.watch_rooms_enabled': 'Watch Rooms Enabled',
+        'settings.desc.watch_rooms_enabled': 'Enable Watch Room (Watch Party) feature.',
+        'settings.key.max_rooms': 'Max Rooms',
+        'settings.desc.max_rooms': 'Maximum number of simultaneous watch rooms.',
+        'settings.key.cache_ttl_seconds': 'Cache TTL (seconds)',
+        'settings.desc.cache_ttl_seconds': 'Default TMDB cache TTL in seconds.',
+        'settings.key.broadcast_template': 'Broadcast Template',
+        'settings.desc.broadcast_template': 'Default broadcast notification title.',
+        'settings.key.maintenance_mode': 'Maintenance Mode',
+        'settings.desc.maintenance_mode': 'Enable maintenance mode (blocks app/web).',
+        'settings.key.max_comments_per_user': 'Max Comments per User',
+        'settings.desc.max_comments_per_user': 'Maximum number of comments a user can post.',
+        'settings.key.email_verification_required': 'Email Verification Required',
+        'settings.desc.email_verification_required': 'Require email verification for new accounts.',
+        'settings.key.smtp_host': 'SMTP Host',
+        'settings.desc.smtp_host': 'Outgoing email server host.',
+        'settings.key.smtp_port': 'SMTP Port',
+        'settings.desc.smtp_port': 'Outgoing email server port.',
+        'settings.key.smtp_user': 'SMTP User',
+        'settings.desc.smtp_user': 'SMTP login username.',
+        'settings.key.smtp_password': 'SMTP Password',
+        'settings.desc.smtp_password': 'SMTP login password.',
+        'settings.key.discord_webhook_url': 'Discord Webhook URL',
+        'settings.desc.discord_webhook_url': 'Webhook URL for Discord notifications.',
+        'settings.key.slack_webhook_url': 'Slack Webhook URL',
+        'settings.desc.slack_webhook_url': 'Webhook URL for Slack notifications.'
+    },
+    vi: {
+        'settings.config_title': 'Cấu hình hệ thống',
+        'settings.config_subtitle': 'Các thiết lập toàn cục ảnh hưởng tới toàn bộ ứng dụng. Chỉ Super Admin mới có quyền chỉnh sửa.',
+        'settings.btn_save': 'Lưu cấu hình',
+        'settings.key.registration_enabled': 'Kích hoạt đăng ký',
+        'settings.desc.registration_enabled': 'Cho phép đăng ký tài khoản mới trên ứng dụng và website.',
+        'settings.key.watch_rooms_enabled': 'Kích hoạt phòng xem',
+        'settings.desc.watch_rooms_enabled': 'Bật/tắt tính năng Phòng xem chung (Watch Party).',
+        'settings.key.max_rooms': 'Số phòng xem tối đa',
+        'settings.desc.max_rooms': 'Số lượng phòng xem chung hoạt động cùng một lúc tối đa.',
+        'settings.key.cache_ttl_seconds': 'Thời gian đệm Cache (giây)',
+        'settings.desc.cache_ttl_seconds': 'Thời gian sống mặc định của dữ liệu đệm TMDB tính bằng giây.',
+        'settings.key.broadcast_template': 'Tiêu đề thông báo mẫu',
+        'settings.desc.broadcast_template': 'Tiêu đề mặc định cho các thông báo phát sóng toàn hệ thống.',
+        'settings.key.maintenance_mode': 'Chế độ bảo trì',
+        'settings.desc.maintenance_mode': 'Kích hoạt chế độ bảo trì (chặn truy cập ứng dụng/website).',
+        'settings.key.max_comments_per_user': 'Bình luận tối đa mỗi user',
+        'settings.desc.max_comments_per_user': 'Giới hạn số bình luận một người dùng có thể gửi.',
+        'settings.key.email_verification_required': 'Yêu cầu xác thực Email',
+        'settings.desc.email_verification_required': 'Bắt buộc xác thực tài khoản qua email khi đăng ký.',
+        'settings.key.smtp_host': 'SMTP Host',
+        'settings.desc.smtp_host': 'Địa chỉ máy chủ gửi email SMTP.',
+        'settings.key.smtp_port': 'Cổng SMTP',
+        'settings.desc.smtp_port': 'Cổng kết nối máy chủ gửi email SMTP.',
+        'settings.key.smtp_user': 'Tài khoản SMTP',
+        'settings.desc.smtp_user': 'Tên đăng nhập tài khoản gửi email SMTP.',
+        'settings.key.smtp_password': 'Mật khẩu SMTP',
+        'settings.desc.smtp_password': 'Mật khẩu đăng nhập tài khoản gửi email SMTP.',
+        'settings.key.discord_webhook_url': 'Discord Webhook URL',
+        'settings.desc.discord_webhook_url': 'Đường dẫn webhook gửi thông báo tới kênh Discord.',
+        'settings.key.slack_webhook_url': 'Slack Webhook URL',
+        'settings.desc.slack_webhook_url': 'Đường dẫn webhook gửi thông báo tới kênh Slack.'
+    }
+});
+</script>
+{% endblock %}

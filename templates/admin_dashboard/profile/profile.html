@@ -1,0 +1,109 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}My Profile - Admin Panel{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="row g-4">
+    <!-- Profile Info -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body text-center py-4">
+                <div class="avatar-dot mx-auto mb-3" style="width:80px;height:80px;font-size:2rem;background:var(--blue);">{{ request.user.username|first|upper }}</div>
+                <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+                <p class="text-muted mb-2">{{ request.user.email }}</p>
+                <span class="badge bg-primary px-3 py-2">{{ profile.get_role_display }}</span>
+            </div>
+            <div class="card-footer" style="border-color:var(--line);">
+                <div class="d-flex justify-content-between small text-muted"><span data-i18n="pro.joined">Member since</span><strong>{{ request.user.date_joined|date:"M d, Y" }}</strong></div>
+                <div class="d-flex justify-content-between small text-muted mt-1"><span data-i18n="pro.last_login">Last login</span><strong>{{ request.user.last_login|date:"M d, Y H:i"|default:"Never" }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <!-- Edit Profile -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-user-edit me-2"></i><span data-i18n="pro.edit_title">Edit Profile</span></h6></div>
+            <div class="card-body">
+                <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="update_profile">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label" data-i18n="pro.first_name">First Name</label><input type="text" class="form-control" name="first_name" value="{{ request.user.first_name }}"></div>
+                        <div class="col-md-6"><label class="form-label" data-i18n="pro.last_name">Last Name</label><input type="text" class="form-control" name="last_name" value="{{ request.user.last_name }}"></div>
+                        <div class="col-12"><label class="form-label" data-i18n="pro.email">Email</label><input type="email" class="form-control" name="email" value="{{ request.user.email }}"></div>
+                        <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="pro.btn_save">Save Profile</span></button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-lock me-2"></i><span data-i18n="pro.pwd_title">Change Password</span></h6></div>
+            <div class="card-body">
+                <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="change_password">
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label" data-i18n="pro.current_pwd">Current Password</label><input type="password" class="form-control" name="current_password" required></div>
+                        <div class="col-md-6"><label class="form-label" data-i18n="pro.new_pwd">New Password</label><input type="password" class="form-control" name="new_password" required minlength="8"></div>
+                        <div class="col-md-6"><label class="form-label" data-i18n="pro.confirm_pwd">Confirm Password</label><input type="password" class="form-control" name="confirm_password" required></div>
+                        <div class="col-12"><button type="submit" class="btn btn-warning"><i class="fas fa-key me-1"></i><span data-i18n="pro.btn_change_pwd">Change Password</span></button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i><span data-i18n="pro.act_title">My Recent Activity</span></h6></div>
+            <div class="card-body p-0">
+                {% if recent_logs %}
+                <div class="table-responsive"><table class="table table-hover mb-0">
+                    <thead><tr><th data-i18n="pro.col_action">Action</th><th data-i18n="pro.col_target">Target</th><th data-i18n="pro.col_time">Time</th></tr></thead>
+                    <tbody>{% for log in recent_logs %}<tr><td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.action }}</span></td><td><small>{{ log.target_type }} {{ log.target_id|truncatechars:20 }}</small></td><td><small class="text-muted">{{ log.timestamp|timesince }} ago</small></td></tr>{% endfor %}</tbody>
+                </table></div>
+                {% else %}<div class="text-center py-4 text-muted" data-i18n="pro.no_activity">No activity recorded yet.</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'pro.joined': 'Member since',
+        'pro.last_login': 'Last login',
+        'pro.edit_title': 'Edit Profile',
+        'pro.first_name': 'First Name',
+        'pro.last_name': 'Last Name',
+        'pro.email': 'Email',
+        'pro.btn_save': 'Save Profile',
+        'pro.pwd_title': 'Change Password',
+        'pro.current_pwd': 'Current Password',
+        'pro.new_pwd': 'New Password',
+        'pro.confirm_pwd': 'Confirm Password',
+        'pro.btn_change_pwd': 'Change Password',
+        'pro.act_title': 'My Recent Activity',
+        'pro.col_action': 'Action',
+        'pro.col_target': 'Target',
+        'pro.col_time': 'Time',
+        'pro.no_activity': 'No activity recorded yet.'
+    },
+    vi: {
+        'pro.joined': 'Thành viên từ',
+        'pro.last_login': 'Đăng nhập cuối',
+        'pro.edit_title': 'Chỉnh sửa thông tin',
+        'pro.first_name': 'Tên',
+        'pro.last_name': 'Họ',
+        'pro.email': 'Email',
+        'pro.btn_save': 'Lưu thông tin',
+        'pro.pwd_title': 'Thay đổi mật khẩu',
+        'pro.current_pwd': 'Mật khẩu hiện tại',
+        'pro.new_pwd': 'Mật khẩu mới',
+        'pro.confirm_pwd': 'Xác nhận mật khẩu mới',
+        'pro.btn_change_pwd': 'Đổi mật khẩu',
+        'pro.act_title': 'Hoạt động gần đây của tôi',
+        'pro.col_action': 'Hành động',
+        'pro.col_target': 'Đối tượng',
+        'pro.col_time': 'Thời gian',
+        'pro.no_activity': 'Chưa thực hiện hành động nào gần đây.'
+    }
+});
+</script>
+{% endblock %}

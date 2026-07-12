@@ -478,23 +478,24 @@
 
     function bindDeleteButtons() {
         document.querySelectorAll('.btn-delete-key').forEach(btn => {
-            btn.addEventListener('click', async () => {
+            btn.addEventListener('click', () => {
                 const key = btn.dataset.key;
-                if (!confirm(`Delete cache key?\n${key}`)) return;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                try {
-                    const res = await fetch(actionUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                        body: JSON.stringify({ action: 'delete', key })
-                    });
-                    if (res.ok) loadPage();
-                } catch (e) {
-                    alert('Failed: ' + e.message);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-xmark"></i>';
-                }
+                confirmAction('Delete Cache Key', `Delete cache key?<br><code>${key}</code>`, async () => {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch(actionUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                            body: JSON.stringify({ action: 'delete', key })
+                        });
+                        if (res.ok) loadPage();
+                    } catch (e) {
+                        alert('Failed: ' + e.message);
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-xmark"></i>';
+                    }
+                });
             });
         });
     }
@@ -519,25 +520,27 @@
     });
 
     // Flush all
-    document.getElementById('flushAllBtn')?.addEventListener('click', async () => {
-        if (!confirm('Flush ALL tmdb cache keys? This cannot be undone.')) return;
-        const btn = document.getElementById('flushAllBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Flushing...';
-        try {
-            const res = await fetch(actionUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ action: 'flush' })
-            });
-            if (res.ok) { state.page = 1; loadPage(); }
-        } catch (e) {
-            alert('Failed: ' + e.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-trash me-1"></i> Flush All';
-        }
+    document.getElementById('flushAllBtn')?.addEventListener('click', () => {
+        confirmAction('Flush All Cache', 'Flush ALL tmdb cache keys? This cannot be undone.', async () => {
+            const btn = document.getElementById('flushAllBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Flushing...';
+            try {
+                const res = await fetch(actionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ action: 'flush' })
+                });
+                if (res.ok) { state.page = 1; loadPage(); }
+            } catch (e) {
+                alert('Failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash-can me-1"></i> Flush All';
+            }
+        });
     });
+
 
     function syntaxHighlight(json) {
         if (typeof json !== 'string') {

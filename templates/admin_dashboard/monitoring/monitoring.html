@@ -1,0 +1,121 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}System Monitoring - Admin Panel{% endblock %}
+{% block page_title %}System Monitoring{% endblock %}
+{% block extra_css %}
+<style>
+.service-card { transition: all .2s ease; }
+.service-card:hover { transform: translateY(-2px); }
+.status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.status-dot.online { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,.5); }
+.status-dot.offline { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,.5); }
+.status-dot.not_configured { background: #f59e0b; }
+.status-dot.checking { background: #3b82f6; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-1"><i class="fas fa-heartbeat me-2"></i><span data-i18n="mon.title">Service Health Dashboard</span></h5>
+            <p class="text-muted mb-0" data-i18n="mon.subtitle">Real-time status of all connected services</p>
+        </div>
+        <button class="btn btn-primary" onclick="runHealthCheck()" id="checkBtn"><i class="fas fa-sync me-1"></i><span data-i18n="mon.btn_check">Run Health Check</span></button>
+    </div>
+</div>
+
+<div class="row g-4" id="servicesGrid">
+    <div class="col-md-4"><div class="card service-card"><div class="card-body"><div class="d-flex align-items-center gap-3 mb-3"><span class="status-dot checking" id="dot-nodejs"></span><h6 class="mb-0" data-i18n="mon.srv_nodejs">Node.js Server</h6></div><div id="info-nodejs" class="text-muted small" data-i18n="mon.waiting">Waiting for check...</div></div></div></div>
+    <div class="col-md-4"><div class="card service-card"><div class="card-body"><div class="d-flex align-items-center gap-3 mb-3"><span class="status-dot checking" id="dot-mongodb"></span><h6 class="mb-0" data-i18n="mon.srv_mongodb">MongoDB</h6></div><div id="info-mongodb" class="text-muted small" data-i18n="mon.waiting">Waiting for check...</div></div></div></div>
+    <div class="col-md-4"><div class="card service-card"><div class="card-body"><div class="d-flex align-items-center gap-3 mb-3"><span class="status-dot checking" id="dot-postgresql"></span><h6 class="mb-0" data-i18n="mon.srv_postgres">PostgreSQL</h6></div><div id="info-postgresql" class="text-muted small" data-i18n="mon.waiting">Waiting for check...</div></div></div></div>
+    <div class="col-md-6"><div class="card service-card"><div class="card-body"><div class="d-flex align-items-center gap-3 mb-3"><span class="status-dot checking" id="dot-redis_cache"></span><h6 class="mb-0" data-i18n="mon.srv_redis_cache">Redis Cache (Upstash)</h6></div><div id="info-redis_cache" class="text-muted small" data-i18n="mon.waiting">Waiting for check...</div></div></div></div>
+    <div class="col-md-6"><div class="card service-card"><div class="card-body"><div class="d-flex align-items-center gap-3 mb-3"><span class="status-dot checking" id="dot-redis_rooms"></span><h6 class="mb-0" data-i18n="mon.srv_redis_rooms">Redis Rooms (Upstash)</h6></div><div id="info-redis_rooms" class="text-muted small" data-i18n="mon.waiting">Waiting for check...</div></div></div></div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="mon.history_title">Check History</span></h6></div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="historyTable">
+        <thead><tr><th data-i18n="mon.col_time">Time</th><th data-i18n="mon.col_service">Service</th><th data-i18n="mon.col_status">Status</th><th data-i18n="mon.col_response">Response</th></tr></thead>
+        <tbody id="historyBody"></tbody>
+    </table></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'mon.title': 'Service Health Dashboard',
+        'mon.subtitle': 'Real-time status of all connected services',
+        'mon.btn_check': 'Run Health Check',
+        'mon.btn_checking': 'Checking...',
+        'mon.waiting': 'Waiting for check...',
+        'mon.srv_nodejs': 'Node.js Server',
+        'mon.srv_mongodb': 'MongoDB',
+        'mon.srv_postgres': 'PostgreSQL',
+        'mon.srv_redis_cache': 'Redis Cache (Upstash)',
+        'mon.srv_redis_rooms': 'Redis Rooms (Upstash)',
+        'mon.history_title': 'Check History',
+        'mon.col_time': 'Time',
+        'mon.col_service': 'Service',
+        'mon.col_status': 'Status',
+        'mon.col_response': 'Response',
+        'mon.collections': 'Collections',
+        'mon.data': 'Data'
+    },
+    vi: {
+        'mon.title': 'Bảng sức khỏe dịch vụ',
+        'mon.subtitle': 'Trạng thái thời gian thực của các dịch vụ kết nối',
+        'mon.btn_check': 'Kiểm tra hệ thống',
+        'mon.btn_checking': 'Đang kiểm tra...',
+        'mon.waiting': 'Đang đợi kiểm tra...',
+        'mon.srv_nodejs': 'Máy chủ Node.js',
+        'mon.srv_mongodb': 'MongoDB',
+        'mon.srv_postgres': 'PostgreSQL',
+        'mon.srv_redis_cache': 'Redis Cache (Upstash)',
+        'mon.srv_redis_rooms': 'Redis Rooms (Upstash)',
+        'mon.history_title': 'Lịch sử kiểm tra',
+        'mon.col_time': 'Thời gian',
+        'mon.col_service': 'Dịch vụ',
+        'mon.col_status': 'Trạng thái',
+        'mon.col_response': 'Phản hồi',
+        'mon.collections': 'Bộ sưu tập',
+        'mon.data': 'Dữ liệu'
+    }
+});
+
+let history = [];
+function runHealthCheck() {
+    const btn = document.getElementById('checkBtn');
+    btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>${t('mon.btn_checking')}`;
+    document.querySelectorAll('.status-dot').forEach(d => d.className = 'status-dot checking');
+    fetch('{% url "admin_dashboard:api_health_check" %}')
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false; btn.innerHTML = `<i class="fas fa-sync me-1"></i>${t('mon.btn_check')}`;
+        if (!data.success) return;
+        Object.entries(data.services).forEach(([name, info]) => {
+            const dot = document.getElementById('dot-' + name);
+            const infoEl = document.getElementById('info-' + name);
+            if (dot) dot.className = 'status-dot ' + info.status;
+            if (infoEl) {
+                let html = `<strong class="text-${info.status==='online'?'success':'danger'}">${info.status.toUpperCase()}</strong>`;
+                if (info.response_ms) html += ` · ${info.response_ms}ms`;
+                if (info.error) html += `<br><span class="text-danger">${info.error}</span>`;
+                if (info.collections) html += `<br>${t('mon.collections')}: ${info.collections}`;
+                if (info.data_size) html += ` · ${t('mon.data')}: ${(info.data_size/1024/1024).toFixed(1)}MB`;
+                infoEl.innerHTML = html;
+            }
+            history.unshift({ time: new Date().toLocaleTimeString(), service: name, status: info.status, response: info.response_ms ? info.response_ms + 'ms' : info.error || '-' });
+        });
+        renderHistory();
+    }).catch(e => { btn.disabled = false; btn.innerHTML = `<i class="fas fa-sync me-1"></i>${t('mon.btn_check')}`; });
+}
+function renderHistory() {
+    document.getElementById('historyBody').innerHTML = history.slice(0, 25).map(h => `<tr><td><small>${h.time}</small></td><td>${h.service}</td><td><span class="badge bg-${h.status==='online'?'success':h.status==='offline'?'danger':'warning'}">${h.status}</span></td><td><small>${h.response}</small></td></tr>`).join('');
+}
+runHealthCheck();
+</script>
+{% endblock %}

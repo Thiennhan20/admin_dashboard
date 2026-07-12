@@ -1,0 +1,215 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Analytics - Admin Panel{% endblock %}
+{% block page_title %}Analytics & Business Metrics{% endblock %}
+{% block extra_css %}
+<style>
+.chart-card { min-height: 360px; }
+.chart-card canvas { max-height: 320px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h5 mb-0 text-muted" data-i18n="an.select_range">Chọn khoảng thời gian:</h2>
+    <div style="min-width: 200px;">
+        <select class="form-select" id="timeFilter" aria-label="Filter range">
+            <option value="7" data-i18n="an.range_7">7 ngày qua</option>
+            <option value="30" selected data-i18n="an.range_30">30 ngày qua</option>
+            <option value="this_month" data-i18n="an.range_this_month">Tháng này</option>
+            <option value="90" data-i18n="an.range_90">90 ngày qua</option>
+        </select>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-chart-line me-2"></i><span data-i18n="an.title_registrations">Đăng ký mới</span></h6></div>
+            <div class="card-body"><canvas id="regChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i><span data-i18n="an.title_verification">Trạng thái xác thực email</span></h6></div>
+            <div class="card-body d-flex align-items-center justify-content-center"><canvas id="verifyChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i><span data-i18n="an.title_top_watchlist">Phim được yêu thích nhất</span></h6></div>
+            <div class="card-body"><canvas id="watchlistChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i><span data-i18n="an.title_comments">Xu hướng bình luận</span></h6></div>
+            <div class="card-body"><canvas id="commentsChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-clock me-2"></i><span data-i18n="an.title_hour_activity">Hoạt động bình luận theo giờ</span></h6></div>
+            <div class="card-body"><canvas id="hourChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card mb-4">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-play me-2"></i><span data-i18n="an.title_watch_progress">Phân phối tiến trình xem</span></h6></div>
+            <div class="card-body d-flex align-items-center justify-content-center"><canvas id="wpChart"></canvas></div>
+        </div>
+    </div>
+</div>
+<div class="text-center mt-2 mb-3"><span class="text-muted small" id="loadStatus"><i class="fas fa-spinner fa-spin me-1"></i>Loading analytics data...</span></div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+const isDark = () => document.documentElement.dataset.theme === 'dark';
+const colors = {
+    blue: '#3b82f6', green: '#22c55e', amber: '#f59e0b', red: '#ef4444',
+    teal: '#14b8a6', purple: '#8b5cf6', pink: '#ec4899',
+};
+const gridColor = () => isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+const textColor = () => isDark() ? '#9ca3af' : '#6b7280';
+const getDefaults = () => ({ 
+    responsive: true, 
+    maintainAspectRatio: false, 
+    plugins: { legend: { labels: { color: textColor() } } }, 
+    scales: { 
+        x: { ticks: { color: textColor() }, grid: { color: gridColor() } }, 
+        y: { ticks: { color: textColor() }, grid: { color: gridColor() } } 
+    } 
+});
+
+const chartInstances = {};
+
+function loadAnalytics(days) {
+    const status = document.getElementById('loadStatus');
+    status.style.display = 'inline-block';
+    status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading data...';
+    
+    fetch('{% url "admin_dashboard:api_analytics" %}?days=' + days)
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { status.innerHTML = '<span class="text-danger">Error loading data</span>'; return; }
+        status.innerHTML = '<span class="text-success"><i class="fas fa-check me-1"></i>Data loaded</span>';
+        setTimeout(() => status.style.display = 'none', 1500);
+
+        // 1. Registration chart
+        if (chartInstances.regChart) chartInstances.regChart.destroy();
+        chartInstances.regChart = new Chart(document.getElementById('regChart'), { 
+            type: 'line', 
+            data: { 
+                labels: data.registrations.map(r => r._id.slice(5)), 
+                datasets: [{ label: 'New Users', data: data.registrations.map(r => r.count), borderColor: colors.blue, backgroundColor: colors.blue + '20', fill: true, tension: .4 }] 
+            }, 
+            options: getDefaults() 
+        });
+
+        // 2. Verification pie
+        if (chartInstances.verifyChart) chartInstances.verifyChart.destroy();
+        const v = data.user_verification;
+        chartInstances.verifyChart = new Chart(document.getElementById('verifyChart'), { 
+            type: 'doughnut', 
+            data: { 
+                labels: ['Verified', 'Unverified'], 
+                datasets: [{ data: [v.verified, v.unverified], backgroundColor: [colors.green, colors.amber] }] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor() } } } } 
+        });
+
+        // 3. Top watchlisted
+        if (chartInstances.watchlistChart) chartInstances.watchlistChart.destroy();
+        chartInstances.watchlistChart = new Chart(document.getElementById('watchlistChart'), { 
+            type: 'bar', 
+            data: { 
+                labels: data.top_watchlisted.map(w => (w.title||'Unknown').slice(0,20)), 
+                datasets: [{ label: 'Count', data: data.top_watchlisted.map(w => w.count), backgroundColor: [colors.blue, colors.teal, colors.purple, colors.green, colors.amber, colors.red, colors.pink, colors.blue, colors.teal, colors.purple] }] 
+            }, 
+            options: { ...getDefaults(), indexAxis: 'y' } 
+        });
+
+        // 4. Comments trend
+        if (chartInstances.commentsChart) chartInstances.commentsChart.destroy();
+        chartInstances.commentsChart = new Chart(document.getElementById('commentsChart'), { 
+            type: 'line', 
+            data: { 
+                labels: data.comments_per_day.map(c => c._id.slice(5)), 
+                datasets: [{ label: 'Comments', data: data.comments_per_day.map(c => c.count), borderColor: colors.teal, backgroundColor: colors.teal + '20', fill: true, tension: .4 }] 
+            }, 
+            options: getDefaults() 
+        });
+
+        // 5. Activity by hour
+        if (chartInstances.hourChart) chartInstances.hourChart.destroy();
+        const hourLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
+        const hourData = new Array(24).fill(0);
+        data.activity_by_hour.forEach(h => { hourData[h._id] = h.count; });
+        chartInstances.hourChart = new Chart(document.getElementById('hourChart'), { 
+            type: 'bar', 
+            data: { 
+                labels: hourLabels, 
+                datasets: [{ label: 'Activity', data: hourData, backgroundColor: colors.purple + '80' }] 
+            }, 
+            options: getDefaults() 
+        });
+
+        // 6. Watch progress pie
+        if (chartInstances.wpChart) chartInstances.wpChart.destroy();
+        const wp = data.watch_progress;
+        chartInstances.wpChart = new Chart(document.getElementById('wpChart'), { 
+            type: 'doughnut', 
+            data: { 
+                labels: ['Movies', 'TV Shows'], 
+                datasets: [{ data: [wp.movies, wp.tv_shows], backgroundColor: [colors.blue, colors.amber] }] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor() } } } } 
+        });
+    });
+}
+
+document.getElementById('timeFilter').addEventListener('change', function() {
+    loadAnalytics(this.value);
+});
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAnalytics('30');
+});
+
+// Retranslate and redraw on theme change
+document.addEventListener('themeChanged', () => {
+    const val = document.getElementById('timeFilter').value;
+    loadAnalytics(val);
+});
+
+// Localization values for options/headers
+window.AdminUI.addTranslations({
+    en: {
+        'an.select_range': 'Select time range:',
+        'an.range_7': 'Last 7 days',
+        'an.range_30': 'Last 30 days',
+        'an.range_this_month': 'This Month',
+        'an.range_90': 'Last 90 days',
+        'an.title_registrations': 'New Registrations',
+        'an.title_verification': 'Email Verification Status',
+        'an.title_top_watchlist': 'Most Watchlisted Content',
+        'an.title_comments': 'Comments Trend',
+        'an.title_hour_activity': 'Comment Activity by Hour',
+        'an.title_watch_progress': 'Watch Progress Distribution'
+    },
+    vi: {
+        'an.select_range': 'Chọn khoảng thời gian:',
+        'an.range_7': '7 ngày qua',
+        'an.range_30': '30 ngày qua',
+        'an.range_this_month': 'Tháng này',
+        'an.range_90': '90 ngày qua',
+        'an.title_registrations': 'Lượt đăng ký mới',
+        'an.title_verification': 'Trạng thái xác thực email',
+        'an.title_top_watchlist': 'Nội dung yêu thích nhất',
+        'an.title_comments': 'Xu hướng bình luận',
+        'an.title_hour_activity': 'Hoạt động bình luận theo giờ',
+        'an.title_watch_progress': 'Tiến trình xem phim'
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}{{ media.title }} - TV Show Detail{% endblock %}
+{% block page_title %}TV Show Detail{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+
+<nav class="mb-3"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'admin_dashboard:tv_shows' %}">TV Shows</a></li><li class="breadcrumb-item active">{{ media.title }}</li></ol></nav>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        {% if media.poster %}<img src="https://image.tmdb.org/t/p/w300{{ media.poster }}" class="img-fluid rounded shadow" alt="{{ media.title }}">{% else %}<div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="height:300px;"><i class="fas fa-tv fa-3x text-muted"></i></div>{% endif %}
+    </div>
+    <div class="col-md-9">
+        <h3 class="mb-2">{{ media.title }}</h3>
+        <p class="text-muted">TMDB ID: {{ media.id }}</p>
+        <div class="row g-3">
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.watchlist_count }}</h4><small class="text-muted">In Watchlists</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.progress_count }}</h4><small class="text-muted">Watch Records</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.comment_count }}</h4><small class="text-muted">Comments</small></div></div></div>
+        </div>
+    </div>
+</div>
+
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-bookmark me-2"></i>Users with this in Watchlist ({{ stats.watchlist_count }})</h6></div>
+    <div class="card-body p-0">
+        {% if watchlist_users %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>User</th><th>Email</th></tr></thead>
+            <tbody>{% for u in watchlist_users %}<tr><td>{{ u.name|default:"Unknown" }}</td><td><small class="text-muted">{{ u.email|default:"" }}</small></td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted">No users have this in their watchlist.</div>{% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i>Watch Progress ({{ stats.progress_count }})</h6></div>
+    <div class="card-body p-0">
+        {% if progress_items %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>User</th><th>Season/Episode</th><th>Progress</th><th>Last Watched</th></tr></thead>
+            <tbody>{% for p in progress_items %}<tr><td>{{ p.user.name|default:"Unknown" }}</td><td>S{{ p.season|default:"?" }}E{{ p.episode|default:"?" }}</td><td>{{ p.progress|default:"—" }}</td><td><small>{{ p.lastWatched|default:"—" }}</small></td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted">No watch progress data.</div>{% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i>Comments ({{ stats.comment_count }})</h6></div>
+    <div class="card-body p-0">
+        {% if comments %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>User</th><th>Content</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{% for c in comments %}<tr><td>{{ c.user.name|default:"Unknown" }}</td><td>{{ c.content|truncatechars:80 }}</td><td>{% if c.isDeleted %}<span class="badge bg-danger">Hidden</span>{% else %}<span class="badge bg-success">Active</span>{% endif %}</td><td><small>{{ c.createdAt|default:"—" }}</small></td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-4 text-muted">No comments.</div>{% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block title %}Chỉnh sửa Admin - {{ admin_user.username }}{% endblock %}
+{% block page_title %}Chỉnh sửa Admin{% endblock %}
+{% block page_i18n_key %}nav.admin_edit{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -132,19 +134,29 @@
     }
     
     .warning-section {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        color: var(--ink);
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
     }
+    .warning-section h6 {
+        color: var(--amber) !important;
+        font-weight: 700;
+    }
     
     .danger-section {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        color: var(--ink);
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
+    }
+    .danger-section h6 {
+        color: var(--red) !important;
+        font-weight: 700;
     }
     
     .btn-save {
@@ -173,7 +185,7 @@
         border-radius: 25px;
         font-size: 0.875rem;
         z-index: 1000;
-        transform: translateX(100%);
+        transform: translateX(calc(100% + 40px));
         transition: transform 0.3s ease;
     }
     
@@ -189,11 +201,8 @@
         <!-- Page Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h1 class="h3 mb-0 text-gray-800">
-                    <i class="fas fa-user-edit"></i> Chỉnh sửa Admin
-                </h1>
-                <nav aria-label="breadcrumb" class="mt-2">
-                    <ol class="breadcrumb">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}">{{ admin_user.username }}</a></li>
@@ -423,7 +432,7 @@
                     </h6>
                     <p class="mb-3">Thao tác xóa admin sẽ không thể hoàn tác!</p>
                     <button type="button" class="btn btn-outline-danger" 
-                            onclick="deleteAdmin({{ admin_user.id }}, '{{ admin_user.username }}')">
+                            onclick="deleteAdmin('{{ admin_user.id }}', '{{ admin_user.username }}')">
                         <i class="fas fa-trash"></i> Xóa Admin này
                     </button>
                 </div>
@@ -598,9 +607,12 @@ function updateRoleInfo() {
 
 // Delete admin function
 function deleteAdmin(adminId, username) {
-    if (confirm(`Bạn có chắc chắn muốn xóa admin "${username}"?\n\nThao tác này không thể hoàn tác!`)) {
+    const t = window.AdminUI.t;
+    const title = t('admin.delete_title') || 'Xóa tài khoản admin';
+    const body = t('admin.delete_body', {username: username}) || `Bạn có chắc chắn muốn xóa admin "${username}"?<br><br>Thao tác này không thể hoàn tác!`;
+    confirmAction(title, body, () => {
         window.location.href = `/dashboard/admins/${adminId}/delete/`;
-    }
+    });
 }
 
 // Event listeners

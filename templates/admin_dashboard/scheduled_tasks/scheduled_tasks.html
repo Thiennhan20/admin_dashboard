@@ -1,0 +1,132 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Scheduled Tasks - Admin Panel{% endblock %}
+{% block page_title %}Scheduled Tasks{% endblock %}
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-clock me-2"></i><span data-i18n="nav.scheduledTasks">Scheduled Tasks</span></h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addTask"><i class="fas fa-plus me-1"></i><span data-i18n="st.btn_new_task">New Task</span></button>
+    </div>
+    <div class="collapse" id="addTask">
+        <div class="card-body" style="border-bottom:1px solid var(--line);">
+            <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="create">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label" data-i18n="st.form_name">Name</label><input type="text" class="form-control" name="name" required></div>
+                    <div class="col-md-4">
+                        <label class="form-label" data-i18n="st.form_type">Task Type</label>
+                        <select class="form-select" name="task_type">
+                            <option value="cleanup_tokens" data-i18n="st.type_cleanup_tokens">Cleanup Expired Tokens</option>
+                            <option value="cleanup_blacklist" data-i18n="st.type_cleanup_blacklist">Cleanup Blacklisted Tokens</option>
+                            <option value="cleanup_progress" data-i18n="st.type_cleanup_progress">Cleanup Old Watch Progress</option>
+                            <option value="backup_db" data-i18n="st.type_backup_db">Backup Database</option>
+                            <option value="health_check" data-i18n="st.type_health_check">Health Check All Services</option>
+                            <option value="custom" data-i18n="st.type_custom">Custom Task</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label" data-i18n="st.form_interval">Interval (minutes)</label><input type="number" class="form-control" name="interval_minutes" value="1440"></div>
+                    <div class="col-12"><label class="form-label" data-i18n="st.form_desc">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+                    <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="task_active" checked><label class="form-check-label" for="task_active" data-i18n="st.form_active">Active</label></div></div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="st.btn_create">Create Task</span></button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if tasks %}
+        <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th data-i18n="st.col_name">Name</th><th data-i18n="st.col_type">Type</th><th data-i18n="st.col_interval">Interval</th><th data-i18n="st.col_last_run">Last Run</th><th data-i18n="st.col_status">Status</th><th data-i18n="st.col_active">Active</th><th data-i18n="st.col_actions">Actions</th></tr></thead>
+            <tbody>{% for t in tasks %}<tr>
+                <td><strong>{{ t.name }}</strong><br><small class="text-muted">{{ t.description|truncatechars:40 }}</small></td>
+                <td><code class="small">{{ t.task_type }}</code></td>
+                <td><small>{% if t.interval_minutes >= 1440 %}{{ t.interval_minutes|divisibleby:1440 }} day(s){% elif t.interval_minutes >= 60 %}{{ t.interval_minutes|divisibleby:60 }} hour(s){% else %}{{ t.interval_minutes }} min{% endif %}</small></td>
+                <td><small class="text-muted">{{ t.last_run|default:"Never" }}</small></td>
+                <td><span class="badge bg-{% if t.last_status == 'success' %}success{% elif t.last_status == 'failed' %}danger{% else %}secondary{% endif %}">{{ t.last_status|default:"—" }}</span></td>
+                <td>{% if t.is_active %}<span class="badge bg-success" data-i18n="st.val_yes">Yes</span>{% else %}<span class="badge bg-secondary" data-i18n="st.val_no">No</span>{% endif %}</td>
+                <td class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-primary" onclick="runTask('{{ t.id }}')" title="Run Now"><i class="fas fa-play"></i></button>
+                    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-warning" title="Toggle"><i class="fas fa-toggle-{% if t.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+                </td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-clock fa-3x mb-3 d-block opacity-25"></i><span data-i18n="st.no_tasks">No scheduled tasks. Create one above!</span></div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'st.btn_new_task': 'New Task',
+        'st.form_name': 'Name',
+        'st.form_type': 'Task Type',
+        'st.type_cleanup_tokens': 'Cleanup Expired Tokens',
+        'st.type_cleanup_blacklist': 'Cleanup Blacklisted Tokens',
+        'st.type_cleanup_progress': 'Cleanup Old Watch Progress',
+        'st.type_backup_db': 'Backup Database',
+        'st.type_health_check': 'Health Check All Services',
+        'st.type_custom': 'Custom Task',
+        'st.form_interval': 'Interval (minutes)',
+        'st.form_desc': 'Description',
+        'st.form_active': 'Active',
+        'st.btn_create': 'Create Task',
+        'st.col_name': 'Name',
+        'st.col_type': 'Type',
+        'st.col_interval': 'Interval',
+        'st.col_last_run': 'Last Run',
+        'st.col_status': 'Status',
+        'st.col_active': 'Active',
+        'st.col_actions': 'Actions',
+        'st.val_yes': 'Yes',
+        'st.val_no': 'No',
+        'st.no_tasks': 'No scheduled tasks. Create one above!',
+        'st.confirm_run_title': 'Run Task Now',
+        'st.confirm_run_body': 'Execute this task immediately?',
+        'st.task_completed': 'Task completed: ',
+        'st.btn_run': 'Run'
+    },
+    vi: {
+        'st.btn_new_task': 'Tác vụ mới',
+        'st.form_name': 'Tên tác vụ',
+        'st.form_type': 'Loại tác vụ',
+        'st.type_cleanup_tokens': 'Dọn dẹp token hết hạn',
+        'st.type_cleanup_blacklist': 'Dọn dẹp blacklist token',
+        'st.type_cleanup_progress': 'Dọn dẹp lịch sử xem cũ',
+        'st.type_backup_db': 'Sao lưu cơ sở dữ liệu',
+        'st.type_health_check': 'Kiểm tra sức khỏe dịch vụ',
+        'st.type_custom': 'Tác vụ tùy chỉnh',
+        'st.form_interval': 'Chu kỳ (phút)',
+        'st.form_desc': 'Mô tả',
+        'st.form_active': 'Hoạt động',
+        'st.btn_create': 'Tạo tác vụ',
+        'st.col_name': 'Tên tác vụ',
+        'st.col_type': 'Thể loại',
+        'st.col_interval': 'Chu kỳ',
+        'st.col_last_run': 'Lần chạy cuối',
+        'st.col_status': 'Trạng thái',
+        'st.col_active': 'Kích hoạt',
+        'st.col_actions': 'Thao tác',
+        'st.val_yes': 'Có',
+        'st.val_no': 'Không',
+        'st.no_tasks': 'Không có tác vụ định kỳ nào. Hãy tạo mới bên trên!',
+        'st.confirm_run_title': 'Chạy tác vụ ngay',
+        'st.confirm_run_body': 'Kích hoạt chạy tác vụ này lập tức?',
+        'st.task_completed': 'Tác vụ đã hoàn thành: ',
+        'st.btn_run': 'Chạy'
+    }
+});
+
+function runTask(id) {
+    confirmAction(t('st.confirm_run_title'), t('st.confirm_run_body'), () => {
+        fetch(`/dashboard/scheduled-tasks/${id}/run/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
+        .then(r=>r.json()).then(d=>{ alert(d.success ? t('st.task_completed') + (d.output||'OK') : 'Error: ' + d.error); location.reload(); });
+    }, {btnClass:'primary', btnText:t('st.btn_run')});
+}
+</script>
+{% endblock %}

@@ -626,7 +626,6 @@ def cleanup_watchlist(request):
     return redirect('admin_dashboard:watchlist_list')
 
 # API endpoints cho AJAX calls
-@csrf_exempt
 @require_http_methods(["POST"])
 @login_required
 def api_sync_from_api(request):
