@@ -1,0 +1,210 @@
+{% extends "admin_dashboard/base.html" %}
+
+{% block title %}Game Histories — Movie Admin{% endblock %}
+{% block page_i18n_key %}nav.gameHistories{% endblock %}
+
+{% block content %}
+<style>
+    @media (max-width: 768px) {
+        .game-header-title { font-size: 1.2rem; }
+        .game-card-value { font-size: 1.4rem; }
+    }
+</style>
+
+<div class="container-fluid py-3 px-2 px-sm-3 px-md-4">
+    <!-- Merged Header & Stats Banner -->
+    <div class="card border-0 shadow-sm mb-3 text-white overflow-hidden" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+        <div class="card-body p-3 p-md-3.5 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 bg-warning bg-opacity-20 p-2 d-flex align-items-center justify-content-center text-warning fs-4" style="width: 44px; height: 44px; min-width: 44px;">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div>
+                    <h1 class="h5 font-weight-bold mb-0 text-white game-header-title" data-i18n="gameHistories.title">Lịch sử trận đấu</h1>
+                    <p class="text-white-50 small mb-0" data-i18n="gameHistories.subtitle">Theo dõi nhật ký các trận đấu game, mã phòng, người chiến thắng và thời gian hoàn thành.</p>
+                </div>
+            </div>
+
+            <!-- Compact Inline Stats -->
+            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto ms-lg-0">
+                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-1.5 text-center">
+                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameHistories.totalMatches">Tổng Số Trận</small>
+                    <span class="h5 font-weight-bold mb-0 text-white">{{ stats.total|default:0 }}</span>
+                </div>
+                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-1.5 text-center">
+                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameHistories.avgGuesses">Số Lần Đoán TB</small>
+                    <span class="h5 font-weight-bold mb-0 text-info"><i class="fas fa-lightbulb me-1"></i>{{ stats.avg_guesses|default:0 }}</span>
+                </div>
+                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-1.5 text-center">
+                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameHistories.avgDuration">Thời Gian Đấu TB</small>
+                    <span class="h5 font-weight-bold mb-0 text-success"><i class="fas fa-stopwatch me-1"></i>{{ stats.avg_duration|default:0 }}s</span>
+                </div>
+                <button class="btn btn-sm btn-danger d-none fw-bold shadow-sm" id="bulkDeleteBtn" onclick="bulkDelete()">
+                    <i class="fas fa-trash me-1"></i><span data-i18n="gameHistories.bulkDeleteSelected">Xóa các mục đã chọn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Table Card -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-2.5">
+            <form method="GET" action="" class="row g-2 align-items-center">
+                <div class="col-12 col-md-8 col-lg-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 py-1.5"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0 bg-light text-truncate py-1.5" placeholder="Tìm theo Mã phòng (Room ID) hoặc Winner ID..." data-i18n-placeholder="gameHistories.searchPlaceholder" value="{{ search }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4 col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-1.5"><i class="fas fa-filter me-1"></i><span data-i18n="gameProfiles.filterBtn">Lọc Dữ Liệu</span></button>
+                    {% if search %}
+                    <a href="{% url 'admin_dashboard:game_histories' %}" class="btn btn-outline-secondary fw-bold py-1.5"><i class="fas fa-times"></i></a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="min-width: 680px;">
+                    <thead class="table-light text-uppercase small text-muted">
+                        <tr>
+                            <th width="40"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                            <th data-i18n="gameHistories.colRoomId">Mã Phòng (Room ID)</th>
+                            <th data-i18n="gameHistories.colWinner">Người Thắng (Winner)</th>
+                            <th data-i18n="gameHistories.colGuesses">Tổng Số Lượt Đoán</th>
+                            <th data-i18n="gameHistories.colDuration">Thời Gian Đấu</th>
+                            <th data-i18n="gameHistories.colFinished">Thời Gian Kết Thúc</th>
+                            <th class="text-end" data-i18n="gameHistories.colAction">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td><input type="checkbox" class="row-checkbox" value="{{ item.id }}" onchange="updateBulkBtn()"></td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary border font-mono px-2.5 py-1">
+                                        <i class="fas fa-door-open me-1 text-primary"></i>{{ item.roomId|default:"Mã ẩn" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if item.winner %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-warning text-dark px-2 py-1">🏆 Winner</span>
+                                        {% if item.winner_avatar %}
+                                        <img src="{{ item.winner_avatar }}" alt="{{ item.winner_name }}" class="rounded-circle object-fit-cover shadow-sm" style="width:24px; height:24px;" onerror="this.style.display='none';">
+                                        {% endif %}
+                                        <strong class="text-dark">{{ item.winner_name }}</strong>
+                                    </div>
+                                    {% else %}
+                                    <span class="badge bg-light text-muted border">ID: {{ item.winnerId|default:"Hòa/Hủy" }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark font-mono"><i class="fas fa-bullseye text-danger me-1"></i>{{ item.totalGuesses|default:0 }} <small class="text-muted" data-i18n="gameHistories.guessesCount">lượt</small></span>
+                                    {% if item.winnerGuessCount %}
+                                    <small class="text-muted d-block" style="font-size: 11px;">W: {{ item.winnerGuessCount }} / L: {{ item.loserGuessCount|default:0 }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle font-mono">
+                                        <i class="fas fa-clock me-1"></i>{{ item.duration|default:0 }}s
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted font-mono">{{ item.formatted_date|default:"-" }}</small>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger fw-bold" title="Xóa trận đấu này" onclick="deleteSingle('{{ item.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fas fa-trophy fa-3x mb-3 d-block opacity-25"></i>
+                                    <p class="mb-0 font-weight-bold" data-i18n="gameHistories.emptyMsg">Không tìm thấy lịch sử trận đấu nào.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="card-footer bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <small class="text-muted">Trang {{ page }} / {{ total_pages }} (Tổng {{ total }} mục)</small>
+                <ul class="pagination pagination-sm m-0">
+                    {% if page > 1 %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&search={{ search }}">Trước</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                    {% if page < total_pages %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&search={{ search }}">Sau</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleSelectAll(master) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = master.checked);
+    updateBulkBtn();
+}
+
+function updateBulkBtn() {
+    const selected = document.querySelectorAll('.row-checkbox:checked');
+    const btn = document.getElementById('bulkDeleteBtn');
+    if (btn) {
+        if (selected.length > 0) {
+            btn.classList.remove('d-none');
+        } else {
+            btn.classList.add('d-none');
+        }
+    }
+}
+
+async function deleteSingle(id) {
+    if (!confirm('Bạn có chắc chắn muốn xóa lịch sử trận đấu này?')) return;
+    await executeDelete([id]);
+}
+
+async function bulkDelete() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${selected.length} lịch sử trận đấu đã chọn?`)) return;
+    await executeDelete(selected);
+}
+
+async function executeDelete(ids) {
+    try {
+        const res = await fetch("{% url 'admin_dashboard:api_game_history_delete' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.getCsrfToken()
+            },
+            body: JSON.stringify({ ids: ids })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`🎉 Đã xóa thành công ${data.deleted} lịch sử trận đấu!`);
+            location.reload();
+        } else {
+            alert('Lỗi khi xóa: ' + (data.error || 'Lỗi không xác định'));
+        }
+    } catch (err) {
+        alert('Có lỗi xảy ra: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

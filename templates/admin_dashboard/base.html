@@ -782,6 +782,9 @@
             <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
                 <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
             </a>
+            <a class="side-link {% if request.resolver_match.url_name == 'servers' %}active{% endif %}" href="{% url 'admin_dashboard:servers' %}">
+                <i class="fas fa-server"></i><span data-i18n="nav.servers">Server</span>
+            </a>
             <a class="side-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" href="{% url 'admin_dashboard:analytics' %}">
                 <i class="fas fa-chart-line"></i><span data-i18n="nav.analytics">Analytics</span>
             </a>
@@ -824,6 +827,14 @@
             </a>
             <a class="side-link {% if 'content_management' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:content_management' %}">
                 <i class="fas fa-star"></i><span data-i18n="nav.featuredContent">Featured Content</span>
+            </a>
+
+            <div class="nav-section" data-i18n="nav.sectionGame">GAME</div>
+            <a class="side-link {% if 'game_profiles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_profiles' %}">
+                <i class="fas fa-gamepad"></i><span data-i18n="nav.gameProfiles">Game Profiles</span>
+            </a>
+            <a class="side-link {% if 'game_histories' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_histories' %}">
+                <i class="fas fa-trophy"></i><span data-i18n="nav.gameHistories">Game Histories</span>
             </a>
 
             <div class="nav-section" data-i18n="nav.system">System</div>
@@ -1012,11 +1023,76 @@
                 'common.export_pdf': 'Export PDF / Print',
                 'nav.admin_create': 'Create Admin',
                 'nav.admin_edit': 'Edit Admin',
-                'nav.admin_detail': 'Admin Detail'
+                'nav.admin_detail': 'Admin Detail',
+                'nav.servers': 'Servers',
+                'nav.sectionGame': 'GAME',
+                'nav.gameProfiles': 'Game Profiles',
+                'nav.gameHistories': 'Game Histories',
+                'servers.title': 'Servers',
+                'servers.subtitle': 'Configure 3 streaming video servers and auto domain crawler for Server 2.',
+                'servers.tab1': 'Server 1 (KKPhim)',
+                'servers.tab2': 'Server 2 (VidSrc)',
+                'servers.tab3': 'Server 3 (NguonC)',
+                'servers.crawlerTitle': 'Auto Domain Crawler',
+                'servers.sourceLabel': 'Source:',
+                'servers.autoSwitch': 'Auto pick best domain',
+                'servers.scanBtn': 'Scan domains',
+                'servers.scanning': 'Scanning...',
+                'servers.activeLabel': 'Active domain in use:',
+                'servers.lastScraped': 'Last scraped:',
+                'servers.notScraped': 'Not scraped yet',
+                'servers.cronBadge': '🟢 Running 6h schedule',
+                'servers.group1': '🟢 GROUP 1: NEW LIVE DOMAINS',
+                'servers.group2': '🟡 GROUP 2: OLD BACKUP DOMAINS',
+                'servers.group3': '🔴 GROUP 3: DEAD DOMAINS',
+                'servers.colDomain': 'VidSrc Domain',
+                'servers.colStatus': 'Status',
+                'servers.colLatency': 'Latency',
+                'servers.colAction': 'Action',
+                'servers.useThisDomain': 'Use this domain',
+                'servers.unavailable': 'Unavailable',
+
+                'gameProfiles.title': 'Game Profiles',
+                'gameProfiles.subtitle': 'Track player ratings, win/loss rates, and game stats.',
+                'gameProfiles.totalProfiles': 'Total Game Profiles',
+                'gameProfiles.maxRating': 'Highest System Rating',
+                'gameProfiles.searchPlaceholder': 'Search by player name, email, or User ID...',
+                'gameProfiles.filterBtn': 'Filter Data',
+                'gameProfiles.colPlayer': 'Player (User)',
+                'gameProfiles.colRating': 'Rating',
+                'gameProfiles.colWinLoss': 'Wins / Losses',
+                'gameProfiles.colStreak': 'Win Streak',
+                'gameProfiles.colXP': 'Experience (XP)',
+                'gameProfiles.colUpdated': 'Last Updated',
+                'gameProfiles.colAction': 'Action',
+                'gameProfiles.peakLabel': 'Peak:',
+                'gameProfiles.recordLabel': 'Record:',
+                'gameProfiles.emptyMsg': 'No game profiles found.',
+                'gameProfiles.bulkDeleteSelected': 'Delete selected items',
+
+                'gameHistories.title': 'Game Histories',
+                'gameHistories.subtitle': 'Track match logs, room IDs, winners, and match duration.',
+                'gameHistories.totalMatches': 'Total Matches Played',
+                'gameHistories.avgGuesses': 'Avg Guesses per Match',
+                'gameHistories.avgDuration': 'Avg Match Duration',
+                'gameHistories.searchPlaceholder': 'Search by Room ID or Winner ID...',
+                'gameHistories.colRoomId': 'Room ID',
+                'gameHistories.colWinner': 'Winner',
+                'gameHistories.colGuesses': 'Total Guesses',
+                'gameHistories.colDuration': 'Match Duration',
+                'gameHistories.colFinished': 'Finished At',
+                'gameHistories.colAction': 'Action',
+                'gameHistories.guessesCount': 'guesses',
+                'gameHistories.emptyMsg': 'No match histories found.',
+                'gameHistories.bulkDeleteSelected': 'Delete selected items'
             },
             vi: {
                 'nav.operate': 'Vận hành',
                 'nav.dashboard': 'Bảng điều khiển',
+                'nav.servers': 'Server',
+                'nav.sectionGame': 'GAME (Trò chơi)',
+                'nav.gameProfiles': 'Hồ sơ Game',
+                'nav.gameHistories': 'Lịch sử đấu Game',
                 'nav.analytics': 'Phân tích',
                 'nav.users': 'Người dùng',
                 'nav.watchlist': 'Danh sách xem',
@@ -1066,7 +1142,64 @@
                 'common.export_pdf': 'Xuất PDF / In',
                 'nav.admin_create': 'Tạo Admin Mới',
                 'nav.admin_edit': 'Chỉnh sửa Admin',
-                'nav.admin_detail': 'Chi tiết Admin'
+                'nav.admin_detail': 'Chi tiết Admin',
+                'servers.title': 'Máy Chủ',
+                'servers.subtitle': 'Cấu hình 3 máy chủ phát video và tự động cào tên miền cho Server 2.',
+                'servers.tab1': 'Máy Chủ 1 (KKPhim)',
+                'servers.tab2': 'Máy Chủ 2 (VidSrc)',
+                'servers.tab3': 'Máy Chủ 3 (NguonC)',
+                'servers.crawlerTitle': 'Bộ Cào Tên Miền Tự Động',
+                'servers.sourceLabel': 'Nguồn:',
+                'servers.autoSwitch': 'Tự động chọn tên miền tốt nhất',
+                'servers.scanBtn': 'Quét tên miền',
+                'servers.scanning': 'Đang quét...',
+                'servers.activeLabel': 'Tên miền đang sử dụng:',
+                'servers.lastScraped': 'Lần quét:',
+                'servers.notScraped': 'Chưa quét',
+                'servers.cronBadge': '🟢 Chạy ngầm 6h/lần',
+                'servers.group1': '🟢 NHÓM 1: TÊN MIỀN MỚI ACTIVE',
+                'servers.group2': '🟡 NHÓM 2: TÊN MIỀN CŨ DỰ PHÒNG',
+                'servers.group3': '🔴 NHÓM 3: TÊN MIỀN ĐÃ NGƯNG DÙNG',
+                'servers.colDomain': 'Tên Miền VidSrc',
+                'servers.colStatus': 'Trạng Thái Phản Hồi',
+                'servers.colLatency': 'Tốc Độ (Latency)',
+                'servers.colAction': 'Thao Tác',
+                'servers.useThisDomain': 'Dùng Domain này',
+                'servers.unavailable': 'Không khả dụng',
+
+                'gameProfiles.title': 'Hồ sơ Game',
+                'gameProfiles.subtitle': 'Theo dõi điểm số Rating, tỷ lệ Thắng/Thua và chỉ số thành tích của người chơi.',
+                'gameProfiles.totalProfiles': 'Tổng Hồ Sơ Game',
+                'gameProfiles.maxRating': 'Rating Cao Nhất Hệ Thống',
+                'gameProfiles.searchPlaceholder': 'Tìm theo tên người dùng, email hoặc User ID...',
+                'gameProfiles.filterBtn': 'Lọc Dữ Liệu',
+                'gameProfiles.colPlayer': 'Người Chơi (User)',
+                'gameProfiles.colRating': 'Xếp Hạng (Rating)',
+                'gameProfiles.colWinLoss': 'Thắng / Thua',
+                'gameProfiles.colStreak': 'Chuỗi Thắng',
+                'gameProfiles.colXP': 'Kinh Nghiệm (XP)',
+                'gameProfiles.colUpdated': 'Cập Nhật Lần Cuối',
+                'gameProfiles.colAction': 'Thao Tác',
+                'gameProfiles.peakLabel': 'Cao nhất:',
+                'gameProfiles.recordLabel': 'Kỷ lục:',
+                'gameProfiles.emptyMsg': 'Không tìm thấy hồ sơ game nào.',
+                'gameProfiles.bulkDeleteSelected': 'Xóa các mục đã chọn',
+
+                'gameHistories.title': 'Lịch sử trận đấu',
+                'gameHistories.subtitle': 'Theo dõi nhật ký các trận đấu game, mã phòng, người chiến thắng và thời gian hoàn thành.',
+                'gameHistories.totalMatches': 'Tổng Số Trận Đấu',
+                'gameHistories.avgGuesses': 'Số Lần Đoán Trung Bình',
+                'gameHistories.avgDuration': 'Thời Gian Trận Trung Bình',
+                'gameHistories.searchPlaceholder': 'Tìm theo Mã phòng (Room ID) hoặc Winner ID...',
+                'gameHistories.colRoomId': 'Mã Phòng (Room ID)',
+                'gameHistories.colWinner': 'Người Thắng (Winner)',
+                'gameHistories.colGuesses': 'Tổng Số Lượt Đoán',
+                'gameHistories.colDuration': 'Thời Gian Đấu',
+                'gameHistories.colFinished': 'Thời Gian Kết Thúc',
+                'gameHistories.colAction': 'Thao Tác',
+                'gameHistories.guessesCount': 'lượt',
+                'gameHistories.emptyMsg': 'Không tìm thấy lịch sử trận đấu nào.',
+                'gameHistories.bulkDeleteSelected': 'Xóa các mục đã chọn'
             }
         };
 

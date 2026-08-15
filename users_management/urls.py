@@ -41,9 +41,19 @@ urlpatterns = [
     path('rooms/', views.rooms_list, name='rooms'),
     path('notifications/', views.notifications_list, name='notifications'),
     path('cache/', views.cache_management, name='cache'),
+    path('servers/', views.server_management, name='servers'),
+    path('api/servers/vidsrc/scan/', views.api_vidsrc_scan, name='api_vidsrc_scan'),
+    path('api/servers/vidsrc/select/', views.api_vidsrc_select, name='api_vidsrc_select'),
+    path('api/servers/vidsrc/toggle-auto/', views.api_vidsrc_toggle_auto, name='api_vidsrc_toggle_auto'),
 
     # ── NEW: Watch Progress ─────────────────────────────────────────
     path('watch-progress/', views.watch_progress_list, name='watch_progress'),
+
+    # ── GAME MANAGEMENT ─────────────────────────────────────────────
+    path('games/profiles/', views.game_profiles_list, name='game_profiles'),
+    path('games/histories/', views.game_histories_list, name='game_histories'),
+    path('api/games/profiles/delete/', views.api_game_profile_delete, name='api_game_profile_delete'),
+    path('api/games/histories/delete/', views.api_game_history_delete, name='api_game_history_delete'),
 
     # ── NEW: Search History ─────────────────────────────────────────
     path('search-history/', views.search_history_list, name='search_history'),

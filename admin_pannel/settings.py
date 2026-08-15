@@ -36,8 +36,12 @@ def load_local_env(env_path):
 
         if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
             value = value[1:-1]
+        else:
+            # Strip unquoted inline comments
+            if '#' in value:
+                value = value.split('#', 1)[0].strip()
 
-        os.environ.setdefault(key, value)
+        os.environ[key] = value
 
 
 load_local_env(BASE_DIR / '.env')

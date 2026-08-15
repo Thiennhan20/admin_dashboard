@@ -38,3 +38,5 @@ from users_management.views.webhooks import *          # noqa: F401,F403
 from users_management.views.api import *               # noqa: F401,F403
 from users_management.views.audit_logs import *        # noqa: F401,F403
 from users_management.views.notifications_api import * # noqa: F401,F403
+from users_management.views.servers import *          # noqa: F401,F403
+from users_management.views.games import *            # noqa: F401,F403

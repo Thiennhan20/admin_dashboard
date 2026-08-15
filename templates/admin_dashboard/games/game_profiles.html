@@ -1,0 +1,217 @@
+{% extends "admin_dashboard/base.html" %}
+
+{% block title %}Game Profiles — Movie Admin{% endblock %}
+{% block page_i18n_key %}nav.gameProfiles{% endblock %}
+
+{% block content %}
+<style>
+    .game-badge { font-size: 0.75rem; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+    .game-avatar-box { width: 38px; height: 38px; min-width: 38px; }
+    @media (max-width: 768px) {
+        .game-header-title { font-size: 1.2rem; }
+        .game-card-value { font-size: 1.4rem; }
+    }
+</style>
+
+<div class="container-fluid py-3 px-2 px-sm-3 px-md-4">
+    <!-- Merged Header & Stats Banner -->
+    <div class="card border-0 shadow-sm mb-3 text-white overflow-hidden" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+        <div class="card-body p-3 p-md-3.5 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 bg-warning bg-opacity-20 p-2 d-flex align-items-center justify-content-center text-warning fs-4" style="width: 44px; height: 44px; min-width: 44px;">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <div>
+                    <h1 class="h5 font-weight-bold mb-0 text-white game-header-title" data-i18n="gameProfiles.title">Hồ sơ Game</h1>
+                    <p class="text-white-50 small mb-0" data-i18n="gameProfiles.subtitle">Theo dõi điểm số Rating, tỷ lệ Thắng/Thua và chỉ số thành tích của người chơi.</p>
+                </div>
+            </div>
+
+            <!-- Compact Inline Stats -->
+            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto ms-lg-0">
+                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-1.5 text-center">
+                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameProfiles.totalProfiles">Tổng Hồ Sơ Game</small>
+                    <span class="h5 font-weight-bold mb-0 text-white">{{ stats.total|default:0 }}</span>
+                </div>
+                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-1.5 text-center">
+                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameProfiles.maxRating">Rating Cao Nhất</small>
+                    <span class="h5 font-weight-bold mb-0 text-warning"><i class="fas fa-trophy me-1"></i>{{ stats.max_rating|default:0 }}</span>
+                </div>
+                <button class="btn btn-sm btn-danger d-none fw-bold shadow-sm" id="bulkDeleteBtn" onclick="bulkDelete()">
+                    <i class="fas fa-trash me-1"></i><span data-i18n="gameProfiles.bulkDeleteSelected">Xóa các mục đã chọn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Table Card -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-2.5">
+            <form method="GET" action="" class="row g-2 align-items-center">
+                <div class="col-12 col-md-8 col-lg-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 py-1.5"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0 bg-light text-truncate py-1.5" placeholder="Tìm theo tên người dùng, email hoặc User ID..." data-i18n-placeholder="gameProfiles.searchPlaceholder" value="{{ search }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4 col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-1.5"><i class="fas fa-filter me-1"></i><span data-i18n="gameProfiles.filterBtn">Lọc Dữ Liệu</span></button>
+                    {% if search %}
+                    <a href="{% url 'admin_dashboard:game_profiles' %}" class="btn btn-outline-secondary fw-bold py-1.5"><i class="fas fa-times"></i></a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="min-width: 720px;">
+                    <thead class="table-light text-uppercase small text-muted">
+                        <tr>
+                            <th width="40"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                            <th data-i18n="gameProfiles.colPlayer">Người Chơi (User)</th>
+                            <th data-i18n="gameProfiles.colRating">Xếp Hạng (Rating)</th>
+                            <th data-i18n="gameProfiles.colWinLoss">Thắng / Thua</th>
+                            <th data-i18n="gameProfiles.colStreak">Chuỗi Thắng</th>
+                            <th data-i18n="gameProfiles.colXP">Kinh Nghiệm (XP)</th>
+                            <th data-i18n="gameProfiles.colUpdated">Cập Nhật Lần Cuối</th>
+                            <th class="text-end" data-i18n="gameProfiles.colAction">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td><input type="checkbox" class="row-checkbox" value="{{ item.id }}" onchange="updateBulkBtn()"></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2.5">
+                                        {% if item.user_avatar %}
+                                        <img src="{{ item.user_avatar }}" alt="{{ item.display_name }}" class="rounded-circle object-fit-cover shadow-sm game-avatar-box" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.setProperty('display', 'flex', 'important');">
+                                        <div class="rounded-circle bg-primary text-white font-weight-bold align-items-center justify-content-center shadow-sm game-avatar-box" style="display:none !important;">
+                                            {{ item.display_name|first|upper }}
+                                        </div>
+                                        {% else %}
+                                        <div class="rounded-circle bg-primary text-white font-weight-bold d-flex align-items-center justify-content-center shadow-sm game-avatar-box">
+                                            {{ item.display_name|first|upper }}
+                                        </div>
+                                        {% endif %}
+                                        <div style="max-width: 220px;" class="text-truncate">
+                                            <strong class="d-block text-dark text-truncate">{{ item.display_name }}</strong>
+                                            <small class="text-muted font-mono text-truncate d-block" style="font-size: 11px;">{{ item.user_email }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary fs-6 px-2.5 py-1 shadow-xs">
+                                        ⭐ {{ item.rating|default:1000 }}
+                                    </span>
+                                    {% if item.highestRating %}
+                                    <small class="text-muted d-block" style="font-size: 11px;"><span data-i18n="gameProfiles.peakLabel">Cao nhất:</span> {{ item.highestRating }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle me-1">W: {{ item.wins|default:0 }}</span>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">L: {{ item.losses|default:0 }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-warning"><i class="fas fa-fire me-1"></i>{{ item.currentWinStreak|default:0 }}</span>
+                                    <small class="text-muted d-block" style="font-size: 11px;"><span data-i18n="gameProfiles.recordLabel">Kỷ lục:</span> {{ item.bestWinStreak|default:0 }}</small>
+                                </td>
+                                <td>
+                                    <span class="font-mono fw-bold text-info"><i class="fas fa-bolt me-1"></i>{{ item.totalXp|default:0 }} XP</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted font-mono">{{ item.formatted_date|default:"-" }}</small>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger fw-bold" title="Xóa hồ sơ này" onclick="deleteSingle('{{ item.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="fas fa-gamepad fa-3x mb-3 d-block opacity-25"></i>
+                                    <p class="mb-0 font-weight-bold" data-i18n="gameProfiles.emptyMsg">Không tìm thấy hồ sơ game nào.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="card-footer bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <small class="text-muted">Trang {{ page }} / {{ total_pages }} (Tổng {{ total }} mục)</small>
+                <ul class="pagination pagination-sm m-0">
+                    {% if page > 1 %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&search={{ search }}">Trước</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                    {% if page < total_pages %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&search={{ search }}">Sau</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleSelectAll(master) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = master.checked);
+    updateBulkBtn();
+}
+
+function updateBulkBtn() {
+    const selected = document.querySelectorAll('.row-checkbox:checked');
+    const btn = document.getElementById('bulkDeleteBtn');
+    if (btn) {
+        if (selected.length > 0) {
+            btn.classList.remove('d-none');
+        } else {
+            btn.classList.add('d-none');
+        }
+    }
+}
+
+async function deleteSingle(id) {
+    if (!confirm('Bạn có chắc chắn muốn xóa hồ sơ game này?')) return;
+    await executeDelete([id]);
+}
+
+async function bulkDelete() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${selected.length} hồ sơ game đã chọn?`)) return;
+    await executeDelete(selected);
+}
+
+async function executeDelete(ids) {
+    try {
+        const res = await fetch("{% url 'admin_dashboard:api_game_profile_delete' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.getCsrfToken()
+            },
+            body: JSON.stringify({ ids: ids })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`🎉 Đã xóa thành công ${data.deleted} hồ sơ game!`);
+            location.reload();
+        } else {
+            alert('Lỗi khi xóa: ' + (data.error || 'Lỗi không xác định'));
+        }
+    } catch (err) {
+        alert('Có lỗi xảy ra: ' + err.message);
+    }
+}
+</script>
+{% endblock %}
