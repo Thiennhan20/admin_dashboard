@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Scheduled Tasks - Admin Panel{% endblock %}
 {% block page_title %}Scheduled Tasks{% endblock %}
+{% block page_i18n_key %}nav.scheduledTasks{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}
@@ -125,7 +126,7 @@ window.AdminUI.addTranslations({
 function runTask(id) {
     confirmAction(t('st.confirm_run_title'), t('st.confirm_run_body'), () => {
         fetch(`/dashboard/scheduled-tasks/${id}/run/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
-        .then(r=>r.json()).then(d=>{ alert(d.success ? t('st.task_completed') + (d.output||'OK') : 'Error: ' + d.error); location.reload(); });
+        .then(r=>r.json()).then(d=>{ showToast(d.success ? t('st.task_completed') + (d.output||'OK') : 'Error: ' + d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
     }, {btnClass:'primary', btnText:t('st.btn_run')});
 }
 </script>

@@ -314,13 +314,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await res.json();
                 if (data.ok) {
                     const isEn = window.AdminUI && window.AdminUI.language() === 'en';
-                    alert(isChecked 
+                    showToast(isChecked 
                         ? (isEn ? '✅ Enabled automatic best domain selection!' : '✅ Đã BẬT tự động chọn tên miền nhanh nhất!') 
-                        : (isEn ? 'ℹ️ Disabled auto selection. You can manually pick a domain.' : 'ℹ️ Đã TẮT tự động. Bạn có thể chọn tên miền thủ công.'));
+                        : (isEn ? 'ℹ️ Disabled auto selection. You can manually pick a domain.' : 'ℹ️ Đã TẮT tự động. Bạn có thể chọn tên miền thủ công.'), isChecked ? 'success' : undefined);
                 }
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
+} catch (err) {
+                        showToast('Lỗi: ' + err.message, 'error');
+                    }
         });
     }
 
@@ -345,10 +345,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     currentScanData = data.scan_results;
                     renderDomainTables(currentScanData);
                 } else {
-                    alert('Lỗi quét: ' + (data.error || 'Unknown error'));
+                    showToast('Lỗi quét: ' + (data.error || 'Unknown error'), 'error');
                 }
             } catch (err) {
-                alert('Lỗi: ' + err.message);
+                showToast('Lỗi: ' + err.message, 'error');
             } finally {
                 btnScan.disabled = false;
                 iconScan.classList.remove('fa-spin');
@@ -427,32 +427,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Bind Apply Buttons
         document.querySelectorAll('.btn-apply-domain').forEach(btn => {
-            btn.addEventListener('click', async function() {
+            btn.addEventListener('click', function() {
                 const targetUrl = btn.getAttribute('data-url');
                 const isEn = window.AdminUI && window.AdminUI.language() === 'en';
                 const confirmMsg = isEn 
                     ? `Are you sure you want to set Server 2 active domain to ${targetUrl}?`
                     : `Bạn có chắc chắn muốn chuyển Server 2 sang sử dụng tên miền ${targetUrl} cho Client?`;
 
-                if (!confirm(confirmMsg)) return;
+                confirmAction(isEn ? 'Apply Domain' : 'Áp dụng tên miền', confirmMsg, async function() {
+                    const formData = new FormData();
+                    formData.append('domain', targetUrl);
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
-                const formData = new FormData();
-                formData.append('domain', targetUrl);
-                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-                try {
-                    const res = await fetch("{% url 'admin_dashboard:api_vidsrc_select' %}", {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const resData = await res.json();
-                    if (resData.ok) {
-                        if (lblActiveDomain) lblActiveDomain.textContent = targetUrl;
-                        alert(isEn ? `🎉 Successfully applied ${targetUrl} to Server 2!` : `🎉 Đã áp dụng thành công tên miền ${targetUrl} cho Server 2 trên Client Website!`);
+                    try {
+                        const res = await fetch("{% url 'admin_dashboard:api_vidsrc_select' %}", {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const resData = await res.json();
+                        if (resData.ok) {
+                            if (lblActiveDomain) lblActiveDomain.textContent = targetUrl;
+                            showToast(isEn ? `🎉 Successfully applied ${targetUrl} to Server 2!` : `🎉 Đã áp dụng thành công tên miền ${targetUrl} cho Server 2 trên Client Website!`, 'success');
+                        }
+                    } catch (err) {
+showToast('Lỗi: ' + err.message, 'error');
                     }
-                } catch (err) {
-                    alert('Lỗi: ' + err.message);
-                }
+                });
             });
         });
     }

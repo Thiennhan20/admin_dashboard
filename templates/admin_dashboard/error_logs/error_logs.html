@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Error Logs - Admin Panel{% endblock %}
 {% block page_title %}Error Logs{% endblock %}
+{% block page_i18n_key %}nav.errorLogs{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}

@@ -491,7 +491,7 @@
                         });
                         if (res.ok) loadPage();
                     } catch (e) {
-                        alert('Failed: ' + e.message);
+                        showToast('Failed: ' + e.message, 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-xmark"></i>';
                     }
@@ -533,7 +533,7 @@
                 });
                 if (res.ok) { state.page = 1; loadPage(); }
             } catch (e) {
-                alert('Failed: ' + e.message);
+                showToast('Failed: ' + e.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-trash-can me-1"></i> Flush All';

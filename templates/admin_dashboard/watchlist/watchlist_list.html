@@ -2,6 +2,7 @@
 
 {% block title %}Watchlist Management - Admin Panel{% endblock %}
 {% block page_title %}Watchlist Management{% endblock %}
+{% block page_i18n_key %}nav.watchlist{% endblock %}
 
 {% block content %}
 {% csrf_token %}
@@ -366,7 +367,7 @@
     function bulkDelete() {
         const selected = document.querySelectorAll('.row-check:checked');
         if (selected.length === 0) {
-            alert(t('wl.alert_select_err'));
+            showToast(t('wl.alert_select_err'), 'error');
             return;
         }
 
@@ -411,16 +412,16 @@
             icon.classList.remove('fa-spin');
             button.disabled = false;
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 900);
             } else {
-                alert(`Error: ${data.error}`);
+                showToast(`Error: ${data.error}`, 'error');
             }
         })
         .catch(error => {
             icon.classList.remove('fa-spin');
             button.disabled = false;
-            alert(`Network error: ${error.message}`);
+            showToast(`Network error: ${error.message}`, 'error');
         });
     }
 </script>

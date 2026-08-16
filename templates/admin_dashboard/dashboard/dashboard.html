@@ -195,13 +195,46 @@
 
     /* Chart bars */
     .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 8px 0; }
-    .chart-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .chart-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height .6s cubic-bezier(.4,0,.2,1); }
+    .chart-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+    .chart-bar {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        transition: height .6s cubic-bezier(.4,0,.2,1);
+        transform-origin: bottom;
+        animation: barGrow .9s cubic-bezier(.34,1.56,.64,1) both;
+        position: relative;
+    }
+    .chart-bar:hover { filter: brightness(1.15); }
+    .chart-bar .bar-value {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 4px);
+        transform: translateX(-50%);
+        background: var(--ink);
+        color: var(--panel);
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .15s;
+    }
+    .chart-bar:hover .bar-value { opacity: 1; }
+    .chart-bar-col:nth-child(2) .chart-bar { animation-delay: .08s; }
+    .chart-bar-col:nth-child(3) .chart-bar { animation-delay: .16s; }
+    .chart-bar-col:nth-child(4) .chart-bar { animation-delay: .24s; }
+    .chart-bar-col:nth-child(5) .chart-bar { animation-delay: .32s; }
+    .chart-bar-col:nth-child(6) .chart-bar { animation-delay: .4s; }
+    .chart-bar-col:nth-child(7) .chart-bar { animation-delay: .48s; }
+    @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     .chart-bar-label { font-size: 11px; color: var(--muted); font-weight: 700; }
 
     /* Trending table */
-    .trend-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .trend-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius); border-bottom: 1px solid var(--line); margin: 0 -4px; transition: background .15s; }
     .trend-row:last-child { border-bottom: 0; }
+    .trend-row:hover { background: var(--control-hover); }
     .trend-rank { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 850; font-size: 13px; background: var(--control-hover); color: var(--muted); flex-shrink: 0; }
     .trend-rank.gold { background: rgba(251,191,36,.15); color: #d97706; }
     .trend-rank.silver { background: rgba(148,163,184,.15); color: #64748b; }
@@ -335,13 +368,13 @@
         </div>
         <div class="ops-panel-body">
             <div class="chart-bars" id="weeklyChart">
-                <div class="chart-bar-col"><div class="chart-bar" style="height:45%;background:var(--blue)"></div><span class="chart-bar-label">Mon</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:72%;background:var(--blue)"></div><span class="chart-bar-label">Tue</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:58%;background:var(--blue)"></div><span class="chart-bar-label">Wed</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:85%;background:var(--teal)"></div><span class="chart-bar-label">Thu</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:64%;background:var(--blue)"></div><span class="chart-bar-label">Fri</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:92%;background:var(--teal)"></div><span class="chart-bar-label">Sat</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:78%;background:var(--blue)"></div><span class="chart-bar-label">Sun</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:45%;background:var(--blue)"><span class="bar-value">36</span></div><span class="chart-bar-label">Mon</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:72%;background:var(--blue)"><span class="bar-value">58</span></div><span class="chart-bar-label">Tue</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:58%;background:var(--blue)"><span class="bar-value">47</span></div><span class="chart-bar-label">Wed</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:85%;background:var(--teal)"><span class="bar-value">69</span></div><span class="chart-bar-label">Thu</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:64%;background:var(--blue)"><span class="bar-value">52</span></div><span class="chart-bar-label">Fri</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:92%;background:var(--teal)"><span class="bar-value">74</span></div><span class="chart-bar-label">Sat</span></div>
+                <div class="chart-bar-col"><div class="chart-bar" style="height:78%;background:var(--blue)"><span class="bar-value">63</span></div><span class="chart-bar-label">Sun</span></div>
             </div>
             <div class="d-flex justify-content-between mt-2">
                 <span class="text-muted small"><i class="fas fa-chart-line me-1"></i><span data-i18n="chart.newUsers">New users</span></span>
@@ -896,14 +929,17 @@
     }
 
     async function runAction(collection, id, action) {
-        if (action === 'delete' && !confirm(t('messages.confirmDelete'))) return;
+        if (action === 'delete') {
+            confirmAction(t('messages.confirmDelete'), t('messages.confirmDelete'), () => runAction(collection, id, action));
+            return;
+        }
         const response = await fetch(`/dashboard/api/mongo/${collection}/${id}/${action}/`, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrfToken },
         });
         const data = await response.json();
         if (!data.success) {
-            alert(data.error || t('messages.actionFailed'));
+            showToast(data.error || t('messages.actionFailed'), 'error');
             return;
         }
         await Promise.all([loadOverview(), loadCollection()]);

@@ -2,6 +2,7 @@
 
 {% block title %}TV Shows Management - Admin Panel{% endblock %}
 {% block page_title %}TV Shows Management{% endblock %}
+{% block page_i18n_key %}nav.tvShows{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -11,9 +12,9 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <h5 class="mb-2">
-                            <i class="fas fa-tv me-2"></i>TV Shows on Platform
+                            <i class="fas fa-tv me-2"></i><span data-i18n="tv.heading">TV Shows on Platform</span>
                         </h5>
-                        <p class="text-muted mb-0">Monitor TV shows in user watchlists and watch history. Remove copyright-infringed or inactive series from all accounts.</p>
+                        <p class="text-muted mb-0" data-i18n="tv.subtitle">Monitor TV shows in user watchlists and watch history. Remove copyright-infringed or inactive series from all accounts.</p>
                     </div>
                 </div>
             </div>
@@ -44,7 +45,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-primary">{{ total_tv }}</h4>
-                    <p class="text-muted mb-0">Total Unique TV Shows</p>
+                    <p class="text-muted mb-0" data-i18n="tv.statTotalTv">Total Unique TV Shows</p>
                 </div>
             </div>
         </div>
@@ -57,7 +58,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-success">{{ total_watchlist_count }}</h4>
-                    <p class="text-muted mb-0">Total Watchlist Saves</p>
+                    <p class="text-muted mb-0" data-i18n="tv.statWatchlistSaves">Total Watchlist Saves</p>
                 </div>
             </div>
         </div>
@@ -67,7 +68,7 @@
 <!-- TV Shows List -->
 <div class="card">
     <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Active TV Shows List</h6>
+        <h6 class="mb-0"><i class="fas fa-list me-2"></i><span data-i18n="tv.listTitle">Active TV Shows List</span></h6>
     </div>
     <div class="card-body p-0">
         {% if tv_shows %}
@@ -75,13 +76,13 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th width="80">Poster</th>
-                            <th>TMDb ID</th>
-                            <th>Series Title</th>
-                            <th>Watchlist Saves</th>
-                            <th>Watch History</th>
-                            <th>Last Watched</th>
-                            <th class="text-end" width="180">Actions</th>
+                            <th width="80" data-i18n="tv.colPoster">Poster</th>
+                            <th data-i18n="tv.colTmdbId">TMDb ID</th>
+                            <th data-i18n="tv.colTitle">Series Title</th>
+                            <th data-i18n="tv.colWatchlist">Watchlist Saves</th>
+                            <th data-i18n="tv.colHistory">Watch History</th>
+                            <th data-i18n="tv.colLastWatched">Last Watched</th>
+                            <th class="text-end" width="180" data-i18n="tv.colActions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,31 +105,31 @@
                             </td>
                             <td>
                                 <div class="fw-bold text-dark">{{ show.title }}</div>
-                                <div class="text-muted small">ID: {{ show.id }}</div>
+                                <div class="text-muted small"><span data-i18n="tv.idLabel">ID:</span> {{ show.id }}</div>
                             </td>
                             <td>
-                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ show.watchlist_count }} users</span>
+                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ show.watchlist_count }} <span data-i18n="tv.usersSuffix">users</span></span>
                             </td>
                             <td>
-                                <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ show.progress_count }} plays</span>
+                                <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ show.progress_count }} <span data-i18n="tv.playsSuffix">plays</span></span>
                             </td>
                             <td>
                                 <small class="text-muted">
                                     {% if show.last_watched %}
                                         {{ show.last_watched|slice:":10" }} {{ show.last_watched|slice:"11:16" }}
                                     {% else %}
-                                        Not watched yet
+                                        <span data-i18n="tv.notWatched">Not watched yet</span>
                                     {% endif %}
                                 </small>
                             </td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction('Xóa phim bộ', 'Bạn có chắc chắn muốn xóa phim bộ &quot;{{ show.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
+                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction(window.AdminUI.t('tv.confirmDeleteTitle') || 'Xóa phim bộ', window.AdminUI.t('tv.confirmDeleteBody', {title: '&quot;{{ show.title }}&quot;'}) || 'Bạn có chắc chắn muốn xóa phim bộ &quot;{{ show.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete_media">
                                     <input type="hidden" name="media_id" value="{{ show.id }}">
                                     <input type="hidden" name="is_tv" value="true">
                                     <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
-                                        <i class="fas fa-trash-alt me-1"></i>Delete from Platform
+                                        <i class="fas fa-trash-alt me-1"></i><span data-i18n="tv.deleteBtn">Delete from Platform</span>
                                     </button>
                                 </form>
                             </td>
@@ -142,8 +143,8 @@
                 <div class="mb-4">
                     <i class="fas fa-tv fa-4x text-light-subtle"></i>
                 </div>
-                <h5>No TV Shows Found</h5>
-                <p class="small mb-0">No TV shows are currently present in user watchlists or watch progress records.</p>
+                <h5 data-i18n="tv.emptyTitle">No TV Shows Found</h5>
+                <p class="small mb-0" data-i18n="tv.emptyMsg">No TV shows are currently present in user watchlists or watch progress records.</p>
             </div>
         {% endif %}
     </div>
@@ -162,4 +163,57 @@
         box-shadow: var(--shadow);
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'tv.heading': 'TV Shows on Platform',
+        'tv.subtitle': 'Monitor TV shows in user watchlists and watch history. Remove copyright-infringed or inactive series from all accounts.',
+        'tv.statTotalTv': 'Total Unique TV Shows',
+        'tv.statWatchlistSaves': 'Total Watchlist Saves',
+        'tv.listTitle': 'Active TV Shows List',
+        'tv.colPoster': 'Poster',
+        'tv.colTmdbId': 'TMDb ID',
+        'tv.colTitle': 'Series Title',
+        'tv.colWatchlist': 'Watchlist Saves',
+        'tv.colHistory': 'Watch History',
+        'tv.colLastWatched': 'Last Watched',
+        'tv.colActions': 'Actions',
+        'tv.idLabel': 'ID:',
+        'tv.usersSuffix': 'users',
+        'tv.playsSuffix': 'plays',
+        'tv.notWatched': 'Not watched yet',
+        'tv.deleteBtn': 'Delete from Platform',
+        'tv.emptyTitle': 'No TV Shows Found',
+        'tv.emptyMsg': 'No TV shows are currently present in user watchlists or watch progress records.',
+        'tv.confirmDeleteTitle': 'Delete TV Show',
+        'tv.confirmDeleteBody': 'Are you sure you want to delete the TV show {title} from the system?'
+    },
+    vi: {
+        'tv.heading': 'Phim bộ trên nền tảng',
+        'tv.subtitle': 'Theo dõi phim bộ trong danh sách xem và lịch sử xem của người dùng. Xóa các bộ phim vi phạm bản quyền hoặc không còn hoạt động khỏi tất cả tài khoản.',
+        'tv.statTotalTv': 'Tổng số phim bộ duy nhất',
+        'tv.statWatchlistSaves': 'Tổng lượt lưu Watchlist',
+        'tv.listTitle': 'Danh sách phim bộ đang hoạt động',
+        'tv.colPoster': 'Áp phích',
+        'tv.colTmdbId': 'Mã TMDb',
+        'tv.colTitle': 'Tên series',
+        'tv.colWatchlist': 'Lượt lưu Watchlist',
+        'tv.colHistory': 'Lịch sử xem',
+        'tv.colLastWatched': 'Xem gần nhất',
+        'tv.colActions': 'Thao tác',
+        'tv.idLabel': 'Mã:',
+        'tv.usersSuffix': 'người dùng',
+        'tv.playsSuffix': 'lượt xem',
+        'tv.notWatched': 'Chưa xem',
+        'tv.deleteBtn': 'Xóa khỏi nền tảng',
+        'tv.emptyTitle': 'Không tìm thấy phim bộ',
+        'tv.emptyMsg': 'Hiện không có phim bộ nào trong danh sách xem hoặc bản ghi tiến trình xem của người dùng.',
+        'tv.confirmDeleteTitle': 'Xóa phim bộ',
+        'tv.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim bộ {title} khỏi hệ thống?'
+    }
+});
+</script>
 {% endblock %}

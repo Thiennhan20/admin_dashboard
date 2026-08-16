@@ -2,6 +2,7 @@
 
 {% block title %}{{ item.title }} - Watchlist Detail{% endblock %}
 {% block page_title %}Watchlist Item Detail{% endblock %}
+{% block page_i18n_key %}page.watchlistDetail{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -9,7 +10,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-heart"></i> Watchlist Item Details
+                    <i class="fas fa-heart"></i> <span data-i18n="watchDet.title">Watchlist Item Details</span>
                 </h5>
             </div>
             <div class="card-body">
@@ -31,7 +32,7 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>Movie ID:</strong>
+                                <strong data-i18n="watchDet.movieId">Movie ID:</strong>
                             </div>
                             <div class="col-sm-8">
                                 <code>{{ item.movie_id }}</code>
@@ -40,7 +41,7 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>Title:</strong>
+                                <strong data-i18n="watchDet.titleLabel">Title:</strong>
                             </div>
                             <div class="col-sm-8">
                                 {{ item.title }}
@@ -49,7 +50,7 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>Poster URL:</strong>
+                                <strong data-i18n="watchDet.posterUrl">Poster URL:</strong>
                             </div>
                             <div class="col-sm-8">
                                 {% if item.poster_path %}
@@ -57,14 +58,14 @@
                                         {{ item.poster_path }}
                                     </a>
                                 {% else %}
-                                    <span class="text-muted">No poster available</span>
+                                    <span class="text-muted" data-i18n="watchDet.noPoster">No poster available</span>
                                 {% endif %}
                             </div>
                         </div>
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>Added Date:</strong>
+                                <strong data-i18n="watchDet.addedDate">Added Date:</strong>
                             </div>
                             <div class="col-sm-8">
                                 {{ item.added_at|date:"F d, Y \a\t H:i" }}
@@ -73,7 +74,7 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>User:</strong>
+                                <strong data-i18n="watchDet.user">User:</strong>
                             </div>
                             <div class="col-sm-8">
                                                                  <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" class="text-decoration-none">
@@ -84,16 +85,16 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>User Status:</strong>
+                                <strong data-i18n="watchDet.userStatus">User Status:</strong>
                             </div>
                             <div class="col-sm-8">
                                 {% if item.user.is_email_verified %}
                                     <span class="badge bg-success">
-                                        <i class="fas fa-check-circle"></i> Verified
+                                        <i class="fas fa-check-circle"></i> <span data-i18n="watchDet.verified">Verified</span>
                                     </span>
                                 {% else %}
                                     <span class="badge bg-warning">
-                                        <i class="fas fa-exclamation-triangle"></i> Unverified
+                                        <i class="fas fa-exclamation-triangle"></i> <span data-i18n="watchDet.unverified">Unverified</span>
                                     </span>
                                 {% endif %}
                             </div>
@@ -101,10 +102,10 @@
                         
                         <div class="row mb-3">
                             <div class="col-sm-4">
-                                <strong>User's Total Watchlist:</strong>
+                                <strong data-i18n="watchDet.totalWatchlist">User's Total Watchlist:</strong>
                             </div>
                             <div class="col-sm-8">
-                                {{ item.user.watchlist_count }} items
+                                {{ item.user.watchlist_count }} <span data-i18n="watchDet.itemsSuffix">items</span>
                             </div>
                         </div>
                     </div>
@@ -118,23 +119,23 @@
         <div class="card mb-3">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-cogs"></i> Actions
+                    <i class="fas fa-cogs"></i> <span data-i18n="watchDet.actions">Actions</span>
                 </h6>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                                             <a href="{% url 'admin_dashboard:watchlist_edit' item.id %}" 
                        class="btn btn-warning">
-                        <i class="fas fa-edit"></i> Edit Item
+                        <i class="fas fa-edit"></i> <span data-i18n="watchDet.editBtn">Edit Item</span>
                     </a>
                                             <a href="{% url 'admin_dashboard:watchlist_delete' item.id %}" 
                        class="btn btn-danger"
-                       onclick="event.preventDefault(); confirmAction('Xóa mục Watchlist', 'Bạn có chắc chắn muốn xóa mục này khỏi Watchlist?', () => { window.location.href = this.href; })">
-                        <i class="fas fa-trash"></i> Delete Item
+                       onclick="event.preventDefault(); confirmAction(window.AdminUI.t('watchDet.confirmDeleteTitle') || 'Xóa mục Watchlist', window.AdminUI.t('watchDet.confirmDeleteBody') || 'Bạn có chắc chắn muốn xóa mục này khỏi Watchlist?', () => { window.location.href = this.href; })">
+                        <i class="fas fa-trash"></i> <span data-i18n="watchDet.deleteBtn">Delete Item</span>
                     </a>
                     <a href="{% url 'admin_dashboard:watchlist_list' %}" 
                        class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to List
+                        <i class="fas fa-arrow-left"></i> <span data-i18n="watchDet.backBtn">Back to List</span>
                     </a>
                 </div>
             </div>
@@ -144,7 +145,7 @@
         <div class="card">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-user"></i> User Information
+                    <i class="fas fa-user"></i> <span data-i18n="watchDet.userInfo">User Information</span>
                 </h6>
             </div>
             <div class="card-body">
@@ -166,35 +167,94 @@
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">User ID:</small>
+                    <small class="text-muted" data-i18n="watchDet.userId">User ID:</small>
                     <br>
                                                     <code>{{ item.user.id }}</code>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">API ID:</small>
+                    <small class="text-muted" data-i18n="watchDet.apiId">API ID:</small>
                     <br>
                                                     <code>{{ item.user.id|default:"Not synced" }}</code>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Created:</small>
+                    <small class="text-muted" data-i18n="watchDet.created">Created:</small>
                     <br>
                     {{ item.user.created_at|date:"M d, Y" }}
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Watchlist Items:</small>
+                    <small class="text-muted" data-i18n="watchDet.watchlistItems">Watchlist Items:</small>
                     <br>
                     <strong>{{ item.user.watchlist_count }}</strong>
                 </div>
                 
                                         <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" 
                    class="btn btn-outline-primary btn-sm w-100">
-                    <i class="fas fa-eye"></i> View User Details
+                    <i class="fas fa-eye"></i> <span data-i18n="watchDet.viewUser">View User Details</span>
                 </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'watchDet.title': 'Watchlist Item Details',
+        'watchDet.movieId': 'Movie ID:',
+        'watchDet.titleLabel': 'Title:',
+        'watchDet.posterUrl': 'Poster URL:',
+        'watchDet.noPoster': 'No poster available',
+        'watchDet.addedDate': 'Added Date:',
+        'watchDet.user': 'User:',
+        'watchDet.userStatus': 'User Status:',
+        'watchDet.verified': 'Verified',
+        'watchDet.unverified': 'Unverified',
+        'watchDet.totalWatchlist': "User's Total Watchlist:",
+        'watchDet.itemsSuffix': 'items',
+        'watchDet.actions': 'Actions',
+        'watchDet.editBtn': 'Edit Item',
+        'watchDet.deleteBtn': 'Delete Item',
+        'watchDet.backBtn': 'Back to List',
+        'watchDet.confirmDeleteTitle': 'Delete Watchlist Item',
+        'watchDet.confirmDeleteBody': 'Are you sure you want to remove this item from the Watchlist?',
+        'watchDet.userInfo': 'User Information',
+        'watchDet.userId': 'User ID:',
+        'watchDet.apiId': 'API ID:',
+        'watchDet.created': 'Created:',
+        'watchDet.watchlistItems': 'Watchlist Items:',
+        'watchDet.viewUser': 'View User Details'
+    },
+    vi: {
+        'watchDet.title': 'Chi tiết mục danh sách xem',
+        'watchDet.movieId': 'Mã phim:',
+        'watchDet.titleLabel': 'Tiêu đề:',
+        'watchDet.posterUrl': 'Đường dẫn áp phích:',
+        'watchDet.noPoster': 'Không có áp phích',
+        'watchDet.addedDate': 'Ngày thêm:',
+        'watchDet.user': 'Người dùng:',
+        'watchDet.userStatus': 'Trạng thái người dùng:',
+        'watchDet.verified': 'Đã xác minh',
+        'watchDet.unverified': 'Chưa xác minh',
+        'watchDet.totalWatchlist': 'Tổng Watchlist của người dùng:',
+        'watchDet.itemsSuffix': 'mục',
+        'watchDet.actions': 'Thao tác',
+        'watchDet.editBtn': 'Chỉnh sửa mục',
+        'watchDet.deleteBtn': 'Xóa mục',
+        'watchDet.backBtn': 'Quay lại danh sách',
+        'watchDet.confirmDeleteTitle': 'Xóa mục Watchlist',
+        'watchDet.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa mục này khỏi Watchlist?',
+        'watchDet.userInfo': 'Thông tin người dùng',
+        'watchDet.userId': 'Mã người dùng:',
+        'watchDet.apiId': 'Mã API:',
+        'watchDet.created': 'Đã tạo:',
+        'watchDet.watchlistItems': 'Số mục Watchlist:',
+        'watchDet.viewUser': 'Xem chi tiết người dùng'
+    }
+});
+</script>
 {% endblock %}

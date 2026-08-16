@@ -2,6 +2,7 @@
 
 {% block title %}Users Management - Admin Panel{% endblock %}
 {% block page_title %}Users Management{% endblock %}
+{% block page_i18n_key %}nav.users{% endblock %}
 
 {% block content %}
 {% csrf_token %}
@@ -465,7 +466,7 @@
     function bulkDelete() {
         const selectedUsers = document.querySelectorAll('.user-checkbox:checked');
         if (selectedUsers.length === 0) {
-            alert(t('usr.alert_select_err'));
+            showToast(t('usr.alert_select_err'), 'error');
             return;
         }
         
@@ -486,10 +487,10 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    alert(t('usr.alert_deleted', {count: selectedUsers.length}));
-                    location.reload();
+                    showToast(t('usr.alert_deleted', {count: selectedUsers.length}), 'success');
+                    setTimeout(() => location.reload(), 900);
                 } else {
-                    alert('Error: ' + data.error);
+                    showToast('Error: ' + data.error, 'error');
                 }
             });
         });
@@ -563,16 +564,16 @@
             icon.classList.remove('fa-spin');
             button.disabled = false;
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 900);
             } else {
-                alert(`Error: ${data.error}`);
+                showToast(`Error: ${data.error}`, 'error');
             }
         })
         .catch(error => {
             icon.classList.remove('fa-spin');
             button.disabled = false;
-            alert(`Network error: ${error.message}`);
+            showToast(`Network error: ${error.message}`, 'error');
         });
     }
 </script>

@@ -78,7 +78,7 @@
     }
     
     .filter-section {
-        background: white;
+        background: var(--panel);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
@@ -94,13 +94,13 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Admin</li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active" data-i18n="adList.breadcrumb_admin">Admin</li>
                 </ol>
             </nav>
         </div>
         <a href="{% url 'admin_dashboard:admin_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i> Tạo Admin Mới
+            <i class="fas fa-plus me-1"></i> <span data-i18n="adList.btn_create">Tạo Admin Mới</span>
         </a>
     </div>
 
@@ -109,22 +109,22 @@
         <div class="row align-items-center">
             <div class="col-md-6">
                 <h4 class="mb-1">
-                    <i class="fas fa-shield-alt"></i> Tổng quan Admin
+                    <i class="fas fa-shield-alt"></i> <span data-i18n="adList.stats_title">Tổng quan Admin</span>
                 </h4>
-                <p class="mb-0 opacity-75">Quản lý tài khoản quản trị hệ thống</p>
+                <p class="mb-0 opacity-75" data-i18n="adList.stats_subtitle">Quản lý tài khoản quản trị hệ thống</p>
             </div>
             <div class="col-md-6 text-md-end">
                 <div class="row">
                     <div class="col-6">
                         <div class="text-center">
                             <h3 class="mb-0">{{ total_admins }}</h3>
-                            <small>Tổng Admin</small>
+                            <small data-i18n="adList.stat_total">Tổng Admin</small>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="text-center">
                             <h3 class="mb-0">{{ admin_users|length }}</h3>
-                            <small>Đang hoạt động</small>
+                            <small data-i18n="adList.stat_active">Đang hoạt động</small>
                         </div>
                     </div>
                 </div>
@@ -141,27 +141,27 @@
                         <i class="fas fa-search"></i>
                     </span>
                     <input type="text" class="form-control" id="searchInput" 
-                           placeholder="Tìm kiếm admin...">
+                           placeholder="Tìm kiếm admin..." data-i18n-placeholder="adList.search_placeholder">
                 </div>
             </div>
             <div class="col-md-3">
                 <select class="form-select" id="roleFilter">
-                    <option value="">Tất cả vai trò</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
-                    <option value="moderator">Moderator</option>
+                    <option value="" data-i18n="adList.role_all">Tất cả vai trò</option>
+                    <option value="admin" data-i18n="adList.role_admin">Admin</option>
+                    <option value="super_admin" data-i18n="adList.role_super_admin">Super Admin</option>
+                    <option value="moderator" data-i18n="adList.role_moderator">Moderator</option>
                 </select>
             </div>
             <div class="col-md-3">
                 <select class="form-select" id="statusFilter">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="active">Đang hoạt động</option>
-                    <option value="inactive">Tạm khóa</option>
+                    <option value="" data-i18n="adList.status_all">Tất cả trạng thái</option>
+                    <option value="active" data-i18n="adList.status_active">Đang hoạt động</option>
+                    <option value="inactive" data-i18n="adList.status_inactive">Tạm khóa</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                    <i class="fas fa-undo"></i> Reset
+                    <i class="fas fa-undo"></i> <span data-i18n="adList.btn_reset">Reset</span>
                 </button>
             </div>
         </div>
@@ -222,14 +222,14 @@
                         <div class="row text-muted small">
                             <div class="col-12">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Trạng thái: 
+                                <span data-i18n="adList.status_label">Trạng thái:</span>
                                 {% if admin.is_active %}
-                                    <span class="text-success">Đang hoạt động</span>
+                                    <span class="text-success" data-i18n="adList.status_active">Đang hoạt động</span>
                                 {% else %}
-                                    <span class="text-danger">Tạm khóa</span>
+                                    <span class="text-danger" data-i18n="adList.status_inactive">Tạm khóa</span>
                                 {% endif %}
                                 {% if admin.is_superuser %}
-                                    • <span class="text-warning"><i class="fas fa-crown"></i> Superuser</span>
+                                    • <span class="text-warning"><i class="fas fa-crown"></i> <span data-i18n="adList.superuser">Superuser</span></span>
                                 {% endif %}
                             </div>
                         </div>
@@ -241,16 +241,16 @@
                     <div class="d-flex gap-2">
                         <a href="{% url 'admin_dashboard:admin_detail' admin.id %}" 
                            class="btn btn-outline-primary btn-sm flex-fill">
-                            <i class="fas fa-eye"></i> Xem
+                            <i class="fas fa-eye"></i> <span data-i18n="adList.btn_view">Xem</span>
                         </a>
                         <a href="{% url 'admin_dashboard:admin_edit' admin.id %}" 
                            class="btn btn-outline-warning btn-sm flex-fill">
-                            <i class="fas fa-edit"></i> Sửa
+                            <i class="fas fa-edit"></i> <span data-i18n="adList.btn_edit">Sửa</span>
                         </a>
                         {% if admin.id != request.user.id and total_admins > 1 %}
                         <button class="btn btn-outline-danger btn-sm flex-fill" 
                                 onclick="deleteAdmin('{{ admin.id }}', '{{ admin.username }}')">
-                            <i class="fas fa-trash"></i> Xóa
+                            <i class="fas fa-trash"></i> <span data-i18n="adList.btn_delete">Xóa</span>
                         </button>
                         {% endif %}
                     </div>
@@ -261,10 +261,10 @@
         <div class="col-12">
             <div class="text-center py-5">
                 <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
-                <h4 class="text-muted">Chưa có admin nào</h4>
-                <p class="text-muted">Hãy tạo tài khoản admin đầu tiên</p>
+                <h4 class="text-muted" data-i18n="adList.empty_title">Chưa có admin nào</h4>
+                <p class="text-muted" data-i18n="adList.empty_desc">Hãy tạo tài khoản admin đầu tiên</p>
                 <a href="{% url 'admin_dashboard:admin_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Tạo Admin Mới
+                    <i class="fas fa-plus"></i> <span data-i18n="adList.btn_create">Tạo Admin Mới</span>
                 </a>
             </div>
         </div>
@@ -274,8 +274,8 @@
     <!-- No Results Message -->
     <div id="noResults" class="text-center py-5" style="display: none;">
         <i class="fas fa-search fa-3x text-muted mb-3"></i>
-        <h4 class="text-muted">Không tìm thấy admin nào</h4>
-        <p class="text-muted">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+        <h4 class="text-muted" data-i18n="adList.no_results_title">Không tìm thấy admin nào</h4>
+        <p class="text-muted" data-i18n="adList.no_results_desc">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
     </div>
 </div>
 
@@ -283,6 +283,62 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'adList.breadcrumb_admin': 'Admin',
+        'adList.btn_create': 'Create New Admin',
+        'adList.stats_title': 'Admin Overview',
+        'adList.stats_subtitle': 'Manage system administrator accounts',
+        'adList.stat_total': 'Total Admins',
+        'adList.stat_active': 'Active',
+        'adList.search_placeholder': 'Search admins...',
+        'adList.role_all': 'All Roles',
+        'adList.role_admin': 'Admin',
+        'adList.role_super_admin': 'Super Admin',
+        'adList.role_moderator': 'Moderator',
+        'adList.status_all': 'All Statuses',
+        'adList.status_active': 'Active',
+        'adList.status_inactive': 'Locked',
+        'adList.btn_reset': 'Reset',
+        'adList.status_label': 'Status:',
+        'adList.superuser': 'Superuser',
+        'adList.btn_view': 'View',
+        'adList.btn_edit': 'Edit',
+        'adList.btn_delete': 'Delete',
+        'adList.empty_title': 'No admins yet',
+        'adList.empty_desc': 'Create the first admin account',
+        'adList.no_results_title': 'No admins found',
+        'adList.no_results_desc': 'Try changing the filters or search keywords'
+    },
+    vi: {
+        'adList.breadcrumb_admin': 'Admin',
+        'adList.btn_create': 'Tạo Admin Mới',
+        'adList.stats_title': 'Tổng quan Admin',
+        'adList.stats_subtitle': 'Quản lý tài khoản quản trị hệ thống',
+        'adList.stat_total': 'Tổng Admin',
+        'adList.stat_active': 'Đang hoạt động',
+        'adList.search_placeholder': 'Tìm kiếm admin...',
+        'adList.role_all': 'Tất cả vai trò',
+        'adList.role_admin': 'Admin',
+        'adList.role_super_admin': 'Super Admin',
+        'adList.role_moderator': 'Moderator',
+        'adList.status_all': 'Tất cả trạng thái',
+        'adList.status_active': 'Đang hoạt động',
+        'adList.status_inactive': 'Tạm khóa',
+        'adList.btn_reset': 'Reset',
+        'adList.status_label': 'Trạng thái:',
+        'adList.superuser': 'Superuser',
+        'adList.btn_view': 'Xem',
+        'adList.btn_edit': 'Sửa',
+        'adList.btn_delete': 'Xóa',
+        'adList.empty_title': 'Chưa có admin nào',
+        'adList.empty_desc': 'Hãy tạo tài khoản admin đầu tiên',
+        'adList.no_results_title': 'Không tìm thấy admin nào',
+        'adList.no_results_desc': 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
+    }
+});
+</script>
 <script>
 // Search và Filter functionality
 const searchInput = document.getElementById('searchInput');

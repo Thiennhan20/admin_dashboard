@@ -13,7 +13,7 @@
     }
     
     .form-card {
-        background: white;
+        background: var(--panel);
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         padding: 2rem;
@@ -29,7 +29,7 @@
     }
     
     .admin-preview {
-        background: #f8f9fa;
+        background: var(--control-hover);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
@@ -76,7 +76,7 @@
     }
     
     .password-section {
-        background: #f8f9fa;
+        background: var(--control-hover);
         border-radius: 10px;
         padding: 1.5rem;
         margin: 1rem 0;
@@ -203,32 +203,32 @@
             <div>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}" data-i18n="adEdit.breadcrumb_admin_list">Quản lý Admin</a></li>
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}">{{ admin_user.username }}</a></li>
-                        <li class="breadcrumb-item active">Chỉnh sửa</li>
+                        <li class="breadcrumb-item active" data-i18n="adEdit.breadcrumb_edit">Chỉnh sửa</li>
                     </ol>
                 </nav>
             </div>
             <div>
                 <a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}" class="btn btn-outline-secondary me-2">
-                    <i class="fas fa-eye"></i> Xem chi tiết
+                    <i class="fas fa-eye"></i> <span data-i18n="adEdit.btn_view_detail">Xem chi tiết</span>
                 </a>
                 <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Quay lại
+                    <i class="fas fa-arrow-left"></i> <span data-i18n="adEdit.btn_back">Quay lại</span>
                 </a>
             </div>
         </div>
 
         <!-- Changes Indicator -->
         <div class="changes-indicator" id="changesIndicator">
-            <i class="fas fa-exclamation-circle"></i> Có thay đổi chưa lưu
+            <i class="fas fa-exclamation-circle"></i> <span data-i18n="adEdit.unsaved_changes">Có thay đổi chưa lưu</span>
         </div>
 
         <!-- Current Admin Preview -->
         <div class="admin-preview">
             <h5 class="mb-3">
-                <i class="fas fa-user text-primary"></i> Admin hiện tại
+                <i class="fas fa-user text-primary"></i> <span data-i18n="adEdit.current_admin">Admin hiện tại</span>
             </h5>
             <div class="d-flex align-items-center">
                 <div class="preview-avatar me-3">
@@ -246,9 +246,9 @@
                     <small class="text-muted">
                         <span class="badge bg-primary">{{ admin_user.admin_profile.role|title }}</span>
                         {% if admin_user.is_active %}
-                            <span class="badge bg-success">Đang hoạt động</span>
+                            <span class="badge bg-success" data-i18n="adEdit.status_active">Đang hoạt động</span>
                         {% else %}
-                            <span class="badge bg-danger">Tạm khóa</span>
+                            <span class="badge bg-danger" data-i18n="adEdit.status_inactive">Tạm khóa</span>
                         {% endif %}
                     </small>
                 </div>
@@ -259,9 +259,9 @@
         <div class="form-card">
             <div class="form-header">
                 <h4 class="mb-1">
-                    <i class="fas fa-edit"></i> Cập nhật thông tin Admin
+                    <i class="fas fa-edit"></i> <span data-i18n="adEdit.form_title">Cập nhật thông tin Admin</span>
                 </h4>
-                <p class="mb-0 opacity-75">Chỉnh sửa thông tin và quyền hạn của admin</p>
+                <p class="mb-0 opacity-75" data-i18n="adEdit.form_subtitle">Chỉnh sửa thông tin và quyền hạn của admin</p>
             </div>
 
             <form method="post" id="adminEditForm">
@@ -271,33 +271,33 @@
                     <!-- Thông tin cơ bản -->
                     <div class="col-md-6">
                         <h5 class="mb-3">
-                            <i class="fas fa-info-circle text-primary"></i> Thông tin cơ bản
+                            <i class="fas fa-info-circle text-primary"></i> <span data-i18n="adEdit.section_basic">Thông tin cơ bản</span>
                         </h5>
                         
                         <div class="form-group">
-                            <label class="form-label required-field">Tên đăng nhập</label>
+                            <label class="form-label required-field" data-i18n="adEdit.label_username">Tên đăng nhập</label>
                             <input type="text" class="form-control" name="username" id="username" 
                                    value="{{ admin_user.username }}" required 
                                    data-original="{{ admin_user.username }}">
-                            <div class="form-text">Tên đăng nhập phải duy nhất trong hệ thống</div>
+                            <div class="form-text" data-i18n="adEdit.formtext_username">Tên đăng nhập phải duy nhất trong hệ thống</div>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required-field">Email</label>
+                            <label class="form-label required-field" data-i18n="adEdit.label_email">Email</label>
                             <input type="email" class="form-control" name="email" id="email" 
                                    value="{{ admin_user.email }}" required
                                    data-original="{{ admin_user.email }}">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Họ</label>
+                            <label class="form-label" data-i18n="adEdit.label_first_name">Họ</label>
                             <input type="text" class="form-control" name="first_name" id="first_name" 
                                    value="{{ admin_user.first_name }}"
                                    data-original="{{ admin_user.first_name }}">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Tên</label>
+                            <label class="form-label" data-i18n="adEdit.label_last_name">Tên</label>
                             <input type="text" class="form-control" name="last_name" id="last_name" 
                                    value="{{ admin_user.last_name }}"
                                    data-original="{{ admin_user.last_name }}">
@@ -307,11 +307,11 @@
                     <!-- Quyền hạn và trạng thái -->
                     <div class="col-md-6">
                         <h5 class="mb-3">
-                            <i class="fas fa-shield-alt text-primary"></i> Quyền hạn và trạng thái
+                            <i class="fas fa-shield-alt text-primary"></i> <span data-i18n="adEdit.section_permissions">Quyền hạn và trạng thái</span>
                         </h5>
                         
                         <div class="form-group">
-                            <label class="form-label required-field">Vai trò</label>
+                            <label class="form-label required-field" data-i18n="adEdit.label_role">Vai trò</label>
                             <select class="form-select" name="role" id="role" required
                                     data-original="{{ admin_user.admin_profile.role }}">
                                 {% for role in roles %}
@@ -331,10 +331,10 @@
                                        {% if admin_user.is_active %}checked{% endif %}
                                        data-original="{{ admin_user.is_active|yesno:'true,false' }}">
                                 <label class="form-check-label" for="is_active">
-                                    <strong>Tài khoản đang hoạt động</strong>
+                                    <strong data-i18n="adEdit.label_is_active">Tài khoản đang hoạt động</strong>
                                 </label>
                             </div>
-                            <div class="form-text">Bỏ tích để tạm khóa tài khoản admin này</div>
+                            <div class="form-text" data-i18n="adEdit.formtext_is_active">Bỏ tích để tạm khóa tài khoản admin này</div>
                         </div>
 
                         {% if request.user.is_superuser %}
@@ -344,12 +344,12 @@
                                        {% if admin_user.is_superuser %}checked{% endif %}
                                        data-original="{{ admin_user.is_superuser|yesno:'true,false' }}">
                                 <label class="form-check-label" for="is_superuser">
-                                    <strong>Superuser</strong> - Toàn quyền Django Admin
+                                    <strong>Superuser</strong> <span data-i18n="adEdit.superuser_label">- Toàn quyền Django Admin</span>
                                 </label>
                             </div>
                             <div class="form-text">
                                 <i class="fas fa-info-circle text-info"></i>
-                                Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.
+                                <span data-i18n="adEdit.superuser_help">Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.</span>
                             </div>
                         </div>
                         {% endif %}
@@ -357,9 +357,9 @@
                         {% if admin_user.id == request.user.id %}
                         <div class="warning-section">
                             <h6 class="text-warning mb-2">
-                                <i class="fas fa-exclamation-triangle"></i> Lưu ý
+                                <i class="fas fa-exclamation-triangle"></i> <span data-i18n="adEdit.warning_title">Lưu ý</span>
                             </h6>
-                            <p class="mb-0">Bạn đang chỉnh sửa chính tài khoản của mình. Hãy cẩn thận khi thay đổi quyền hạn!</p>
+                            <p class="mb-0" data-i18n="adEdit.warning_self_body">Bạn đang chỉnh sửa chính tài khoản của mình. Hãy cẩn thận khi thay đổi quyền hạn!</p>
                         </div>
                         {% endif %}
                     </div>
@@ -369,10 +369,10 @@
                 <div class="password-section">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0">
-                            <i class="fas fa-key text-primary"></i> Đổi mật khẩu
+                            <i class="fas fa-key text-primary"></i> <span data-i18n="adEdit.password_title">Đổi mật khẩu</span>
                         </h5>
                         <button type="button" class="password-toggle" onclick="togglePasswordSection()">
-                            <span id="passwordToggleText">Hiển thị</span>
+                            <span id="passwordToggleText" data-i18n="adEdit.password_show">Hiển thị</span>
                             <i class="fas fa-chevron-down" id="passwordToggleIcon"></i>
                         </button>
                     </div>
@@ -381,10 +381,10 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Mật khẩu mới</label>
+                                    <label class="form-label" data-i18n="adEdit.label_new_password">Mật khẩu mới</label>
                                     <div class="position-relative">
                                         <input type="password" class="form-control" name="new_password" id="new_password" 
-                                               placeholder="Để trống nếu không đổi">
+                                               placeholder="Để trống nếu không đổi" data-i18n-placeholder="adEdit.placeholder_new_password">
                                         <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
                                                 onclick="togglePasswordVisibility('new_password')">
                                             <i class="fas fa-eye" id="newPasswordIcon"></i>
@@ -397,10 +397,10 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Xác nhận mật khẩu mới</label>
+                                    <label class="form-label" data-i18n="adEdit.label_confirm_password">Xác nhận mật khẩu mới</label>
                                     <div class="position-relative">
                                         <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
-                                               placeholder="Nhập lại mật khẩu mới">
+                                               placeholder="Nhập lại mật khẩu mới" data-i18n-placeholder="adEdit.placeholder_confirm_password">
                                         <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
                                                 onclick="togglePasswordVisibility('confirm_password')">
                                             <i class="fas fa-eye" id="confirmPasswordIcon"></i>
@@ -413,12 +413,12 @@
                         
                         <div class="warning-section">
                             <h6 class="text-warning mb-2">
-                                <i class="fas fa-exclamation-triangle"></i> Lưu ý về mật khẩu
+                                <i class="fas fa-exclamation-triangle"></i> <span data-i18n="adEdit.password_warning_title">Lưu ý về mật khẩu</span>
                             </h6>
                             <ul class="mb-0">
-                                <li>Để trống nếu không muốn thay đổi mật khẩu</li>
-                                <li>Mật khẩu mới phải có ít nhất 8 ký tự</li>
-                                <li>Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt</li>
+                                <li data-i18n="adEdit.password_note_1">Để trống nếu không muốn thay đổi mật khẩu</li>
+                                <li data-i18n="adEdit.password_note_2">Mật khẩu mới phải có ít nhất 8 ký tự</li>
+                                <li data-i18n="adEdit.password_note_3">Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt</li>
                             </ul>
                         </div>
                     </div>
@@ -428,12 +428,12 @@
                 {% if admin_user.id != request.user.id %}
                 <div class="danger-section">
                     <h6 class="text-danger mb-2">
-                        <i class="fas fa-exclamation-triangle"></i> Vùng nguy hiểm
+                        <i class="fas fa-exclamation-triangle"></i> <span data-i18n="adEdit.danger_title">Vùng nguy hiểm</span>
                     </h6>
-                    <p class="mb-3">Thao tác xóa admin sẽ không thể hoàn tác!</p>
+                    <p class="mb-3" data-i18n="adEdit.danger_body">Thao tác xóa admin sẽ không thể hoàn tác!</p>
                     <button type="button" class="btn btn-outline-danger" 
                             onclick="deleteAdmin('{{ admin_user.id }}', '{{ admin_user.username }}')">
-                        <i class="fas fa-trash"></i> Xóa Admin này
+                        <i class="fas fa-trash"></i> <span data-i18n="adEdit.btn_delete">Xóa Admin này</span>
                     </button>
                 </div>
                 {% endif %}
@@ -441,10 +441,10 @@
                 <!-- Submit Buttons -->
                 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                     <a href="{% url 'admin_dashboard:admin_detail' admin_user.id %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Hủy bỏ
+                        <i class="fas fa-times"></i> <span data-i18n="adEdit.btn_cancel">Hủy bỏ</span>
                     </a>
                     <button type="submit" class="btn btn-save" id="submitBtn">
-                        <i class="fas fa-save"></i> Lưu thay đổi
+                        <i class="fas fa-save"></i> <span data-i18n="adEdit.btn_save">Lưu thay đổi</span>
                     </button>
                 </div>
             </form>
@@ -455,7 +455,110 @@
 
 {% block extra_js %}
 <script>
+window.AdminUI.addTranslations({
+    en: {
+        'adEdit.breadcrumb_admin_list': 'Manage Admins',
+        'adEdit.breadcrumb_edit': 'Edit',
+        'adEdit.btn_view_detail': 'View Details',
+        'adEdit.btn_back': 'Back',
+        'adEdit.unsaved_changes': 'You have unsaved changes',
+        'adEdit.current_admin': 'Current Admin',
+        'adEdit.status_active': 'Active',
+        'adEdit.status_inactive': 'Locked',
+        'adEdit.form_title': 'Update Admin Information',
+        'adEdit.form_subtitle': 'Edit admin information and permissions',
+        'adEdit.section_basic': 'Basic Information',
+        'adEdit.label_username': 'Username',
+        'adEdit.formtext_username': 'Username must be unique in the system',
+        'adEdit.label_email': 'Email',
+        'adEdit.label_first_name': 'First Name',
+        'adEdit.label_last_name': 'Last Name',
+        'adEdit.section_permissions': 'Permissions and Status',
+        'adEdit.label_role': 'Role',
+        'adEdit.role_desc_admin': 'Can manage users and watchlists, cannot manage other admins.',
+        'adEdit.role_desc_super_admin': 'Has full access to the system, including managing admins.',
+        'adEdit.role_desc_moderator': 'Only has view and content management rights, cannot delete.',
+        'adEdit.label_is_active': 'Account is active',
+        'adEdit.formtext_is_active': 'Uncheck to temporarily lock this admin account',
+        'adEdit.superuser_label': '- Full Django Admin access',
+        'adEdit.superuser_help': 'Superuser can access Django Admin (/admin/) and manage all models, users, permissions.',
+        'adEdit.warning_title': 'Note',
+        'adEdit.warning_self_body': 'You are editing your own account. Be careful when changing permissions!',
+        'adEdit.password_title': 'Change Password',
+        'adEdit.password_show': 'Show',
+        'adEdit.password_hide': 'Hide',
+        'adEdit.label_new_password': 'New Password',
+        'adEdit.placeholder_new_password': 'Leave blank if not changing',
+        'adEdit.label_confirm_password': 'Confirm New Password',
+        'adEdit.placeholder_confirm_password': 'Re-enter new password',
+        'adEdit.password_match': 'Passwords match',
+        'adEdit.password_no_match': 'Passwords do not match',
+        'adEdit.password_warning_title': 'Password Notes',
+        'adEdit.password_note_1': 'Leave blank if you do not want to change the password',
+        'adEdit.password_note_2': 'New password must be at least 8 characters',
+        'adEdit.password_note_3': 'Should include uppercase, lowercase, numbers and special characters',
+        'adEdit.danger_title': 'Danger Zone',
+        'adEdit.danger_body': 'Deleting an admin cannot be undone!',
+        'adEdit.btn_delete': 'Delete This Admin',
+        'adEdit.btn_cancel': 'Cancel',
+        'adEdit.btn_save': 'Save Changes',
+        'adEdit.alert_confirm_mismatch': 'Confirmation password does not match!',
+        'adEdit.alert_password_length': 'New password must be at least 8 characters!'
+    },
+    vi: {
+        'adEdit.breadcrumb_admin_list': 'Quản lý Admin',
+        'adEdit.breadcrumb_edit': 'Chỉnh sửa',
+        'adEdit.btn_view_detail': 'Xem chi tiết',
+        'adEdit.btn_back': 'Quay lại',
+        'adEdit.unsaved_changes': 'Có thay đổi chưa lưu',
+        'adEdit.current_admin': 'Admin hiện tại',
+        'adEdit.status_active': 'Đang hoạt động',
+        'adEdit.status_inactive': 'Tạm khóa',
+        'adEdit.form_title': 'Cập nhật thông tin Admin',
+        'adEdit.form_subtitle': 'Chỉnh sửa thông tin và quyền hạn của admin',
+        'adEdit.section_basic': 'Thông tin cơ bản',
+        'adEdit.label_username': 'Tên đăng nhập',
+        'adEdit.formtext_username': 'Tên đăng nhập phải duy nhất trong hệ thống',
+        'adEdit.label_email': 'Email',
+        'adEdit.label_first_name': 'Họ',
+        'adEdit.label_last_name': 'Tên',
+        'adEdit.section_permissions': 'Quyền hạn và trạng thái',
+        'adEdit.label_role': 'Vai trò',
+        'adEdit.role_desc_admin': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
+        'adEdit.role_desc_super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
+        'adEdit.role_desc_moderator': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.',
+        'adEdit.label_is_active': 'Tài khoản đang hoạt động',
+        'adEdit.formtext_is_active': 'Bỏ tích để tạm khóa tài khoản admin này',
+        'adEdit.superuser_label': '- Toàn quyền Django Admin',
+        'adEdit.superuser_help': 'Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.',
+        'adEdit.warning_title': 'Lưu ý',
+        'adEdit.warning_self_body': 'Bạn đang chỉnh sửa chính tài khoản của mình. Hãy cẩn thận khi thay đổi quyền hạn!',
+        'adEdit.password_title': 'Đổi mật khẩu',
+        'adEdit.password_show': 'Hiển thị',
+        'adEdit.password_hide': 'Ẩn',
+        'adEdit.label_new_password': 'Mật khẩu mới',
+        'adEdit.placeholder_new_password': 'Để trống nếu không đổi',
+        'adEdit.label_confirm_password': 'Xác nhận mật khẩu mới',
+        'adEdit.placeholder_confirm_password': 'Nhập lại mật khẩu mới',
+        'adEdit.password_match': 'Mật khẩu khớp',
+        'adEdit.password_no_match': 'Mật khẩu không khớp',
+        'adEdit.password_warning_title': 'Lưu ý về mật khẩu',
+        'adEdit.password_note_1': 'Để trống nếu không muốn thay đổi mật khẩu',
+        'adEdit.password_note_2': 'Mật khẩu mới phải có ít nhất 8 ký tự',
+        'adEdit.password_note_3': 'Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+        'adEdit.danger_title': 'Vùng nguy hiểm',
+        'adEdit.danger_body': 'Thao tác xóa admin sẽ không thể hoàn tác!',
+        'adEdit.btn_delete': 'Xóa Admin này',
+        'adEdit.btn_cancel': 'Hủy bỏ',
+        'adEdit.btn_save': 'Lưu thay đổi',
+        'adEdit.alert_confirm_mismatch': 'Mật khẩu xác nhận không khớp!',
+        'adEdit.alert_password_length': 'Mật khẩu mới phải có ít nhất 8 ký tự!'
+    }
+});
+</script>
+<script>
 // Role descriptions
+const t = window.AdminUI.t;
 const roleDescriptions = {
     'admin': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
     'super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
@@ -521,11 +624,11 @@ function togglePasswordSection() {
     if (fields.style.display === 'none') {
         fields.style.display = 'block';
         icon.className = 'fas fa-chevron-up';
-        text.textContent = 'Ẩn';
+        text.textContent = t('adEdit.password_hide') || 'Ẩn';
     } else {
         fields.style.display = 'none';
         icon.className = 'fas fa-chevron-down';
-        text.textContent = 'Hiển thị';
+        text.textContent = t('adEdit.password_show') || 'Hiển thị';
     }
 }
 
@@ -580,10 +683,10 @@ function checkPasswordMatch() {
     
     if (newPassword && confirmPassword) {
         if (newPassword === confirmPassword) {
-            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> Mật khẩu khớp';
+            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> ' + (t('adEdit.password_match') || 'Mật khẩu khớp');
             matchDiv.className = 'form-text text-success';
         } else {
-            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> Mật khẩu không khớp';
+            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> ' + (t('adEdit.password_no_match') || 'Mật khẩu không khớp');
             matchDiv.className = 'form-text text-danger';
         }
     } else {
@@ -598,7 +701,7 @@ function updateRoleInfo() {
     const description = document.getElementById('roleDescription');
     
     if (roleDescriptions[role]) {
-        description.textContent = roleDescriptions[role];
+        description.textContent = t('adEdit.role_desc_' + role) || roleDescriptions[role];
         document.getElementById('roleInfo').style.display = 'block';
     } else {
         document.getElementById('roleInfo').style.display = 'none';
@@ -652,13 +755,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (newPassword && newPassword !== confirmPassword) {
             e.preventDefault();
-            alert('Mật khẩu xác nhận không khớp!');
+            showToast(t('adEdit.alert_confirm_mismatch') || 'Mật khẩu xác nhận không khớp!', 'error');
             return false;
         }
         
         if (newPassword && newPassword.length < 8) {
             e.preventDefault();
-            alert('Mật khẩu mới phải có ít nhất 8 ký tự!');
+            showToast(t('adEdit.alert_password_length') || 'Mật khẩu mới phải có ít nhất 8 ký tự!', 'error');
             return false;
         }
     });

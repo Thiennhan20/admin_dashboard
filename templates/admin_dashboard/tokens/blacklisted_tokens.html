@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Blacklisted Tokens - Admin Panel{% endblock %}
 {% block page_title %}Blacklisted Tokens{% endblock %}
+{% block page_i18n_key %}nav.blacklistedTokens{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}
@@ -86,13 +87,13 @@ function toggleBulk() {
 }
 function cleanupTokens() {
     confirmAction(t('tok.confirm_cleanup_title'), t('tok.confirm_cleanup_body'), () => {
-        fetch('{% url "admin_dashboard:api_tokens_cleanup" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens'}) }).then(r=>r.json()).then(d=>{ alert(d.success?`Deleted ${d.deleted} tokens`:d.error); location.reload(); });
+        fetch('{% url "admin_dashboard:api_tokens_cleanup" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens'}) }).then(r=>r.json()).then(d=>{ showToast(d.success?`Deleted ${d.deleted} tokens`:d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
     });
 }
 function bulkDelete() {
     const ids = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
     confirmAction(t('tok.confirm_delete_title'), t('tok.confirm_delete_body', {count: ids.length}), () => {
-        fetch('{% url "admin_dashboard:api_tokens_delete" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens',ids}) }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+        fetch('{% url "admin_dashboard:api_tokens_delete" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens',ids}) }).then(r=>r.json()).then(d=>{ if(d.success){ showToast('Deleted!', 'success'); setTimeout(() => location.reload(), 900); } else showToast(d.error, 'error'); });
     });
 }
 </script>

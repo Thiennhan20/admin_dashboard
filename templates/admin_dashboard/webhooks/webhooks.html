@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Webhooks - Admin Panel{% endblock %}
 {% block page_title %}Webhooks & Integrations{% endblock %}
+{% block page_i18n_key %}nav.webhooks{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}
@@ -142,7 +143,7 @@ window.AdminUI.addTranslations({
 function testWebhook(id) {
     confirmAction(t('wh.confirm_test_title'), t('wh.confirm_test_body'), () => {
         fetch(`/dashboard/webhooks/${id}/test/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
-        .then(r=>r.json()).then(d=>{ alert(d.success ? `Success! Status: ${d.status_code}` : 'Error: ' + d.error); location.reload(); });
+        .then(r=>r.json()).then(d=>{ showToast(d.success ? `Success! Status: ${d.status_code}` : 'Error: ' + d.error, d.success ? 'success' : 'error'); setTimeout(() => location.reload(), 900); });
     }, {btnClass:'primary', btnText:t('wh.btn_send_test')});
 }
 </script>

@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Search History - Admin Panel{% endblock %}
 {% block page_title %}Search History{% endblock %}
+{% block page_i18n_key %}nav.searchHistory{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}
@@ -124,7 +125,7 @@ function bulkDelete() {
         fetch('{% url "admin_dashboard:api_search_history_delete" %}', {
             method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
             body: JSON.stringify({ids})
-        }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+        }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else showToast(d.error, 'error'); });
     });
 }
 </script>

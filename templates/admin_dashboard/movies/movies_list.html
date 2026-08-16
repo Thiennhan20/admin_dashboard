@@ -2,6 +2,7 @@
 
 {% block title %}Movies Management - Admin Panel{% endblock %}
 {% block page_title %}Movies Management{% endblock %}
+{% block page_i18n_key %}nav.movies{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -11,9 +12,9 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <h5 class="mb-2">
-                            <i class="fas fa-film me-2"></i>Movies on Platform
+                            <i class="fas fa-film me-2"></i><span data-i18n="movies.heading">Movies on Platform</span>
                         </h5>
-                        <p class="text-muted mb-0">Monitor movies in user watchlists and watch history. Remove copyright-infringed or inactive media from all accounts.</p>
+                        <p class="text-muted mb-0" data-i18n="movies.subtitle">Monitor movies in user watchlists and watch history. Remove copyright-infringed or inactive media from all accounts.</p>
                     </div>
                 </div>
             </div>
@@ -44,7 +45,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-primary">{{ total_movies }}</h4>
-                    <p class="text-muted mb-0">Total Unique Movies</p>
+                    <p class="text-muted mb-0" data-i18n="movies.statTotalMovies">Total Unique Movies</p>
                 </div>
             </div>
         </div>
@@ -57,7 +58,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-success">{{ total_watchlist_count }}</h4>
-                    <p class="text-muted mb-0">Total Watchlist Saves</p>
+                    <p class="text-muted mb-0" data-i18n="movies.statWatchlistSaves">Total Watchlist Saves</p>
                 </div>
             </div>
         </div>
@@ -67,7 +68,7 @@
 <!-- Movies List -->
 <div class="card">
     <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Active Movies List</h6>
+        <h6 class="mb-0"><i class="fas fa-list me-2"></i><span data-i18n="movies.listTitle">Active Movies List</span></h6>
     </div>
     <div class="card-body p-0">
         {% if movies %}
@@ -75,13 +76,13 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th width="80">Poster</th>
-                            <th>TMDb ID</th>
-                            <th>Movie Title</th>
-                            <th>Watchlist Saves</th>
-                            <th>Watch History</th>
-                            <th>Last Watched</th>
-                            <th class="text-end" width="180">Actions</th>
+                            <th width="80" data-i18n="movies.colPoster">Poster</th>
+                            <th data-i18n="movies.colTmdbId">TMDb ID</th>
+                            <th data-i18n="movies.colTitle">Movie Title</th>
+                            <th data-i18n="movies.colWatchlist">Watchlist Saves</th>
+                            <th data-i18n="movies.colHistory">Watch History</th>
+                            <th data-i18n="movies.colLastWatched">Last Watched</th>
+                            <th class="text-end" width="180" data-i18n="movies.colActions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,31 +105,31 @@
                             </td>
                             <td>
                                 <div class="fw-bold text-dark">{{ movie.title }}</div>
-                                <div class="text-muted small">ID: {{ movie.id }}</div>
+                                <div class="text-muted small"><span data-i18n="movies.idLabel">ID:</span> {{ movie.id }}</div>
                             </td>
                             <td>
-                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ movie.watchlist_count }} users</span>
+                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ movie.watchlist_count }} <span data-i18n="movies.usersSuffix">users</span></span>
                             </td>
                             <td>
-                                <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ movie.progress_count }} plays</span>
+                                <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ movie.progress_count }} <span data-i18n="movies.playsSuffix">plays</span></span>
                             </td>
                             <td>
                                 <small class="text-muted">
                                     {% if movie.last_watched %}
                                         {{ movie.last_watched|slice:":10" }} {{ movie.last_watched|slice:"11:16" }}
                                     {% else %}
-                                        Not watched yet
+                                        <span data-i18n="movies.notWatched">Not watched yet</span>
                                     {% endif %}
                                 </small>
                             </td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction('Xóa phim lẻ', 'Bạn có chắc chắn muốn xóa phim lẻ &quot;{{ movie.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
+                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction(window.AdminUI.t('movies.confirmDeleteTitle') || 'Xóa phim lẻ', window.AdminUI.t('movies.confirmDeleteBody', {title: '&quot;{{ movie.title }}&quot;'}) || 'Bạn có chắc chắn muốn xóa phim lẻ &quot;{{ movie.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete_media">
                                     <input type="hidden" name="media_id" value="{{ movie.id }}">
                                     <input type="hidden" name="is_tv" value="false">
                                     <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
-                                        <i class="fas fa-trash-alt me-1"></i>Delete from Platform
+                                        <i class="fas fa-trash-alt me-1"></i><span data-i18n="movies.deleteBtn">Delete from Platform</span>
                                     </button>
                                 </form>
                             </td>
@@ -142,8 +143,8 @@
                 <div class="mb-4">
                     <i class="fas fa-film fa-4x text-light-subtle"></i>
                 </div>
-                <h5>No Movies Found</h5>
-                <p class="small mb-0">No movies are currently present in user watchlists or watch progress records.</p>
+                <h5 data-i18n="movies.emptyTitle">No Movies Found</h5>
+                <p class="small mb-0" data-i18n="movies.emptyMsg">No movies are currently present in user watchlists or watch progress records.</p>
             </div>
         {% endif %}
     </div>
@@ -162,4 +163,57 @@
         box-shadow: var(--shadow);
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'movies.heading': 'Movies on Platform',
+        'movies.subtitle': 'Monitor movies in user watchlists and watch history. Remove copyright-infringed or inactive media from all accounts.',
+        'movies.statTotalMovies': 'Total Unique Movies',
+        'movies.statWatchlistSaves': 'Total Watchlist Saves',
+        'movies.listTitle': 'Active Movies List',
+        'movies.colPoster': 'Poster',
+        'movies.colTmdbId': 'TMDb ID',
+        'movies.colTitle': 'Movie Title',
+        'movies.colWatchlist': 'Watchlist Saves',
+        'movies.colHistory': 'Watch History',
+        'movies.colLastWatched': 'Last Watched',
+        'movies.colActions': 'Actions',
+        'movies.idLabel': 'ID:',
+        'movies.usersSuffix': 'users',
+        'movies.playsSuffix': 'plays',
+        'movies.notWatched': 'Not watched yet',
+        'movies.deleteBtn': 'Delete from Platform',
+        'movies.emptyTitle': 'No Movies Found',
+        'movies.emptyMsg': 'No movies are currently present in user watchlists or watch progress records.',
+        'movies.confirmDeleteTitle': 'Delete Movie',
+        'movies.confirmDeleteBody': 'Are you sure you want to delete the movie {title} from the system?'
+    },
+    vi: {
+        'movies.heading': 'Phim lẻ trên nền tảng',
+        'movies.subtitle': 'Theo dõi phim lẻ trong danh sách xem và lịch sử xem của người dùng. Xóa các nội dung vi phạm bản quyền hoặc không còn hoạt động khỏi tất cả tài khoản.',
+        'movies.statTotalMovies': 'Tổng số phim lẻ duy nhất',
+        'movies.statWatchlistSaves': 'Tổng lượt lưu Watchlist',
+        'movies.listTitle': 'Danh sách phim lẻ đang hoạt động',
+        'movies.colPoster': 'Áp phích',
+        'movies.colTmdbId': 'Mã TMDb',
+        'movies.colTitle': 'Tên phim',
+        'movies.colWatchlist': 'Lượt lưu Watchlist',
+        'movies.colHistory': 'Lịch sử xem',
+        'movies.colLastWatched': 'Xem gần nhất',
+        'movies.colActions': 'Thao tác',
+        'movies.idLabel': 'Mã:',
+        'movies.usersSuffix': 'người dùng',
+        'movies.playsSuffix': 'lượt xem',
+        'movies.notWatched': 'Chưa xem',
+        'movies.deleteBtn': 'Xóa khỏi nền tảng',
+        'movies.emptyTitle': 'Không tìm thấy phim lẻ',
+        'movies.emptyMsg': 'Hiện không có phim lẻ nào trong danh sách xem hoặc bản ghi tiến trình xem của người dùng.',
+        'movies.confirmDeleteTitle': 'Xóa phim lẻ',
+        'movies.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim lẻ {title} khỏi hệ thống?'
+    }
+});
+</script>
 {% endblock %}

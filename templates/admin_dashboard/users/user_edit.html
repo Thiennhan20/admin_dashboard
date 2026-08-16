@@ -2,6 +2,7 @@
 
 {% block title %}Edit User - Admin Panel{% endblock %}
 {% block page_title %}Edit User{% endblock %}
+{% block page_i18n_key %}page.userEdit{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -9,7 +10,7 @@
         <div class="card">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-edit"></i> Edit User: {{ user.name }}
+                    <i class="fas fa-edit"></i> <span data-i18n="userEdit.editUserLabel">Edit User:</span> {{ user.name }}
                 </h6>
             </div>
             <div class="card-body">
@@ -19,14 +20,14 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="name" class="form-label">Name *</label>
+                                <label for="name" class="form-label" data-i18n="userEdit.labelName">Name *</label>
                                 <input type="text" class="form-control" id="name" name="name" 
                                        value="{{ user.name }}" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="email" class="form-label">Email *</label>
+                                <label for="email" class="form-label" data-i18n="userEdit.labelEmail">Email *</label>
                                 <input type="email" class="form-control" id="email" name="email" 
                                        value="{{ user.email }}" required>
                             </div>
@@ -34,37 +35,37 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="avatar" class="form-label">Avatar URL</label>
+                        <label for="avatar" class="form-label" data-i18n="userEdit.labelAvatar">Avatar URL</label>
                         <input type="url" class="form-control" id="avatar" name="avatar" 
                                value="{{ user.avatar|default:'' }}" placeholder="https://example.com/avatar.jpg">
-                        <div class="form-text">Leave empty to use default avatar</div>
+                        <div class="form-text" data-i18n="userEdit.hintAvatar">Leave empty to use default avatar</div>
                     </div>
 
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="is_email_verified" 
                                    name="is_email_verified" {% if user.is_email_verified %}checked{% endif %}>
-                            <label class="form-check-label" for="is_email_verified">
+                            <label class="form-check-label" for="is_email_verified" data-i18n="userEdit.labelEmailVerified">
                                 Email Verified
                             </label>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="watchlist" class="form-label">Watchlist (JSON)</label>
+                        <label for="watchlist" class="form-label" data-i18n="userEdit.labelWatchlist">Watchlist (JSON)</label>
                         <textarea class="form-control" id="watchlist" name="watchlist" rows="8" 
                                   placeholder='[{"id": 1, "title": "Movie Title", "overview": "Description"}]'>{{ user.watchlist|default:'' }}</textarea>
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="userEdit.hintWatchlist">
                             Enter valid JSON array of movies. Each movie should have: id, title, overview (optional), release_date (optional)
                         </div>
                     </div>
 
                     <div class="d-flex justify-content-between">
                                                  <a href="{% url 'admin_dashboard:user_detail' user.id %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Cancel
+                            <i class="fas fa-arrow-left"></i> <span data-i18n="userEdit.btnCancel">Cancel</span>
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
+                            <i class="fas fa-save"></i> <span data-i18n="userEdit.btnSave">Save Changes</span>
                         </button>
                     </div>
                 </form>
@@ -75,24 +76,24 @@
         <div class="card mt-4">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-info-circle"></i> User Information
+                    <i class="fas fa-info-circle"></i> <span data-i18n="userEdit.userInfo">User Information</span>
                 </h6>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                                                 <p><strong>API ID:</strong> 
-                             {% if user.id %}
-                                 <code>{{ user.id }}</code>
-                             {% else %}
-                                 <span class="text-muted">Not synced</span>
-                             {% endif %}
-                         </p>
-                        <p><strong>Created:</strong> {{ user.created_at|date:"F d, Y H:i" }}</p>
+                        <p><strong data-i18n="userEdit.apiId">API ID:</strong> 
+                            {% if user.id %}
+                                <code>{{ user.id }}</code>
+                            {% else %}
+                                <span class="text-muted" data-i18n="userEdit.notSynced">Not synced</span>
+                            {% endif %}
+                        </p>
+                        <p><strong data-i18n="userEdit.created">Created:</strong> {{ user.created_at|date:"F d, Y H:i" }}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Updated:</strong> {{ user.updated_at|date:"F d, Y H:i" }}</p>
-                        <p><strong>Watchlist Count:</strong> {{ user.watchlist|length|default:0 }} movies</p>
+                        <p><strong data-i18n="userEdit.updated">Updated:</strong> {{ user.updated_at|date:"F d, Y H:i" }}</p>
+                        <p><strong data-i18n="userEdit.watchlistCount">Watchlist Count:</strong> {{ user.watchlist|length|default:0 }} <span data-i18n="userEdit.moviesLabel">movies</span></p>
                     </div>
                 </div>
             </div>
@@ -103,6 +104,47 @@
 
 {% block extra_js %}
 <script>
+    window.AdminUI.addTranslations({
+        en: {
+            'userEdit.editUserLabel': 'Edit User:',
+            'userEdit.labelName': 'Name *',
+            'userEdit.labelEmail': 'Email *',
+            'userEdit.labelAvatar': 'Avatar URL',
+            'userEdit.hintAvatar': 'Leave empty to use default avatar',
+            'userEdit.labelEmailVerified': 'Email Verified',
+            'userEdit.labelWatchlist': 'Watchlist (JSON)',
+            'userEdit.hintWatchlist': 'Enter valid JSON array of movies. Each movie should have: id, title, overview (optional), release_date (optional)',
+            'userEdit.btnCancel': 'Cancel',
+            'userEdit.btnSave': 'Save Changes',
+            'userEdit.userInfo': 'User Information',
+            'userEdit.apiId': 'API ID:',
+            'userEdit.notSynced': 'Not synced',
+            'userEdit.created': 'Created:',
+            'userEdit.updated': 'Updated:',
+            'userEdit.watchlistCount': 'Watchlist Count:',
+            'userEdit.moviesLabel': 'movies'
+        },
+        vi: {
+            'userEdit.editUserLabel': 'Chỉnh sửa người dùng:',
+            'userEdit.labelName': 'Tên *',
+            'userEdit.labelEmail': 'Email *',
+            'userEdit.labelAvatar': 'URL ảnh đại diện',
+            'userEdit.hintAvatar': 'Để trống để sử dụng ảnh đại diện mặc định',
+            'userEdit.labelEmailVerified': 'Email đã xác minh',
+            'userEdit.labelWatchlist': 'Danh sách xem (JSON)',
+            'userEdit.hintWatchlist': 'Nhập mảng JSON hợp lệ chứa danh sách phim. Mỗi bộ phim nên có: id, title, overview (tùy chọn), release_date (tùy chọn)',
+            'userEdit.btnCancel': 'Hủy',
+            'userEdit.btnSave': 'Lưu thay đổi',
+            'userEdit.userInfo': 'Thông tin người dùng',
+            'userEdit.apiId': 'API ID:',
+            'userEdit.notSynced': 'Chưa đồng bộ',
+            'userEdit.created': 'Ngày tạo:',
+            'userEdit.updated': 'Cập nhật:',
+            'userEdit.watchlistCount': 'Số lượng Watchlist:',
+            'userEdit.moviesLabel': 'phim'
+        }
+    });
+
     // Auto-format JSON in watchlist textarea
     document.getElementById('watchlist').addEventListener('blur', function() {
         try {

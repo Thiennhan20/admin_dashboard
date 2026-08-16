@@ -1,10 +1,11 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}{{ media.title }} - TV Show Detail{% endblock %}
 {% block page_title %}TV Show Detail{% endblock %}
+{% block page_i18n_key %}page.tvDetail{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 
-<nav class="mb-3"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'admin_dashboard:tv_shows' %}">TV Shows</a></li><li class="breadcrumb-item active">{{ media.title }}</li></ol></nav>
+<nav class="mb-3"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'admin_dashboard:tv_shows' %}" data-i18n="tvDet.breadcrumbTv">TV Shows</a></li><li class="breadcrumb-item active">{{ media.title }}</li></ol></nav>
 
 <div class="row g-4 mb-4">
     <div class="col-md-3">
@@ -12,11 +13,11 @@
     </div>
     <div class="col-md-9">
         <h3 class="mb-2">{{ media.title }}</h3>
-        <p class="text-muted">TMDB ID: {{ media.id }}</p>
+        <p class="text-muted"><span data-i18n="tvDet.tmdbId">TMDB ID:</span> {{ media.id }}</p>
         <div class="row g-3">
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.watchlist_count }}</h4><small class="text-muted">In Watchlists</small></div></div></div>
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.progress_count }}</h4><small class="text-muted">Watch Records</small></div></div></div>
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.comment_count }}</h4><small class="text-muted">Comments</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.watchlist_count }}</h4><small class="text-muted" data-i18n="tvDet.statInWatchlists">In Watchlists</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.progress_count }}</h4><small class="text-muted" data-i18n="tvDet.statWatchRecords">Watch Records</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.comment_count }}</h4><small class="text-muted" data-i18n="tvDet.statComments">Comments</small></div></div></div>
         </div>
     </div>
 </div>
@@ -24,38 +25,91 @@
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-bookmark me-2"></i>Users with this in Watchlist ({{ stats.watchlist_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-bookmark me-2"></i><span data-i18n="tvDet.watchlistTitle">Users with this in Watchlist</span> ({{ stats.watchlist_count }})</h6></div>
     <div class="card-body p-0">
         {% if watchlist_users %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Email</th></tr></thead>
+            <thead><tr><th data-i18n="tvDet.colUser">User</th><th data-i18n="tvDet.colEmail">Email</th></tr></thead>
             <tbody>{% for u in watchlist_users %}<tr><td>{{ u.name|default:"Unknown" }}</td><td><small class="text-muted">{{ u.email|default:"" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No users have this in their watchlist.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="tvDet.noWatchlistUsers">No users have this in their watchlist.</div>{% endif %}
     </div>
 </div>
 
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i>Watch Progress ({{ stats.progress_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="tvDet.progressTitle">Watch Progress</span> ({{ stats.progress_count }})</h6></div>
     <div class="card-body p-0">
         {% if progress_items %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Season/Episode</th><th>Progress</th><th>Last Watched</th></tr></thead>
+            <thead><tr><th data-i18n="tvDet.colUser">User</th><th data-i18n="tvDet.colSeasonEpisode">Season/Episode</th><th data-i18n="tvDet.colProgress">Progress</th><th data-i18n="tvDet.colLastWatched">Last Watched</th></tr></thead>
             <tbody>{% for p in progress_items %}<tr><td>{{ p.user.name|default:"Unknown" }}</td><td>S{{ p.season|default:"?" }}E{{ p.episode|default:"?" }}</td><td>{{ p.progress|default:"—" }}</td><td><small>{{ p.lastWatched|default:"—" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No watch progress data.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="tvDet.noProgress">No watch progress data.</div>{% endif %}
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i>Comments ({{ stats.comment_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i><span data-i18n="tvDet.commentsTitle">Comments</span> ({{ stats.comment_count }})</h6></div>
     <div class="card-body p-0">
         {% if comments %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Content</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>{% for c in comments %}<tr><td>{{ c.user.name|default:"Unknown" }}</td><td>{{ c.content|truncatechars:80 }}</td><td>{% if c.isDeleted %}<span class="badge bg-danger">Hidden</span>{% else %}<span class="badge bg-success">Active</span>{% endif %}</td><td><small>{{ c.createdAt|default:"—" }}</small></td></tr>{% endfor %}</tbody>
+            <thead><tr><th data-i18n="tvDet.colUser">User</th><th data-i18n="tvDet.colContent">Content</th><th data-i18n="tvDet.colStatus">Status</th><th data-i18n="tvDet.colDate">Date</th></tr></thead>
+            <tbody>{% for c in comments %}<tr><td>{{ c.user.name|default:"Unknown" }}</td><td>{{ c.content|truncatechars:80 }}</td><td>{% if c.isDeleted %}<span class="badge bg-danger" data-i18n="tvDet.statusHidden">Hidden</span>{% else %}<span class="badge bg-success" data-i18n="tvDet.statusActive">Active</span>{% endif %}</td><td><small>{{ c.createdAt|default:"—" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No comments.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="tvDet.noComments">No comments.</div>{% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'tvDet.breadcrumbTv': 'TV Shows',
+        'tvDet.tmdbId': 'TMDB ID:',
+        'tvDet.statInWatchlists': 'In Watchlists',
+        'tvDet.statWatchRecords': 'Watch Records',
+        'tvDet.statComments': 'Comments',
+        'tvDet.watchlistTitle': 'Users with this in Watchlist',
+        'tvDet.colUser': 'User',
+        'tvDet.colEmail': 'Email',
+        'tvDet.noWatchlistUsers': 'No users have this in their watchlist.',
+        'tvDet.progressTitle': 'Watch Progress',
+        'tvDet.colSeasonEpisode': 'Season/Episode',
+        'tvDet.colProgress': 'Progress',
+        'tvDet.colLastWatched': 'Last Watched',
+        'tvDet.noProgress': 'No watch progress data.',
+        'tvDet.commentsTitle': 'Comments',
+        'tvDet.colContent': 'Content',
+        'tvDet.colStatus': 'Status',
+        'tvDet.colDate': 'Date',
+        'tvDet.statusHidden': 'Hidden',
+        'tvDet.statusActive': 'Active',
+        'tvDet.noComments': 'No comments.'
+    },
+    vi: {
+        'tvDet.breadcrumbTv': 'Phim bộ',
+        'tvDet.tmdbId': 'Mã TMDB:',
+        'tvDet.statInWatchlists': 'Trong Watchlist',
+        'tvDet.statWatchRecords': 'Bản ghi xem',
+        'tvDet.statComments': 'Bình luận',
+        'tvDet.watchlistTitle': 'Người dùng có phim này trong Watchlist',
+        'tvDet.colUser': 'Người dùng',
+        'tvDet.colEmail': 'Email',
+        'tvDet.noWatchlistUsers': 'Không có người dùng nào có phim này trong danh sách xem của họ.',
+        'tvDet.progressTitle': 'Tiến trình xem',
+        'tvDet.colSeasonEpisode': 'Mùa/Tập',
+        'tvDet.colProgress': 'Tiến trình',
+        'tvDet.colLastWatched': 'Xem gần nhất',
+        'tvDet.noProgress': 'Không có dữ liệu tiến trình xem.',
+        'tvDet.commentsTitle': 'Bình luận',
+        'tvDet.colContent': 'Nội dung',
+        'tvDet.colStatus': 'Trạng thái',
+        'tvDet.colDate': 'Ngày',
+        'tvDet.statusHidden': 'Ẩn',
+        'tvDet.statusActive': 'Hoạt động',
+        'tvDet.noComments': 'Không có bình luận nào.'
+    }
+});
+</script>
 {% endblock %}

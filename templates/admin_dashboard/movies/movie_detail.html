@@ -1,10 +1,11 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}{{ media.title }} - Movie Detail{% endblock %}
 {% block page_title %}Movie Detail{% endblock %}
+{% block page_i18n_key %}page.movieDetail{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 
-<nav class="mb-3"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'admin_dashboard:movies' %}">Movies</a></li><li class="breadcrumb-item active">{{ media.title }}</li></ol></nav>
+<nav class="mb-3"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'admin_dashboard:movies' %}" data-i18n="movieDet.breadcrumbMovies">Movies</a></li><li class="breadcrumb-item active">{{ media.title }}</li></ol></nav>
 
 <div class="row g-4 mb-4">
     <div class="col-md-3">
@@ -12,11 +13,11 @@
     </div>
     <div class="col-md-9">
         <h3 class="mb-2">{{ media.title }}</h3>
-        <p class="text-muted">TMDB ID: {{ media.id }}</p>
+        <p class="text-muted"><span data-i18n="movieDet.tmdbId">TMDB ID:</span> {{ media.id }}</p>
         <div class="row g-3">
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.watchlist_count }}</h4><small class="text-muted">In Watchlists</small></div></div></div>
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.progress_count }}</h4><small class="text-muted">Watch Records</small></div></div></div>
-            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.comment_count }}</h4><small class="text-muted">Comments</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.watchlist_count }}</h4><small class="text-muted" data-i18n="movieDet.statInWatchlists">In Watchlists</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.progress_count }}</h4><small class="text-muted" data-i18n="movieDet.statWatchRecords">Watch Records</small></div></div></div>
+            <div class="col-4"><div class="card"><div class="card-body text-center"><h4 class="mb-0">{{ stats.comment_count }}</h4><small class="text-muted" data-i18n="movieDet.statComments">Comments</small></div></div></div>
         </div>
     </div>
 </div>
@@ -25,40 +26,91 @@
 
 <!-- Users with this in watchlist -->
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-bookmark me-2"></i>Users with this in Watchlist ({{ stats.watchlist_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-bookmark me-2"></i><span data-i18n="movieDet.watchlistTitle">Users with this in Watchlist</span> ({{ stats.watchlist_count }})</h6></div>
     <div class="card-body p-0">
         {% if watchlist_users %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Email</th></tr></thead>
+            <thead><tr><th data-i18n="movieDet.colUser">User</th><th data-i18n="movieDet.colEmail">Email</th></tr></thead>
             <tbody>{% for u in watchlist_users %}<tr><td>{{ u.name|default:"Unknown" }}</td><td><small class="text-muted">{{ u.email|default:"" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No users have this in their watchlist.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="movieDet.noWatchlistUsers">No users have this in their watchlist.</div>{% endif %}
     </div>
 </div>
 
 <!-- Watch Progress -->
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i>Watch Progress ({{ stats.progress_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="movieDet.progressTitle">Watch Progress</span> ({{ stats.progress_count }})</h6></div>
     <div class="card-body p-0">
         {% if progress_items %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Progress</th><th>Last Watched</th></tr></thead>
+            <thead><tr><th data-i18n="movieDet.colUser">User</th><th data-i18n="movieDet.colProgress">Progress</th><th data-i18n="movieDet.colLastWatched">Last Watched</th></tr></thead>
             <tbody>{% for p in progress_items %}<tr><td>{{ p.user.name|default:"Unknown" }}</td><td>{{ p.progress|default:"—" }}</td><td><small>{{ p.lastWatched|default:"—" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No watch progress data.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="movieDet.noProgress">No watch progress data.</div>{% endif %}
     </div>
 </div>
 
 <!-- Comments -->
 <div class="card">
-    <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i>Comments ({{ stats.comment_count }})</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-comments me-2"></i><span data-i18n="movieDet.commentsTitle">Comments</span> ({{ stats.comment_count }})</h6></div>
     <div class="card-body p-0">
         {% if comments %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th>User</th><th>Content</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>{% for c in comments %}<tr><td>{{ c.user.name|default:"Unknown" }}</td><td>{{ c.content|truncatechars:80 }}</td><td>{% if c.isDeleted %}<span class="badge bg-danger">Hidden</span>{% else %}<span class="badge bg-success">Active</span>{% endif %}</td><td><small>{{ c.createdAt|default:"—" }}</small></td></tr>{% endfor %}</tbody>
+            <thead><tr><th data-i18n="movieDet.colUser">User</th><th data-i18n="movieDet.colContent">Content</th><th data-i18n="movieDet.colStatus">Status</th><th data-i18n="movieDet.colDate">Date</th></tr></thead>
+            <tbody>{% for c in comments %}<tr><td>{{ c.user.name|default:"Unknown" }}</td><td>{{ c.content|truncatechars:80 }}</td><td>{% if c.isDeleted %}<span class="badge bg-danger" data-i18n="movieDet.statusHidden">Hidden</span>{% else %}<span class="badge bg-success" data-i18n="movieDet.statusActive">Active</span>{% endif %}</td><td><small>{{ c.createdAt|default:"—" }}</small></td></tr>{% endfor %}</tbody>
         </table></div>
-        {% else %}<div class="text-center py-4 text-muted">No comments for this movie.</div>{% endif %}
+        {% else %}<div class="text-center py-4 text-muted" data-i18n="movieDet.noComments">No comments for this movie.</div>{% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'movieDet.breadcrumbMovies': 'Movies',
+        'movieDet.tmdbId': 'TMDB ID:',
+        'movieDet.statInWatchlists': 'In Watchlists',
+        'movieDet.statWatchRecords': 'Watch Records',
+        'movieDet.statComments': 'Comments',
+        'movieDet.watchlistTitle': 'Users with this in Watchlist',
+        'movieDet.colUser': 'User',
+        'movieDet.colEmail': 'Email',
+        'movieDet.noWatchlistUsers': 'No users have this in their watchlist.',
+        'movieDet.progressTitle': 'Watch Progress',
+        'movieDet.colProgress': 'Progress',
+        'movieDet.colLastWatched': 'Last Watched',
+        'movieDet.noProgress': 'No watch progress data.',
+        'movieDet.commentsTitle': 'Comments',
+        'movieDet.colContent': 'Content',
+        'movieDet.colStatus': 'Status',
+        'movieDet.colDate': 'Date',
+        'movieDet.statusHidden': 'Hidden',
+        'movieDet.statusActive': 'Active',
+        'movieDet.noComments': 'No comments for this movie.'
+    },
+    vi: {
+        'movieDet.breadcrumbMovies': 'Phim lẻ',
+        'movieDet.tmdbId': 'Mã TMDB:',
+        'movieDet.statInWatchlists': 'Trong Watchlist',
+        'movieDet.statWatchRecords': 'Bản ghi xem',
+        'movieDet.statComments': 'Bình luận',
+        'movieDet.watchlistTitle': 'Người dùng có phim này trong Watchlist',
+        'movieDet.colUser': 'Người dùng',
+        'movieDet.colEmail': 'Email',
+        'movieDet.noWatchlistUsers': 'Không có người dùng nào có phim này trong danh sách xem của họ.',
+        'movieDet.progressTitle': 'Tiến trình xem',
+        'movieDet.colProgress': 'Tiến trình',
+        'movieDet.colLastWatched': 'Xem gần nhất',
+        'movieDet.noProgress': 'Không có dữ liệu tiến trình xem.',
+        'movieDet.commentsTitle': 'Bình luận',
+        'movieDet.colContent': 'Nội dung',
+        'movieDet.colStatus': 'Trạng thái',
+        'movieDet.colDate': 'Ngày',
+        'movieDet.statusHidden': 'Ẩn',
+        'movieDet.statusActive': 'Hoạt động',
+        'movieDet.noComments': 'Không có bình luận nào cho phim này.'
+    }
+});
+</script>
 {% endblock %}

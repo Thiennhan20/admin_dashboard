@@ -2,6 +2,7 @@
 
 {% block title %}Watch Rooms Management - Admin Panel{% endblock %}
 {% block page_title %}Watch Rooms Management{% endblock %}
+{% block page_i18n_key %}nav.rooms{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -11,13 +12,13 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <h5 class="mb-2">
-                            <i class="fas fa-tv me-2"></i>Active Watch Rooms
+                            <i class="fas fa-tv me-2"></i><span data-i18n="rooms.title">Active Watch Rooms</span>
                         </h5>
-                        <p class="text-muted mb-0">Monitor and manage active Watch Party room sessions hosted by users.</p>
+                        <p class="text-muted mb-0" data-i18n="rooms.subtitle">Monitor and manage active Watch Party room sessions hosted by users.</p>
                     </div>
                     <div>
                         <button onclick="window.location.reload()" class="btn btn-success">
-                            <i class="fas fa-sync-alt me-2"></i>Refresh Rooms
+                            <i class="fas fa-sync-alt me-2"></i><span data-i18n="rooms.refreshBtn">Refresh Rooms</span>
                         </button>
                     </div>
                 </div>
@@ -42,7 +43,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-primary">{{ total_rooms }}</h4>
-                    <p class="text-muted mb-0">Total Active Rooms</p>
+                    <p class="text-muted mb-0" data-i18n="rooms.statTotalRooms">Total Active Rooms</p>
                 </div>
             </div>
         </div>
@@ -54,8 +55,8 @@
                     <i class="fas fa-users text-success fa-lg"></i>
                 </div>
                 <div>
-                    <h4 class="mb-1 text-success" id="viewerCount">Calculating...</h4>
-                    <p class="text-muted mb-0">Total Active Viewers</p>
+                    <h4 class="mb-1 text-success" id="viewerCount" data-i18n="rooms.calculating">Calculating...</h4>
+                    <p class="text-muted mb-0" data-i18n="rooms.statViewers">Total Active Viewers</p>
                 </div>
             </div>
         </div>
@@ -68,7 +69,7 @@
                 </div>
                 <div>
                     <h4 class="mb-1 text-info">6 Hours</h4>
-                    <p class="text-muted mb-0">Max Session TTL</p>
+                    <p class="text-muted mb-0" data-i18n="rooms.statMaxTtl">Max Session TTL</p>
                 </div>
             </div>
         </div>
@@ -79,7 +80,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">
-            <i class="fas fa-list me-2"></i>Room Listing
+            <i class="fas fa-list me-2"></i><span data-i18n="rooms.listTitle">Room Listing</span>
         </h6>
     </div>
     <div class="card-body p-0">
@@ -88,13 +89,13 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Room ID</th>
-                            <th>Host</th>
-                            <th>Streaming Title</th>
-                            <th>Info</th>
-                            <th>Viewers</th>
-                            <th>TTL</th>
-                            <th class="text-end" width="150">Actions</th>
+                            <th data-i18n="rooms.colRoomId">Room ID</th>
+                            <th data-i18n="rooms.colHost">Host</th>
+                            <th data-i18n="rooms.colTitle">Streaming Title</th>
+                            <th data-i18n="rooms.colInfo">Info</th>
+                            <th data-i18n="rooms.colViewers">Viewers</th>
+                            <th data-i18n="rooms.colTtl">TTL</th>
+                            <th class="text-end" width="150" data-i18n="rooms.colActions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,9 +104,9 @@
                             <td>
                                 <span class="badge bg-secondary font-monospace" style="font-size: 0.9rem;">{{ room.room_id }}</span>
                                 {% if room.status == 'LIVE' %}
-                                    <span class="badge bg-danger ms-1 animate-pulse"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>LIVE</span>
+                                    <span class="badge bg-danger ms-1 animate-pulse"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i><span data-i18n="rooms.badgeLive">LIVE</span></span>
                                 {% else %}
-                                    <span class="badge bg-warning ms-1 text-dark">WAITING</span>
+                                    <span class="badge bg-warning ms-1 text-dark" data-i18n="rooms.badgeWaiting">WAITING</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -158,12 +159,12 @@
                                 </div>
                             </td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction('Đóng phòng xem', 'Bạn có chắc chắn muốn buộc đóng phòng xem này? Tất cả thành viên bên trong sẽ bị ngắt kết nối.', () => { this.submit(); })">
+                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction(window.AdminUI.t('rooms.confirmCloseTitle') || 'Đóng phòng xem', window.AdminUI.t('rooms.confirmCloseBody') || 'Bạn có chắc chắn muốn buộc đóng phòng xem này? Tất cả thành viên bên trong sẽ bị ngắt kết nối.', () => { this.submit(); })">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="room_id" value="{{ room.room_id }}">
                                     <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
-                                        <i class="fas fa-times-circle me-1"></i>Close Room
+                                        <i class="fas fa-times-circle me-1"></i><span data-i18n="rooms.btnClose">Close Room</span>
                                     </button>
                                 </form>
                             </td>
@@ -177,8 +178,8 @@
                 <div class="mb-4">
                     <i class="fas fa-door-closed fa-4x text-light-subtle"></i>
                 </div>
-                <h5>No Active Watch Parties</h5>
-                <p class="small mb-0">Users are not currently streaming in any rooms.</p>
+                <h5 data-i18n="rooms.emptyTitle">No Active Watch Parties</h5>
+                <p class="small mb-0" data-i18n="rooms.emptyDesc">Users are not currently streaming in any rooms.</p>
             </div>
         {% endif %}
     </div>
@@ -209,6 +210,61 @@
 
 {% block extra_js %}
 <script>
+    const t = window.AdminUI.t;
+
+    window.AdminUI.addTranslations({
+        en: {
+            'rooms.title': 'Active Watch Rooms',
+            'rooms.subtitle': 'Monitor and manage active Watch Party room sessions hosted by users.',
+            'rooms.refreshBtn': 'Refresh Rooms',
+            'rooms.statTotalRooms': 'Total Active Rooms',
+            'rooms.statViewers': 'Total Active Viewers',
+            'rooms.calculating': 'Calculating...',
+            'rooms.statMaxTtl': 'Max Session TTL',
+            'rooms.listTitle': 'Room Listing',
+            'rooms.colRoomId': 'Room ID',
+            'rooms.colHost': 'Host',
+            'rooms.colTitle': 'Streaming Title',
+            'rooms.colInfo': 'Info',
+            'rooms.colViewers': 'Viewers',
+            'rooms.colTtl': 'TTL',
+            'rooms.colActions': 'Actions',
+            'rooms.badgeLive': 'LIVE',
+            'rooms.badgeWaiting': 'WAITING',
+            'rooms.expired': 'Expired',
+            'rooms.btnClose': 'Close Room',
+            'rooms.emptyTitle': 'No Active Watch Parties',
+            'rooms.emptyDesc': 'Users are not currently streaming in any rooms.',
+            'rooms.confirmCloseTitle': 'Close Watch Room',
+            'rooms.confirmCloseBody': 'Are you sure you want to force close this watch room? All members inside will be disconnected.'
+        },
+        vi: {
+            'rooms.title': 'Phòng xem đang hoạt động',
+            'rooms.subtitle': 'Theo dõi và quản lý các phiên phòng xem Watch Party đang hoạt động do người dùng tổ chức.',
+            'rooms.refreshBtn': 'Làm mới phòng',
+            'rooms.statTotalRooms': 'Tổng phòng đang hoạt động',
+            'rooms.statViewers': 'Tổng người xem đang hoạt động',
+            'rooms.calculating': 'Đang tính toán...',
+            'rooms.statMaxTtl': 'Thời gian phiên tối đa (TTL)',
+            'rooms.listTitle': 'Danh sách phòng',
+            'rooms.colRoomId': 'Mã phòng',
+            'rooms.colHost': 'Người chủ phòng',
+            'rooms.colTitle': 'Tên nội dung phát',
+            'rooms.colInfo': 'Thông tin',
+            'rooms.colViewers': 'Người xem',
+            'rooms.colTtl': 'TTL',
+            'rooms.colActions': 'Thao tác',
+            'rooms.badgeLive': 'Trực tiếp',
+            'rooms.badgeWaiting': 'Đang chờ',
+            'rooms.expired': 'Hết hạn',
+            'rooms.btnClose': 'Đóng phòng',
+            'rooms.emptyTitle': 'Không có phòng xem nào đang hoạt động',
+            'rooms.emptyDesc': 'Hiện không có người dùng nào đang phát trực tiếp trong phòng.',
+            'rooms.confirmCloseTitle': 'Đóng phòng xem',
+            'rooms.confirmCloseBody': 'Bạn có chắc chắn muốn buộc đóng phòng xem này? Tất cả thành viên bên trong sẽ bị ngắt kết nối.'
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         // Calculate total viewers
         let totalViewers = 0;
@@ -226,7 +282,7 @@
             document.querySelectorAll('.ttl-countdown').forEach(el => {
                 let seconds = parseInt(el.dataset.seconds);
                 if (isNaN(seconds) || seconds <= 0) {
-                    el.textContent = 'Expired';
+                    el.textContent = t('rooms.expired') || 'Expired';
                     return;
                 }
                 

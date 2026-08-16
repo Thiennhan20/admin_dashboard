@@ -13,7 +13,7 @@
     }
     
     .form-card {
-        background: white;
+        background: var(--panel);
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         padding: 2rem;
@@ -115,7 +115,7 @@
     }
     
     .role-info {
-        background-color: #f8f9fa;
+        background-color: var(--control-hover);
         border-radius: 10px;
         padding: 1rem;
         margin-top: 0.5rem;
@@ -141,14 +141,14 @@
             <div>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
-                        <li class="breadcrumb-item active">Tạo mới</li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}" data-i18n="adCreate.breadcrumb_admin_list">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item active" data-i18n="adCreate.breadcrumb_create">Tạo mới</li>
                     </ol>
                 </nav>
             </div>
             <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-arrow-left me-1"></i> Quay lại
+                <i class="fas fa-arrow-left me-1"></i> <span data-i18n="adCreate.btn_back">Quay lại</span>
             </a>
         </div>
 
@@ -156,9 +156,9 @@
         <div class="form-card">
             <div class="form-header">
                 <h4 class="mb-1">
-                    <i class="fas fa-shield-alt"></i> Thông tin Admin mới
+                    <i class="fas fa-shield-alt"></i> <span data-i18n="adCreate.form_title">Thông tin Admin mới</span>
                 </h4>
-                <p class="mb-0 opacity-75">Điền đầy đủ thông tin để tạo tài khoản admin</p>
+                <p class="mb-0 opacity-75" data-i18n="adCreate.form_subtitle">Điền đầy đủ thông tin để tạo tài khoản admin</p>
             </div>
 
             <form method="post" id="adminCreateForm">
@@ -168,28 +168,28 @@
                     <!-- Thông tin đăng nhập -->
                     <div class="col-md-6">
                         <h5 class="mb-3">
-                            <i class="fas fa-key text-primary"></i> Thông tin đăng nhập
+                            <i class="fas fa-key text-primary"></i> <span data-i18n="adCreate.section_login">Thông tin đăng nhập</span>
                         </h5>
                         
                         <div class="form-group">
-                            <label class="form-label required-field">Tên đăng nhập</label>
+                            <label class="form-label required-field" data-i18n="adCreate.label_username">Tên đăng nhập</label>
                             <input type="text" class="form-control" name="username" id="username" 
-                                   required placeholder="Nhập tên đăng nhập">
-                            <div class="form-text">Tên đăng nhập phải duy nhất trong hệ thống</div>
+                                   required placeholder="Nhập tên đăng nhập" data-i18n-placeholder="adCreate.placeholder_username">
+                            <div class="form-text" data-i18n="adCreate.formtext_username">Tên đăng nhập phải duy nhất trong hệ thống</div>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required-field">Email</label>
+                            <label class="form-label required-field" data-i18n="adCreate.label_email">Email</label>
                             <input type="email" class="form-control" name="email" id="email" 
-                                   required placeholder="admin@example.com">
-                            <div class="form-text">Email sẽ được sử dụng để khôi phục mật khẩu</div>
+                                   required placeholder="admin@example.com" data-i18n-placeholder="adCreate.placeholder_email">
+                            <div class="form-text" data-i18n="adCreate.formtext_email">Email sẽ được sử dụng để khôi phục mật khẩu</div>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required-field">Mật khẩu</label>
+                            <label class="form-label required-field" data-i18n="adCreate.label_password">Mật khẩu</label>
                             <div class="position-relative">
                                 <input type="password" class="form-control" name="password" id="password" 
-                                       required placeholder="Nhập mật khẩu mạnh">
+                                       required placeholder="Nhập mật khẩu mạnh" data-i18n-placeholder="adCreate.placeholder_password">
                                 <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
                                         onclick="togglePassword('password')">
                                     <i class="fas fa-eye" id="passwordIcon"></i>
@@ -201,28 +201,28 @@
                             <div class="password-requirements" id="passwordRequirements">
                                 <div class="requirement invalid" id="req-length">
                                     <i class="fas fa-times"></i>
-                                    Ít nhất 8 ký tự
+                                    <span data-i18n="adCreate.req_length">Ít nhất 8 ký tự</span>
                                 </div>
                                 <div class="requirement invalid" id="req-uppercase">
                                     <i class="fas fa-times"></i>
-                                    Có chữ hoa
+                                    <span data-i18n="adCreate.req_uppercase">Có chữ hoa</span>
                                 </div>
                                 <div class="requirement invalid" id="req-lowercase">
                                     <i class="fas fa-times"></i>
-                                    Có chữ thường
+                                    <span data-i18n="adCreate.req_lowercase">Có chữ thường</span>
                                 </div>
                                 <div class="requirement invalid" id="req-number">
                                     <i class="fas fa-times"></i>
-                                    Có số
+                                    <span data-i18n="adCreate.req_number">Có số</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required-field">Xác nhận mật khẩu</label>
+                            <label class="form-label required-field" data-i18n="adCreate.label_confirm">Xác nhận mật khẩu</label>
                             <div class="position-relative">
                                 <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
-                                       required placeholder="Nhập lại mật khẩu">
+                                       required placeholder="Nhập lại mật khẩu" data-i18n-placeholder="adCreate.placeholder_confirm">
                                 <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
                                         onclick="togglePassword('confirm_password')">
                                     <i class="fas fa-eye" id="confirmPasswordIcon"></i>
@@ -235,38 +235,38 @@
                     <!-- Thông tin cá nhân -->
                     <div class="col-md-6">
                         <h5 class="mb-3">
-                            <i class="fas fa-user text-primary"></i> Thông tin cá nhân
+                            <i class="fas fa-user text-primary"></i> <span data-i18n="adCreate.section_personal">Thông tin cá nhân</span>
                         </h5>
                         
                         <div class="form-group">
-                            <label class="form-label">Họ</label>
+                            <label class="form-label" data-i18n="adCreate.label_first_name">Họ</label>
                             <input type="text" class="form-control" name="first_name" id="first_name" 
-                                   placeholder="Nhập họ">
+                                   placeholder="Nhập họ" data-i18n-placeholder="adCreate.placeholder_first_name">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Tên</label>
+                            <label class="form-label" data-i18n="adCreate.label_last_name">Tên</label>
                             <input type="text" class="form-control" name="last_name" id="last_name" 
-                                   placeholder="Nhập tên">
+                                   placeholder="Nhập tên" data-i18n-placeholder="adCreate.placeholder_last_name">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required-field">Vai trò</label>
+                            <label class="form-label required-field" data-i18n="adCreate.label_role">Vai trò</label>
                             <select class="form-select" name="role" id="role" required>
-                                <option value="">Chọn vai trò</option>
+                                <option value="" data-i18n="adCreate.role_select">Chọn vai trò</option>
                                 {% for role in roles %}
                                 <option value="{{ role }}">{{ role|title }}</option>
                                 {% endfor %}
                             </select>
                             <div class="role-info" id="roleInfo" style="display: none;">
                                 <div class="role-description" id="adminDesc" style="display: none;">
-                                    <strong>Admin:</strong> Có quyền quản lý users và watchlist, không thể quản lý admin khác.
+                                    <strong>Admin:</strong> <span data-i18n="adCreate.role_admin_desc">Có quyền quản lý users và watchlist, không thể quản lý admin khác.</span>
                                 </div>
                                 <div class="role-description" id="superAdminDesc" style="display: none;">
-                                    <strong>Super Admin:</strong> Có toàn quyền trong hệ thống, bao gồm quản lý admin.
+                                    <strong>Super Admin:</strong> <span data-i18n="adCreate.role_super_admin_desc">Có toàn quyền trong hệ thống, bao gồm quản lý admin.</span>
                                 </div>
                                 <div class="role-description" id="moderatorDesc" style="display: none;">
-                                    <strong>Moderator:</strong> Chỉ có quyền xem và quản lý nội dung, không thể xóa.
+                                    <strong>Moderator:</strong> <span data-i18n="adCreate.role_moderator_desc">Chỉ có quyền xem và quản lý nội dung, không thể xóa.</span>
                                 </div>
                             </div>
                         </div>
@@ -275,12 +275,12 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="is_superuser" id="is_superuser">
                                 <label class="form-check-label" for="is_superuser">
-                                    <strong>Superuser</strong> - Có toàn quyền Django Admin
+                                    <strong>Superuser</strong> <span data-i18n="adCreate.superuser_label">- Có toàn quyền Django Admin</span>
                                 </label>
                             </div>
                             <div class="form-text">
                                 <i class="fas fa-info-circle text-info"></i>
-                                Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.
+                                <span data-i18n="adCreate.superuser_help">Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.</span>
                             </div>
                         </div>
 
@@ -288,7 +288,7 @@
                         <div class="card mt-4" id="adminPreview" style="display: none;">
                             <div class="card-header">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-eye"></i> Preview Admin
+                                    <i class="fas fa-eye"></i> <span data-i18n="adCreate.preview_title">Preview Admin</span>
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -310,10 +310,10 @@
                 <!-- Submit Buttons -->
                 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                     <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Hủy bỏ
+                        <i class="fas fa-times"></i> <span data-i18n="adCreate.btn_cancel">Hủy bỏ</span>
                     </a>
                     <button type="submit" class="btn btn-create" id="submitBtn" disabled>
-                        <i class="fas fa-save"></i> Tạo Admin
+                        <i class="fas fa-save"></i> <span data-i18n="adCreate.btn_submit">Tạo Admin</span>
                     </button>
                 </div>
             </form>
@@ -324,7 +324,94 @@
 
 {% block extra_js %}
 <script>
+window.AdminUI.addTranslations({
+    en: {
+        'adCreate.breadcrumb_admin_list': 'Manage Admins',
+        'adCreate.breadcrumb_create': 'Create New',
+        'adCreate.btn_back': 'Back',
+        'adCreate.form_title': 'New Admin Information',
+        'adCreate.form_subtitle': 'Fill in all the information to create an admin account',
+        'adCreate.section_login': 'Login Information',
+        'adCreate.label_username': 'Username',
+        'adCreate.placeholder_username': 'Enter username',
+        'adCreate.formtext_username': 'Username must be unique in the system',
+        'adCreate.label_email': 'Email',
+        'adCreate.placeholder_email': 'admin@example.com',
+        'adCreate.formtext_email': 'Email will be used to recover the password',
+        'adCreate.label_password': 'Password',
+        'adCreate.placeholder_password': 'Enter a strong password',
+        'adCreate.req_length': 'At least 8 characters',
+        'adCreate.req_uppercase': 'Contains uppercase letters',
+        'adCreate.req_lowercase': 'Contains lowercase letters',
+        'adCreate.req_number': 'Contains numbers',
+        'adCreate.label_confirm': 'Confirm Password',
+        'adCreate.placeholder_confirm': 'Re-enter password',
+        'adCreate.password_match': 'Passwords match',
+        'adCreate.password_no_match': 'Passwords do not match',
+        'adCreate.section_personal': 'Personal Information',
+        'adCreate.label_first_name': 'First Name',
+        'adCreate.placeholder_first_name': 'Enter first name',
+        'adCreate.label_last_name': 'Last Name',
+        'adCreate.placeholder_last_name': 'Enter last name',
+        'adCreate.label_role': 'Role',
+        'adCreate.role_select': 'Select role',
+        'adCreate.role_admin_desc': 'Can manage users and watchlists, cannot manage other admins.',
+        'adCreate.role_super_admin_desc': 'Has full access to the system, including managing admins.',
+        'adCreate.role_moderator_desc': 'Only has view and content management rights, cannot delete.',
+        'adCreate.superuser_label': '- Has full Django Admin access',
+        'adCreate.superuser_help': 'Superuser can access Django Admin (/admin/) and manage all models, users, permissions.',
+        'adCreate.preview_title': 'Preview Admin',
+        'adCreate.preview_name': 'Admin Name',
+        'adCreate.btn_cancel': 'Cancel',
+        'adCreate.btn_submit': 'Create Admin',
+        'adCreate.alert_invalid': 'Please fill in all required fields with valid information!'
+    },
+    vi: {
+        'adCreate.breadcrumb_admin_list': 'Quản lý Admin',
+        'adCreate.breadcrumb_create': 'Tạo mới',
+        'adCreate.btn_back': 'Quay lại',
+        'adCreate.form_title': 'Thông tin Admin mới',
+        'adCreate.form_subtitle': 'Điền đầy đủ thông tin để tạo tài khoản admin',
+        'adCreate.section_login': 'Thông tin đăng nhập',
+        'adCreate.label_username': 'Tên đăng nhập',
+        'adCreate.placeholder_username': 'Nhập tên đăng nhập',
+        'adCreate.formtext_username': 'Tên đăng nhập phải duy nhất trong hệ thống',
+        'adCreate.label_email': 'Email',
+        'adCreate.placeholder_email': 'admin@example.com',
+        'adCreate.formtext_email': 'Email sẽ được sử dụng để khôi phục mật khẩu',
+        'adCreate.label_password': 'Mật khẩu',
+        'adCreate.placeholder_password': 'Nhập mật khẩu mạnh',
+        'adCreate.req_length': 'Ít nhất 8 ký tự',
+        'adCreate.req_uppercase': 'Có chữ hoa',
+        'adCreate.req_lowercase': 'Có chữ thường',
+        'adCreate.req_number': 'Có số',
+        'adCreate.label_confirm': 'Xác nhận mật khẩu',
+        'adCreate.placeholder_confirm': 'Nhập lại mật khẩu',
+        'adCreate.password_match': 'Mật khẩu khớp',
+        'adCreate.password_no_match': 'Mật khẩu không khớp',
+        'adCreate.section_personal': 'Thông tin cá nhân',
+        'adCreate.label_first_name': 'Họ',
+        'adCreate.placeholder_first_name': 'Nhập họ',
+        'adCreate.label_last_name': 'Tên',
+        'adCreate.placeholder_last_name': 'Nhập tên',
+        'adCreate.label_role': 'Vai trò',
+        'adCreate.role_select': 'Chọn vai trò',
+        'adCreate.role_admin_desc': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
+        'adCreate.role_super_admin_desc': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
+        'adCreate.role_moderator_desc': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.',
+        'adCreate.superuser_label': '- Có toàn quyền Django Admin',
+        'adCreate.superuser_help': 'Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.',
+        'adCreate.preview_title': 'Preview Admin',
+        'adCreate.preview_name': 'Admin Name',
+        'adCreate.btn_cancel': 'Hủy bỏ',
+        'adCreate.btn_submit': 'Tạo Admin',
+        'adCreate.alert_invalid': 'Vui lòng điền đầy đủ thông tin hợp lệ!'
+    }
+});
+</script>
+<script>
 // Form validation
+const t = window.AdminUI.t;
 const form = document.getElementById('adminCreateForm');
 const submitBtn = document.getElementById('submitBtn');
 const requiredFields = ['username', 'email', 'password', 'confirm_password', 'role'];
@@ -404,11 +491,11 @@ function checkPasswordMatch() {
     
     if (confirmPassword.length > 0) {
         if (password === confirmPassword) {
-            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> Mật khẩu khớp';
+            matchDiv.innerHTML = '<i class="fas fa-check text-success"></i> ' + (t('adCreate.password_match') || 'Mật khẩu khớp');
             matchDiv.className = 'form-text text-success';
             return true;
         } else {
-            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> Mật khẩu không khớp';
+            matchDiv.innerHTML = '<i class="fas fa-times text-danger"></i> ' + (t('adCreate.password_no_match') || 'Mật khẩu không khớp');
             matchDiv.className = 'form-text text-danger';
             return false;
         }
@@ -461,7 +548,7 @@ function updatePreview() {
         // Name
         const displayName = firstName || lastName ? 
                           `${firstName} ${lastName}`.trim() : 
-                          username || 'Admin Name';
+                          username || (t('adCreate.preview_name') || 'Admin Name');
         name.textContent = displayName;
         
         // Username
@@ -533,7 +620,7 @@ requiredFields.forEach(field => {
 form.addEventListener('submit', function(e) {
     if (!validateForm()) {
         e.preventDefault();
-        alert('Vui lòng điền đầy đủ thông tin hợp lệ!');
+        showToast(t('adCreate.alert_invalid') || 'Vui lòng điền đầy đủ thông tin hợp lệ!', 'error');
     }
 });
 

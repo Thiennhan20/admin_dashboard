@@ -2,6 +2,7 @@
 
 {% block title %}User Detail - Admin Panel{% endblock %}
 {% block page_title %}User Detail{% endblock %}
+{% block page_i18n_key %}page.userDetail{% endblock %}
 
 {% block content %}
 <!-- Header Actions -->
@@ -15,7 +16,7 @@
                             <ol class="breadcrumb mb-0">
                                 <li class="breadcrumb-item">
                                     <a href="{% url 'admin_dashboard:users_list' %}">
-                                        <i class="fas fa-users me-1"></i>Users
+                                        <i class="fas fa-users me-1"></i><span data-i18n="nav.users">Users</span>
                                     </a>
                                 </li>
                                 <li class="breadcrumb-item active" aria-current="page">
@@ -27,10 +28,10 @@
                     <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
                         <div class="d-flex gap-2 justify-content-center justify-content-lg-end">
                                                          <a href="{% url 'admin_dashboard:user_edit' user.id %}" class="btn btn-warning">
-                                <i class="fas fa-edit me-2"></i>Edit User
+                                <i class="fas fa-edit me-2"></i><span data-i18n="userDet.btnEditUser">Edit User</span>
                             </a>
                                                          <button class="btn btn-danger" onclick="deleteUser('{{ user.id }}', '{{ user.name }}')">
-                                <i class="fas fa-trash me-2"></i>Delete
+                                <i class="fas fa-trash me-2"></i><span data-i18n="userDet.btnDelete">Delete</span>
                             </button>
                         </div>
                     </div>
@@ -46,7 +47,7 @@
         <div class="card mb-4">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-user me-2"></i>User Information
+                    <i class="fas fa-user me-2"></i><span data-i18n="userDet.userInfo">User Information</span>
                 </h6>
             </div>
             <div class="card-body">
@@ -65,11 +66,11 @@
                             <div class="position-absolute bottom-0 end-0">
                                 {% if user.is_email_verified %}
                                     <span class="badge bg-success rounded-pill">
-                                        <i class="fas fa-check-circle me-1"></i>Verified
+                                        <i class="fas fa-check-circle me-1"></i><span data-i18n="userDet.badgeVerified">Verified</span>
                                     </span>
                                 {% else %}
                                     <span class="badge bg-warning rounded-pill">
-                                        <i class="fas fa-clock me-1"></i>Unverified
+                                        <i class="fas fa-clock me-1"></i><span data-i18n="userDet.badgeUnverified">Unverified</span>
                                     </span>
                                 {% endif %}
                             </div>
@@ -78,44 +79,44 @@
                     <div class="col-md-8">
                         <div class="row g-3">
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">Full Name</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelFullName">Full Name</label>
                                 <div class="fw-bold">{{ user.name }}</div>
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">Email Address</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelEmail">Email Address</label>
                                 <div class="fw-bold">{{ user.email }}</div>
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">API ID</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelApiId">API ID</label>
                                 <div>
                                                                          {% if user.id %}
                                          <code class="bg-light px-2 py-1 rounded">{{ user.id }}</code>
                                      {% else %}
-                                         <span class="text-muted">Not synced</span>
+                                         <span class="text-muted" data-i18n="userDet.notSynced">Not synced</span>
                                      {% endif %}
                                 </div>
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">Account Status</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelStatus">Account Status</label>
                                 <div>
                                     {% if user.is_email_verified %}
                                         <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Active
+                                            <i class="fas fa-check-circle me-1"></i><span data-i18n="userDet.badgeActive">Active</span>
                                         </span>
                                     {% else %}
                                         <span class="badge bg-warning">
-                                            <i class="fas fa-exclamation-triangle me-1"></i>Pending
+                                            <i class="fas fa-exclamation-triangle me-1"></i><span data-i18n="userDet.badgePending">Pending</span>
                                         </span>
                                     {% endif %}
                                 </div>
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">Created Date</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelCreated">Created Date</label>
                                 <div class="fw-bold">{{ user.created_at|date:"M d, Y" }}</div>
                                 <small class="text-muted">{{ user.created_at|date:"H:i" }}</small>
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label text-muted">Last Updated</label>
+                                <label class="form-label text-muted" data-i18n="userDet.labelUpdated">Last Updated</label>
                                 <div class="fw-bold">{{ user.updated_at|date:"M d, Y" }}</div>
                                 <small class="text-muted">{{ user.updated_at|date:"H:i" }}</small>
                             </div>
@@ -129,14 +130,14 @@
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h6 class="mb-0">
-                    <i class="fas fa-heart me-2"></i>Watchlist ({{ watchlist_count }} movies)
+                    <i class="fas fa-heart me-2"></i><span data-i18n="userDet.watchlistTitle">Watchlist</span> ({{ watchlist_count }} <span data-i18n="userDet.moviesLabel">movies</span>)
                 </h6>
                 <div class="d-flex gap-2">
                     <button class="btn btn-sm btn-outline-primary" onclick="exportWatchlist()">
-                        <i class="fas fa-download me-1"></i>Export
+                        <i class="fas fa-download me-1"></i><span data-i18n="userDet.btnExport">Export</span>
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="refreshWatchlist()">
-                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                        <i class="fas fa-sync-alt me-1"></i><span data-i18n="userDet.btnRefresh">Refresh</span>
                     </button>
                 </div>
             </div>
@@ -184,10 +185,10 @@
                         <div class="mb-4">
                             <i class="fas fa-heart-broken fa-4x text-muted"></i>
                         </div>
-                        <h5 class="text-muted mb-3">No movies in watchlist</h5>
-                        <p class="text-muted mb-4">This user hasn't added any movies to their watchlist yet.</p>
+                        <h5 class="text-muted mb-3" data-i18n="userDet.emptyTitle">No movies in watchlist</h5>
+                        <p class="text-muted mb-4" data-i18n="userDet.emptyDesc">This user hasn't added any movies to their watchlist yet.</p>
                         <button class="btn btn-outline-primary" onclick="syncUserWatchlist()">
-                            <i class="fas fa-sync-alt me-2"></i>Sync from API
+                            <i class="fas fa-sync-alt me-2"></i><span data-i18n="userDet.btnSyncFromApi">Sync from API</span>
                         </button>
                     </div>
                 {% endif %}
@@ -206,7 +207,7 @@
                             <i class="fas fa-heart text-primary fa-2x"></i>
                         </div>
                         <h4 class="mb-1 text-primary">{{ watchlist_count }}</h4>
-                        <p class="text-muted mb-0">Movies</p>
+                        <p class="text-muted mb-0" data-i18n="userDet.statMovies">Movies</p>
                     </div>
                 </div>
             </div>
@@ -220,7 +221,7 @@
                         <h4 class="mb-1 text-success">
                             {% if user.is_email_verified %}1{% else %}0{% endif %}
                         </h4>
-                        <p class="text-muted mb-0">Verified</p>
+                        <p class="text-muted mb-0" data-i18n="userDet.statVerified">Verified</p>
                     </div>
                 </div>
             </div>
@@ -230,22 +231,22 @@
         <div class="card mb-4">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                    <i class="fas fa-bolt me-2"></i><span data-i18n="userDet.quickActions">Quick Actions</span>
                 </h6>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-3">
                                             <a href="{% url 'admin_dashboard:user_edit' user.id %}" class="btn btn-outline-warning">
-                        <i class="fas fa-edit me-2"></i>Edit User Profile
+                        <i class="fas fa-edit me-2"></i><span data-i18n="userDet.btnEditProfile">Edit User Profile</span>
                     </a>
                     <button class="btn btn-outline-info" onclick="syncUserData()">
-                        <i class="fas fa-sync-alt me-2"></i>Sync User Data
+                        <i class="fas fa-sync-alt me-2"></i><span data-i18n="userDet.btnSyncData">Sync User Data</span>
                     </button>
                     <button class="btn btn-outline-success" onclick="verifyUser()">
-                        <i class="fas fa-check-circle me-2"></i>Verify Email
+                        <i class="fas fa-check-circle me-2"></i><span data-i18n="userDet.btnVerifyEmail">Verify Email</span>
                     </button>
                                             <button class="btn btn-outline-danger" onclick="deleteUser('{{ user.id }}', '{{ user.name }}')">
-                        <i class="fas fa-trash me-2"></i>Delete User
+                        <i class="fas fa-trash me-2"></i><span data-i18n="userDet.btnDeleteUser">Delete User</span>
                     </button>
                 </div>
             </div>
@@ -255,7 +256,7 @@
         <div class="card">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-history me-2"></i>Recent Activity
+                    <i class="fas fa-history me-2"></i><span data-i18n="userDet.recentActivity">Recent Activity</span>
                 </h6>
             </div>
             <div class="card-body">
@@ -263,7 +264,7 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-primary"></div>
                         <div class="timeline-content">
-                            <h6 class="mb-1">Account Created</h6>
+                            <h6 class="mb-1" data-i18n="userDet.tlAccountCreated">Account Created</h6>
                             <p class="text-muted mb-0">{{ user.created_at|date:"M d, Y H:i" }}</p>
                         </div>
                     </div>
@@ -271,7 +272,7 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-info"></div>
                         <div class="timeline-content">
-                            <h6 class="mb-1">Profile Updated</h6>
+                            <h6 class="mb-1" data-i18n="userDet.tlProfileUpdated">Profile Updated</h6>
                             <p class="text-muted mb-0">{{ user.updated_at|date:"M d, Y H:i" }}</p>
                         </div>
                     </div>
@@ -280,8 +281,8 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-success"></div>
                         <div class="timeline-content">
-                            <h6 class="mb-1">Email Verified</h6>
-                            <p class="text-muted mb-0">Account activated</p>
+                            <h6 class="mb-1" data-i18n="userDet.tlEmailVerified">Email Verified</h6>
+                            <p class="text-muted mb-0" data-i18n="userDet.tlAccountActivated">Account activated</p>
                         </div>
                     </div>
                     {% endif %}
@@ -289,8 +290,8 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-warning"></div>
                         <div class="timeline-content">
-                            <h6 class="mb-1">Watchlist Activity</h6>
-                            <p class="text-muted mb-0">{{ watchlist_count }} movies added</p>
+                            <h6 class="mb-1" data-i18n="userDet.tlWatchlistActivity">Watchlist Activity</h6>
+                            <p class="text-muted mb-0">{{ watchlist_count }} <span data-i18n="userDet.tlMoviesAdded">movies added</span></p>
                         </div>
                     </div>
                     {% endif %}
@@ -396,11 +397,110 @@
 
 {% block extra_js %}
 <script>
+    const t = window.AdminUI.t;
+
+    window.AdminUI.addTranslations({
+        en: {
+            'userDet.userInfo': 'User Information',
+            'userDet.btnEditUser': 'Edit User',
+            'userDet.btnDelete': 'Delete',
+            'userDet.badgeVerified': 'Verified',
+            'userDet.badgeUnverified': 'Unverified',
+            'userDet.labelFullName': 'Full Name',
+            'userDet.labelEmail': 'Email Address',
+            'userDet.labelApiId': 'API ID',
+            'userDet.notSynced': 'Not synced',
+            'userDet.labelStatus': 'Account Status',
+            'userDet.badgeActive': 'Active',
+            'userDet.badgePending': 'Pending',
+            'userDet.labelCreated': 'Created Date',
+            'userDet.labelUpdated': 'Last Updated',
+            'userDet.watchlistTitle': 'Watchlist',
+            'userDet.moviesLabel': 'movies',
+            'userDet.btnExport': 'Export',
+            'userDet.btnRefresh': 'Refresh',
+            'userDet.emptyTitle': 'No movies in watchlist',
+            'userDet.emptyDesc': "This user hasn't added any movies to their watchlist yet.",
+            'userDet.btnSyncFromApi': 'Sync from API',
+            'userDet.statMovies': 'Movies',
+            'userDet.statVerified': 'Verified',
+            'userDet.quickActions': 'Quick Actions',
+            'userDet.btnEditProfile': 'Edit User Profile',
+            'userDet.btnSyncData': 'Sync User Data',
+            'userDet.btnVerifyEmail': 'Verify Email',
+            'userDet.btnDeleteUser': 'Delete User',
+            'userDet.recentActivity': 'Recent Activity',
+            'userDet.tlAccountCreated': 'Account Created',
+            'userDet.tlProfileUpdated': 'Profile Updated',
+            'userDet.tlEmailVerified': 'Email Verified',
+            'userDet.tlAccountActivated': 'Account activated',
+            'userDet.tlWatchlistActivity': 'Watchlist Activity',
+            'userDet.tlMoviesAdded': 'movies added',
+            'userDet.confirmDeleteTitle': 'Delete User',
+            'userDet.confirmDeleteBody': 'Are you sure you want to delete user "{name}"? This action cannot be undone.',
+            'userDet.alertDeleting': 'Deleting user...',
+            'userDet.alertExported': 'Watchlist exported successfully!',
+            'userDet.alertRefreshed': 'Watchlist refreshed successfully!',
+            'userDet.alertSynced': 'User data synced successfully!',
+            'userDet.confirmVerifyTitle': 'Verify User Email',
+            'userDet.confirmVerifyBody': "Are you sure you want to verify this user's email? This will activate their account.",
+            'userDet.alertVerified': 'User email verified successfully!',
+            'userDet.alertWatchlistSynced': 'User watchlist synced successfully!'
+        },
+        vi: {
+            'userDet.userInfo': 'Thông tin người dùng',
+            'userDet.btnEditUser': 'Chỉnh sửa người dùng',
+            'userDet.btnDelete': 'Xóa',
+            'userDet.badgeVerified': 'Đã xác minh',
+            'userDet.badgeUnverified': 'Chưa xác minh',
+            'userDet.labelFullName': 'Họ và tên',
+            'userDet.labelEmail': 'Địa chỉ email',
+            'userDet.labelApiId': 'API ID',
+            'userDet.notSynced': 'Chưa đồng bộ',
+            'userDet.labelStatus': 'Trạng thái tài khoản',
+            'userDet.badgeActive': 'Hoạt động',
+            'userDet.badgePending': 'Đang chờ',
+            'userDet.labelCreated': 'Ngày tạo',
+            'userDet.labelUpdated': 'Cập nhật lần cuối',
+            'userDet.watchlistTitle': 'Danh sách xem',
+            'userDet.moviesLabel': 'phim',
+            'userDet.btnExport': 'Xuất dữ liệu',
+            'userDet.btnRefresh': 'Làm mới',
+            'userDet.emptyTitle': 'Không có phim nào trong danh sách xem',
+            'userDet.emptyDesc': 'Người dùng này chưa thêm bất kỳ bộ phim nào vào danh sách xem của họ.',
+            'userDet.btnSyncFromApi': 'Đồng bộ từ API',
+            'userDet.statMovies': 'Phim',
+            'userDet.statVerified': 'Đã xác minh',
+            'userDet.quickActions': 'Hành động nhanh',
+            'userDet.btnEditProfile': 'Chỉnh sửa hồ sơ người dùng',
+            'userDet.btnSyncData': 'Đồng bộ dữ liệu người dùng',
+            'userDet.btnVerifyEmail': 'Xác minh email',
+            'userDet.btnDeleteUser': 'Xóa người dùng',
+            'userDet.recentActivity': 'Hoạt động gần đây',
+            'userDet.tlAccountCreated': 'Tài khoản được tạo',
+            'userDet.tlProfileUpdated': 'Hồ sơ được cập nhật',
+            'userDet.tlEmailVerified': 'Email đã xác minh',
+            'userDet.tlAccountActivated': 'Tài khoản đã được kích hoạt',
+            'userDet.tlWatchlistActivity': 'Hoạt động danh sách xem',
+            'userDet.tlMoviesAdded': 'phim đã thêm',
+            'userDet.confirmDeleteTitle': 'Xóa người dùng',
+            'userDet.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa người dùng "{name}"? Thao tác này không thể hoàn tác.',
+            'userDet.alertDeleting': 'Đang xóa người dùng...',
+            'userDet.alertExported': 'Đã xuất danh sách xem thành công!',
+            'userDet.alertRefreshed': 'Đã làm mới danh sách xem thành công!',
+            'userDet.alertSynced': 'Đã đồng bộ dữ liệu người dùng thành công!',
+            'userDet.confirmVerifyTitle': 'Xác minh email người dùng',
+            'userDet.confirmVerifyBody': 'Bạn có chắc chắn muốn xác minh email của người dùng này? Điều này sẽ kích hoạt tài khoản của họ.',
+            'userDet.alertVerified': 'Đã xác minh email người dùng thành công!',
+            'userDet.alertWatchlistSynced': 'Đã đồng bộ danh sách xem của người dùng thành công!'
+        }
+    });
+
     // Delete user function
     function deleteUser(userId, userName) {
-        confirmAction('Delete User', `Are you sure you want to delete user "${userName}"? This action cannot be undone.`, () => {
+        confirmAction(t('userDet.confirmDeleteTitle') || 'Delete User', t('userDet.confirmDeleteBody', {name: userName}) || `Are you sure you want to delete user "${userName}"? This action cannot be undone.`, () => {
             // Show loading
-            showAlert('Deleting user...', 'info');
+            showAlert(t('userDet.alertDeleting') || 'Deleting user...', 'info');
             
             // Redirect to delete URL
             window.location.href = `/dashboard/users/${userId}/delete/`;
@@ -424,7 +524,7 @@
             button.disabled = false;
             
             // Show success message
-            showAlert('Watchlist exported successfully!', 'success');
+            showAlert(t('userDet.alertExported') || 'Watchlist exported successfully!', 'success');
         }, 2000);
     }
     
@@ -443,7 +543,7 @@
             button.disabled = false;
             
             // Show success message
-            showAlert('Watchlist refreshed successfully!', 'success');
+            showAlert(t('userDet.alertRefreshed') || 'Watchlist refreshed successfully!', 'success');
         }, 1500);
     }
     
@@ -462,7 +562,7 @@
             button.disabled = false;
             
             // Show success message
-            showAlert('User data synced successfully!', 'success');
+            showAlert(t('userDet.alertSynced') || 'User data synced successfully!', 'success');
         }, 2000);
     }
     
@@ -470,7 +570,7 @@
     function verifyUser() {
         const button = event.target.closest('button');
         const icon = button.querySelector('i');
-        confirmAction('Verify User Email', 'Are you sure you want to verify this user\'s email? This will activate their account.', () => {
+        confirmAction(t('userDet.confirmVerifyTitle') || 'Verify User Email', t('userDet.confirmVerifyBody') || 'Are you sure you want to verify this user\'s email? This will activate their account.', () => {
             // Add loading animation
             icon.classList.add('fa-spin');
             button.disabled = true;
@@ -481,7 +581,7 @@
                 button.disabled = false;
                 
                 // Show success message
-                showAlert('User email verified successfully!', 'success');
+                showAlert(t('userDet.alertVerified') || 'User email verified successfully!', 'success');
                 
                 // Reload page to show updated status
                 setTimeout(() => {
@@ -506,7 +606,7 @@
             button.disabled = false;
             
             // Show success message
-            showAlert('User watchlist synced successfully!', 'success');
+            showAlert(t('userDet.alertWatchlistSynced') || 'User watchlist synced successfully!', 'success');
             
             // Reload page to show updated data
             setTimeout(() => {

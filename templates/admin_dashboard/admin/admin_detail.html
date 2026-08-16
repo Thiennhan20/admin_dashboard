@@ -85,7 +85,7 @@
     }
     
     .info-card {
-        background: white;
+        background: var(--panel);
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         margin-bottom: 2rem;
@@ -93,9 +93,9 @@
     }
     
     .info-card-header {
-        background: #f8f9fa;
+        background: var(--control-hover);
         padding: 1.5rem;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--line);
     }
     
     .info-card-body {
@@ -106,7 +106,7 @@
         display: flex;
         align-items: center;
         padding: 1rem 0;
-        border-bottom: 1px solid #f8f9fa;
+        border-bottom: 1px solid var(--line);
     }
     
     .info-item:last-child {
@@ -142,7 +142,7 @@
     }
     
     .action-buttons {
-        background: white;
+        background: var(--panel);
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         padding: 1.5rem;
@@ -220,12 +220,12 @@
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background: white;
+        background: var(--panel);
         border: 3px solid var(--primary-color);
     }
     
     .timeline-content {
-        background: #f8f9fa;
+        background: var(--control-hover);
         border-radius: 10px;
         padding: 1rem;
         margin-left: 1rem;
@@ -239,7 +239,7 @@
     }
     
     .permission-item {
-        background: #f8f9fa;
+        background: var(--control-hover);
         border-radius: 10px;
         padding: 1rem;
         display: flex;
@@ -269,14 +269,14 @@
             <div>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}">Quản lý Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard:admin_list' %}" data-i18n="adDetail.breadcrumb_admin_list">Quản lý Admin</a></li>
                         <li class="breadcrumb-item active">{{ admin_user.username }}</li>
                     </ol>
                 </nav>
             </div>
             <a href="{% url 'admin_dashboard:admin_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Quay lại
+                <i class="fas fa-arrow-left"></i> <span data-i18n="adDetail.btn_back">Quay lại</span>
             </a>
         </div>
 
@@ -310,11 +310,11 @@
                     <div>
                         {% if admin_user.is_active %}
                         <span class="status-badge status-active">
-                            <i class="fas fa-check-circle"></i> Đang hoạt động
+                            <i class="fas fa-check-circle"></i> <span data-i18n="adDetail.status_active">Đang hoạt động</span>
                         </span>
                         {% else %}
                         <span class="status-badge status-inactive">
-                            <i class="fas fa-times-circle"></i> Tạm khóa
+                            <i class="fas fa-times-circle"></i> <span data-i18n="adDetail.status_inactive">Tạm khóa</span>
                         </span>
                         {% endif %}
                     </div>
@@ -329,7 +329,7 @@
                 <div class="info-card">
                     <div class="info-card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-info-circle text-primary"></i> Thông tin cơ bản
+                            <i class="fas fa-info-circle text-primary"></i> <span data-i18n="adDetail.section_basic">Thông tin cơ bản</span>
                         </h5>
                     </div>
                     <div class="info-card-body">
@@ -338,7 +338,7 @@
                                 <i class="fas fa-user"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Tên đăng nhập</div>
+                                <div class="info-label" data-i18n="adDetail.label_username">Tên đăng nhập</div>
                                 <p class="info-value">{{ admin_user.username }}</p>
                             </div>
                         </div>
@@ -348,7 +348,7 @@
                                 <i class="fas fa-envelope"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Email</div>
+                                <div class="info-label" data-i18n="adDetail.label_email">Email</div>
                                 <p class="info-value">{{ admin_user.email }}</p>
                             </div>
                         </div>
@@ -359,7 +359,7 @@
                                 <i class="fas fa-id-card"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Họ và tên</div>
+                                <div class="info-label" data-i18n="adDetail.label_full_name">Họ và tên</div>
                                 <p class="info-value">{{ admin_user.first_name }} {{ admin_user.last_name }}</p>
                             </div>
                         </div>
@@ -370,7 +370,7 @@
                                 <i class="fas fa-shield-alt"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Vai trò</div>
+                                <div class="info-label" data-i18n="adDetail.label_role">Vai trò</div>
                                 <p class="info-value">{{ admin_user.admin_profile.role|title }}</p>
                             </div>
                         </div>
@@ -380,12 +380,12 @@
                                 <i class="fas fa-toggle-{% if admin_user.is_active %}on{% else %}off{% endif %}"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Trạng thái</div>
+                                <div class="info-label" data-i18n="adDetail.label_status">Trạng thái</div>
                                 <p class="info-value">
                                     {% if admin_user.is_active %}
-                                        <span class="text-success">Đang hoạt động</span>
+                                        <span class="text-success" data-i18n="adDetail.status_active">Đang hoạt động</span>
                                     {% else %}
-                                        <span class="text-danger">Tạm khóa</span>
+                                        <span class="text-danger" data-i18n="adDetail.status_inactive">Tạm khóa</span>
                                     {% endif %}
                                 </p>
                             </div>
@@ -397,7 +397,7 @@
                 <div class="info-card">
                     <div class="info-card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-cog text-primary"></i> Thông tin hệ thống
+                            <i class="fas fa-cog text-primary"></i> <span data-i18n="adDetail.section_system">Thông tin hệ thống</span>
                         </h5>
                     </div>
                     <div class="info-card-body">
@@ -406,7 +406,7 @@
                                 <i class="fas fa-calendar-plus"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Ngày tạo</div>
+                                <div class="info-label" data-i18n="adDetail.label_created_at">Ngày tạo</div>
                                 <p class="info-value">{{ admin_user.date_joined|date:"d/m/Y H:i" }}</p>
                             </div>
                         </div>
@@ -416,12 +416,12 @@
                                 <i class="fas fa-clock"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Lần đăng nhập cuối</div>
+                                <div class="info-label" data-i18n="adDetail.label_last_login">Lần đăng nhập cuối</div>
                                 <p class="info-value">
                                     {% if admin_user.last_login %}
                                         {{ admin_user.last_login|date:"d/m/Y H:i" }}
                                     {% else %}
-                                        <span class="text-muted">Chưa đăng nhập</span>
+                                        <span class="text-muted" data-i18n="adDetail.never_login">Chưa đăng nhập</span>
                                     {% endif %}
                                 </p>
                             </div>
@@ -432,7 +432,7 @@
                                 <i class="fas fa-user-cog"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Profile tạo lúc</div>
+                                <div class="info-label" data-i18n="adDetail.label_profile_created">Profile tạo lúc</div>
                                 <p class="info-value">{{ admin_user.admin_profile.created_at|date:"d/m/Y H:i" }}</p>
                             </div>
                         </div>
@@ -442,7 +442,7 @@
                                 <i class="fas fa-edit"></i>
                             </div>
                             <div class="info-content">
-                                <div class="info-label">Cập nhật cuối</div>
+                                <div class="info-label" data-i18n="adDetail.label_updated">Cập nhật cuối</div>
                                 <p class="info-value">{{ admin_user.admin_profile.updated_at|date:"d/m/Y H:i" }}</p>
                             </div>
                         </div>
@@ -453,7 +453,7 @@
                 <div class="info-card">
                     <div class="info-card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-key text-primary"></i> Quyền hạn theo vai trò
+                            <i class="fas fa-key text-primary"></i> <span data-i18n="adDetail.section_permissions">Quyền hạn theo vai trò</span>
                         </h5>
                     </div>
                     <div class="info-card-body">
@@ -464,8 +464,8 @@
                                         <i class="fas fa-users-cog"></i>
                                     </div>
                                     <div>
-                                        <strong>Quản lý Admin</strong>
-                                        <br><small class="text-muted">Tạo, sửa, xóa admin</small>
+                                        <strong data-i18n="adDetail.perm_admin">Quản lý Admin</strong>
+                                        <br><small class="text-muted" data-i18n="adDetail.perm_admin_desc">Tạo, sửa, xóa admin</small>
                                     </div>
                                 </div>
                             {% endif %}
@@ -475,8 +475,8 @@
                                     <i class="fas fa-users"></i>
                                 </div>
                                 <div>
-                                    <strong>Quản lý Users</strong>
-                                    <br><small class="text-muted">Xem, sửa thông tin users</small>
+                                    <strong data-i18n="adDetail.perm_users">Quản lý Users</strong>
+                                    <br><small class="text-muted" data-i18n="adDetail.perm_users_desc">Xem, sửa thông tin users</small>
                                 </div>
                             </div>
                             
@@ -485,8 +485,8 @@
                                     <i class="fas fa-list"></i>
                                 </div>
                                 <div>
-                                    <strong>Quản lý Watchlist</strong>
-                                    <br><small class="text-muted">Xem, sửa watchlist</small>
+                                    <strong data-i18n="adDetail.perm_watchlist">Quản lý Watchlist</strong>
+                                    <br><small class="text-muted" data-i18n="adDetail.perm_watchlist_desc">Xem, sửa watchlist</small>
                                 </div>
                             </div>
                             
@@ -496,8 +496,8 @@
                                         <i class="fas fa-trash"></i>
                                     </div>
                                     <div>
-                                        <strong>Xóa dữ liệu</strong>
-                                        <br><small class="text-muted">Xóa users và watchlist</small>
+                                        <strong data-i18n="adDetail.perm_delete_data">Xóa dữ liệu</strong>
+                                        <br><small class="text-muted" data-i18n="adDetail.perm_delete_data_desc">Xóa users và watchlist</small>
                                     </div>
                                 </div>
                             {% endif %}
@@ -507,8 +507,8 @@
                                     <i class="fas fa-chart-bar"></i>
                                 </div>
                                 <div>
-                                    <strong>Xem thống kê</strong>
-                                    <br><small class="text-muted">Dashboard và báo cáo</small>
+                                    <strong data-i18n="adDetail.perm_stats">Xem thống kê</strong>
+                                    <br><small class="text-muted" data-i18n="adDetail.perm_stats_desc">Dashboard và báo cáo</small>
                                 </div>
                             </div>
                         </div>
@@ -521,29 +521,29 @@
                 <!-- Action Buttons -->
                 <div class="action-buttons mb-4">
                     <h5 class="mb-3">
-                        <i class="fas fa-tools text-primary"></i> Thao tác
+                        <i class="fas fa-tools text-primary"></i> <span data-i18n="adDetail.section_actions">Thao tác</span>
                     </h5>
                     
                     <div class="d-grid gap-3">
                         <a href="{% url 'admin_dashboard:admin_edit' admin_user.id %}" 
                            class="btn btn-edit btn-action">
-                            <i class="fas fa-edit"></i> Chỉnh sửa Admin
+                            <i class="fas fa-edit"></i> <span data-i18n="adDetail.btn_edit">Chỉnh sửa Admin</span>
                         </a>
                         
                         {% if admin_user.id != request.user.id %}
                             <button class="btn btn-delete btn-action" 
                                     onclick="deleteAdmin('{{ admin_user.id }}', '{{ admin_user.username }}')">
-                                <i class="fas fa-trash"></i> Xóa Admin
+                                <i class="fas fa-trash"></i> <span data-i18n="adDetail.btn_delete">Xóa Admin</span>
                             </button>
                         {% else %}
                             <button class="btn btn-secondary btn-action" disabled>
-                                <i class="fas fa-lock"></i> Không thể xóa chính mình
+                                <i class="fas fa-lock"></i> <span data-i18n="adDetail.btn_cannot_delete_self">Không thể xóa chính mình</span>
                             </button>
                         {% endif %}
                         
                         <a href="{% url 'admin_dashboard:admin_list' %}" 
                            class="btn btn-back btn-action">
-                            <i class="fas fa-arrow-left"></i> Quay lại danh sách
+                            <i class="fas fa-arrow-left"></i> <span data-i18n="adDetail.btn_back_list">Quay lại danh sách</span>
                         </a>
                     </div>
                 </div>
@@ -552,7 +552,7 @@
                 <div class="info-card">
                     <div class="info-card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-chart-pie text-primary"></i> Thống kê nhanh
+                            <i class="fas fa-chart-pie text-primary"></i> <span data-i18n="adDetail.section_stats">Thống kê nhanh</span>
                         </h5>
                     </div>
                     <div class="info-card-body">
@@ -562,15 +562,15 @@
                                     {% if admin_user.last_login %}
                                         {{ admin_user.last_login|timesince }}
                                     {% else %}
-                                        Chưa bao giờ
+                                        <span data-i18n="adDetail.never_logged_in">Chưa bao giờ</span>
                                     {% endif %}
                                 </h3>
-                                <small class="text-muted">Đăng nhập lần cuối</small>
+                                <small class="text-muted" data-i18n="adDetail.stat_last_login">Đăng nhập lần cuối</small>
                             </div>
                             
                             <div class="mb-3">
                                 <h3 class="text-success mb-1">{{ admin_user.date_joined|timesince }}</h3>
-                                <small class="text-muted">Thành viên từ</small>
+                                <small class="text-muted" data-i18n="adDetail.stat_member_since">Thành viên từ</small>
                             </div>
                             
                             <div>
@@ -581,7 +581,7 @@
                                         <i class="fas fa-times text-danger"></i>
                                     {% endif %}
                                 </h3>
-                                <small class="text-muted">Staff Status</small>
+                                <small class="text-muted" data-i18n="adDetail.stat_staff_status">Staff Status</small>
                             </div>
                         </div>
                     </div>
@@ -595,6 +595,88 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'adDetail.breadcrumb_admin_list': 'Manage Admins',
+        'adDetail.btn_back': 'Back',
+        'adDetail.status_active': 'Active',
+        'adDetail.status_inactive': 'Locked',
+        'adDetail.section_basic': 'Basic Information',
+        'adDetail.label_username': 'Username',
+        'adDetail.label_email': 'Email',
+        'adDetail.label_full_name': 'Full Name',
+        'adDetail.label_role': 'Role',
+        'adDetail.label_status': 'Status',
+        'adDetail.section_system': 'System Information',
+        'adDetail.label_created_at': 'Created At',
+        'adDetail.label_last_login': 'Last Login',
+        'adDetail.never_login': 'Never logged in',
+        'adDetail.label_profile_created': 'Profile Created At',
+        'adDetail.label_updated': 'Last Updated',
+        'adDetail.section_permissions': 'Role Permissions',
+        'adDetail.perm_admin': 'Manage Admins',
+        'adDetail.perm_admin_desc': 'Create, edit, delete admins',
+        'adDetail.perm_users': 'Manage Users',
+        'adDetail.perm_users_desc': 'View, edit user information',
+        'adDetail.perm_watchlist': 'Manage Watchlist',
+        'adDetail.perm_watchlist_desc': 'View, edit watchlists',
+        'adDetail.perm_delete_data': 'Delete Data',
+        'adDetail.perm_delete_data_desc': 'Delete users and watchlists',
+        'adDetail.perm_stats': 'View Statistics',
+        'adDetail.perm_stats_desc': 'Dashboard and reports',
+        'adDetail.section_actions': 'Actions',
+        'adDetail.btn_edit': 'Edit Admin',
+        'adDetail.btn_delete': 'Delete Admin',
+        'adDetail.btn_cannot_delete_self': 'Cannot delete yourself',
+        'adDetail.btn_back_list': 'Back to List',
+        'adDetail.section_stats': 'Quick Stats',
+        'adDetail.never_logged_in': 'Never',
+        'adDetail.stat_last_login': 'Last Login',
+        'adDetail.stat_member_since': 'Member Since',
+        'adDetail.stat_staff_status': 'Staff Status'
+    },
+    vi: {
+        'adDetail.breadcrumb_admin_list': 'Quản lý Admin',
+        'adDetail.btn_back': 'Quay lại',
+        'adDetail.status_active': 'Đang hoạt động',
+        'adDetail.status_inactive': 'Tạm khóa',
+        'adDetail.section_basic': 'Thông tin cơ bản',
+        'adDetail.label_username': 'Tên đăng nhập',
+        'adDetail.label_email': 'Email',
+        'adDetail.label_full_name': 'Họ và tên',
+        'adDetail.label_role': 'Vai trò',
+        'adDetail.label_status': 'Trạng thái',
+        'adDetail.section_system': 'Thông tin hệ thống',
+        'adDetail.label_created_at': 'Ngày tạo',
+        'adDetail.label_last_login': 'Lần đăng nhập cuối',
+        'adDetail.never_login': 'Chưa đăng nhập',
+        'adDetail.label_profile_created': 'Profile tạo lúc',
+        'adDetail.label_updated': 'Cập nhật cuối',
+        'adDetail.section_permissions': 'Quyền hạn theo vai trò',
+        'adDetail.perm_admin': 'Quản lý Admin',
+        'adDetail.perm_admin_desc': 'Tạo, sửa, xóa admin',
+        'adDetail.perm_users': 'Quản lý Users',
+        'adDetail.perm_users_desc': 'Xem, sửa thông tin users',
+        'adDetail.perm_watchlist': 'Quản lý Watchlist',
+        'adDetail.perm_watchlist_desc': 'Xem, sửa watchlist',
+        'adDetail.perm_delete_data': 'Xóa dữ liệu',
+        'adDetail.perm_delete_data_desc': 'Xóa users và watchlist',
+        'adDetail.perm_stats': 'Xem thống kê',
+        'adDetail.perm_stats_desc': 'Dashboard và báo cáo',
+        'adDetail.section_actions': 'Thao tác',
+        'adDetail.btn_edit': 'Chỉnh sửa Admin',
+        'adDetail.btn_delete': 'Xóa Admin',
+        'adDetail.btn_cannot_delete_self': 'Không thể xóa chính mình',
+        'adDetail.btn_back_list': 'Quay lại danh sách',
+        'adDetail.section_stats': 'Thống kê nhanh',
+        'adDetail.never_logged_in': 'Chưa bao giờ',
+        'adDetail.stat_last_login': 'Đăng nhập lần cuối',
+        'adDetail.stat_member_since': 'Thành viên từ',
+        'adDetail.stat_staff_status': 'Staff Status'
+    }
+});
+</script>
 <script>
 // Delete admin function
 function deleteAdmin(adminId, username) {

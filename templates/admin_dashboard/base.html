@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="vi" data-theme="light">
 <head>
@@ -27,14 +28,17 @@
             --control: #ffffff;
             --control-hover: #f3f6fb;
             --table-hover: #f8fafc;
-            --shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+            --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
             --blue: #2563eb;
             --green: #15803d;
             --amber: #b45309;
             --red: #b91c1c;
             --teal: #0f766e;
             --sidebar: clamp(232px, 16vw, 304px);
-            --radius: 8px;
+            --radius: 10px;
+            --radius-sm: 8px;
+            --radius-lg: 16px;
+            --topbar-shadow: 0 4px 24px -12px rgba(15, 23, 42, 0.18);
             --primary-color: var(--blue);
             --primary-rgb: 37, 99, 235;
             --accent-color: var(--teal);
@@ -86,6 +90,9 @@
             --text-dark: var(--ink);
             --text-muted: var(--muted);
             color-scheme: dark;
+            --radius-sm: 8px;
+            --radius-lg: 16px;
+            --topbar-shadow: 0 4px 24px -12px rgba(0, 0, 0, 0.55);
         }
 
         * { box-sizing: border-box; }
@@ -93,10 +100,30 @@
         body {
             min-height: 100%;
             margin: 0;
-            background: var(--bg);
+            background-color: var(--bg);
+            background-image: radial-gradient(1100px 520px at 85% -10%, rgba(37, 99, 235, 0.05), transparent 60%);
+            background-attachment: fixed;
             color: var(--ink);
             font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             letter-spacing: 0;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        html[data-theme="dark"] body {
+            background-image: radial-gradient(1100px 520px at 85% -10%, rgba(96, 165, 250, 0.06), transparent 60%);
+        }
+
+        ::selection {
+            background: rgba(37, 99, 235, 0.18);
+        }
+        html[data-theme="dark"] ::selection {
+            background: rgba(96, 165, 250, 0.28);
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px;
         }
 
         /* Slim scrollbar */
@@ -178,20 +205,69 @@
             border-radius: 8px;
             display: grid;
             place-items: center;
-            background: #0f766e;
+            background: linear-gradient(135deg, #0f766e, #0d9488);
             flex-shrink: 0;
         }
 
         .nav-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            border: 0;
+            background: none;
             color: #98a2b3;
             font-size: 11px;
             font-weight: 800;
+            letter-spacing: .06em;
             text-transform: uppercase;
-            margin: 18px 10px 8px;
+            margin: 0 0 4px;
+            padding: 10px 10px 8px;
             white-space: nowrap;
+            cursor: pointer;
+            border-radius: var(--radius);
+            text-align: left;
+            transition: background .15s, color .15s;
+        }
+
+        .nav-section:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+        }
+
+        .nav-section .nav-caret {
+            font-size: 10px;
+            opacity: .55;
+            transition: transform .2s ease;
+        }
+
+        .nav-group:not(.collapsed) .nav-section .nav-caret {
+            transform: rotate(180deg);
+        }
+
+        .nav-group-body {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height .22s ease, opacity .18s ease;
+        }
+
+        .nav-group:not(.collapsed) .nav-group-body {
+            max-height: 900px;
+            opacity: 1;
+        }
+
+        .sidebar-pinned {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: grid;
+            gap: 2px;
         }
 
         .side-link {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -202,6 +278,7 @@
             font-weight: 650;
             min-height: 42px;
             white-space: nowrap;
+            transition: background .15s ease, color .15s ease;
         }
 
         .side-link:hover {
@@ -210,9 +287,24 @@
         }
 
         .side-link.active {
-            background: var(--nav-soft);
+            background: rgba(96, 165, 250, 0.16);
             color: #fff;
             font-weight: 700;
+        }
+
+        .side-link.active::before {
+            content: "";
+            position: absolute;
+            left: -14px;
+            top: 8px;
+            bottom: 8px;
+            width: 3px;
+            border-radius: 0 3px 3px 0;
+            background: linear-gradient(180deg, #60a5fa, #2563eb);
+        }
+
+        .side-link.active i {
+            color: #60a5fa;
         }
 
         .side-link i { width: 18px; text-align: center; flex-shrink: 0; }
@@ -223,12 +315,18 @@
             z-index: 20;
             min-height: 64px;
             background: var(--topbar);
-            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px) saturate(1.4);
+            backdrop-filter: blur(12px) saturate(1.4);
             border-bottom: 1px solid var(--line);
+            box-shadow: var(--topbar-shadow);
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 12px clamp(14px, 2.4vw, 32px);
+        }
+
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            .topbar { background: var(--panel); }
         }
 
         .menu-button {
@@ -237,7 +335,7 @@
             width: 40px;
             height: 40px;
             border: 1px solid var(--line);
-            border-radius: 8px;
+            border-radius: 10px;
             background: var(--control);
             color: var(--ink);
             cursor: pointer;
@@ -247,7 +345,16 @@
         .page-title {
             font-size: clamp(18px, 1.25vw, 26px);
             font-weight: 800;
+            letter-spacing: -0.01em;
             margin: 0;
+        }
+
+        .card-title {
+            letter-spacing: -0.01em;
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
         }
 
         .user-chip {
@@ -293,6 +400,7 @@
         .card {
             background: var(--panel);
             border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
             box-shadow: var(--shadow);
             color: var(--ink);
             --bs-card-bg: var(--panel);
@@ -300,6 +408,16 @@
             --bs-card-border-color: var(--line);
             --bs-card-cap-bg: var(--panel);
             --bs-card-cap-color: var(--ink);
+            transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 28px -10px rgba(16, 24, 40, 0.14);
+            transform: translateY(-1px);
+        }
+
+        html[data-theme="dark"] .card:hover {
+            box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6);
         }
 
         .card-header {
@@ -401,7 +519,7 @@
         }
 
         .btn {
-            font-weight: 750;
+            font-weight: 650;
         }
 
         .table {
@@ -445,6 +563,20 @@
             background-color: var(--control);
             border-color: var(--line);
             color: var(--ink);
+        }
+
+        .form-control,
+        .form-select,
+        textarea,
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="search"],
+        input[type="number"],
+        input[type="tel"],
+        input[type="url"] {
+            -webkit-text-fill-color: var(--ink);
+            caret-color: var(--ink);
         }
 
         .form-control:focus,
@@ -655,8 +787,8 @@
             background: var(--control) !important;
             border: 1px solid var(--line) !important;
             color: var(--ink) !important;
-            border-radius: 8px !important;
-            font-size: 14px !important;
+            border-radius: 10px !important;
+            font-size: 16px !important;
             transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
         }
         #globalSearch:focus {
@@ -671,7 +803,7 @@
             border: 1px solid var(--line);
             background: var(--control);
             color: var(--ink);
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 800;
             display: inline-flex;
             align-items: center;
@@ -723,6 +855,132 @@
             .content { padding: 12px; }
             .topbar-actions { gap: 6px; }
             .lang-button span { display: none; }
+        }
+
+        /* ── Prevent iOS Safari auto-zoom when focusing inputs (font < 16px) ── */
+        @media (max-width: 1024px) and (pointer: coarse) {
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="search"],
+            input[type="number"],
+            input[type="tel"],
+            input[type="url"],
+            input[type="date"],
+            select,
+            textarea {
+                font-size: 16px !important;
+            }
+        }
+
+        /* ── iOS autofill dark-mode consistency ── */
+        html[data-theme="dark"] input:-webkit-autofill,
+        html[data-theme="dark"] input:-webkit-autofill:hover,
+        html[data-theme="dark"] input:-webkit-autofill:focus {
+            -webkit-text-fill-color: var(--ink);
+            -webkit-box-shadow: 0 0 0 1000px var(--control) inset;
+            transition: background-color 9999s ease-in-out 0s;
+            caret-color: var(--ink);
+        }
+
+        html[data-theme="dark"] .form-control::placeholder,
+        html[data-theme="dark"] .form-select::placeholder,
+        html[data-theme="dark"] textarea::placeholder,
+        html[data-theme="dark"] input::placeholder {
+            -webkit-text-fill-color: var(--muted);
+        }
+
+        html[data-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(1);
+        }
+
+        /* ── Rich Alert / Flash Message styling ── */
+        .alert {
+            position: relative;
+            border: 1px solid transparent;
+            border-left-width: 4px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 13px 48px 13px 16px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
+        }
+
+        .alert-dismissible {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .alert-dismissible .btn-close {
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            padding: 6px;
+            opacity: .65;
+        }
+
+        .alert-dismissible .btn-close:hover {
+            opacity: 1;
+        }
+
+        .alert-danger,
+        .alert-error {
+            border-color: #fecaca;
+            border-left-color: #dc2626;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .alert-success {
+            border-color: #a7f3d0;
+            border-left-color: #10b981;
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .alert-info {
+            border-color: #bfdbfe;
+            border-left-color: #3b82f6;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .alert-warning {
+            border-color: #fde68a;
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        html[data-theme="dark"] .alert-danger,
+        html[data-theme="dark"] .alert-error {
+            border-color: #7f1d1d;
+            border-left-color: #ef4444;
+            background: #2a1215;
+            color: #fecaca;
+        }
+
+        html[data-theme="dark"] .alert-success {
+            border-color: #14532d;
+            border-left-color: #10b981;
+            background: #0f2b1d;
+            color: #a7f3d0;
+        }
+
+        html[data-theme="dark"] .alert-info {
+            border-color: #1e3a5f;
+            border-left-color: #3b82f6;
+            background: #0f2033;
+            color: #bfdbfe;
+        }
+
+        html[data-theme="dark"] .alert-warning {
+            border-color: #57420f;
+            border-left-color: #f59e0b;
+            background: #2b2310;
+            color: #fde68a;
         }
 
         /* Global Page Loader */
@@ -778,7 +1036,11 @@
 
 
             <div class="sidebar-menu">
-            <div class="nav-section" data-i18n="nav.operate">Operate</div>
+            <div class="nav-group" data-group="operate">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.operate">Operate</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
                 <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
             </a>
@@ -794,8 +1056,14 @@
             <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
                 <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
             </a>
+            </div>
+            </div>
 
-            <div class="nav-section" data-i18n="nav.sectionData">Data</div>
+            <div class="nav-group" data-group="data">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.sectionData">Data</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if 'watch_progress' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watch_progress' %}">
                 <i class="fas fa-history"></i><span data-i18n="nav.watchProgress">Watch Progress</span>
             </a>
@@ -808,8 +1076,14 @@
             <a class="side-link {% if 'blacklisted_tokens' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:blacklisted_tokens' %}">
                 <i class="fas fa-ban"></i><span data-i18n="nav.blacklistedTokens">Blacklisted Tokens</span>
             </a>
+            </div>
+            </div>
 
-            <div class="nav-section" data-i18n="nav.media">Media & Content</div>
+            <div class="nav-group" data-group="media">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.media">Media & Content</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if 'movies' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:movies' %}">
                 <i class="fas fa-film"></i><span data-i18n="nav.movies">Movies</span>
             </a>
@@ -828,16 +1102,28 @@
             <a class="side-link {% if 'content_management' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:content_management' %}">
                 <i class="fas fa-star"></i><span data-i18n="nav.featuredContent">Featured Content</span>
             </a>
+            </div>
+            </div>
 
-            <div class="nav-section" data-i18n="nav.sectionGame">GAME</div>
+            <div class="nav-group" data-group="game">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.sectionGame">GAME</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if 'game_profiles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_profiles' %}">
                 <i class="fas fa-gamepad"></i><span data-i18n="nav.gameProfiles">Game Profiles</span>
             </a>
             <a class="side-link {% if 'game_histories' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_histories' %}">
                 <i class="fas fa-trophy"></i><span data-i18n="nav.gameHistories">Game Histories</span>
             </a>
+            </div>
+            </div>
 
-            <div class="nav-section" data-i18n="nav.system">System</div>
+            <div class="nav-group" data-group="system">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.system">System</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if 'cache' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:cache' %}">
                 <i class="fas fa-database"></i><span data-i18n="nav.cache">Cache</span>
             </a>
@@ -853,8 +1139,14 @@
             <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
                 <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>
             </a>
+            </div>
+            </div>
 
-            <div class="nav-section" data-i18n="nav.sectionExtensions">Extensions</div>
+            <div class="nav-group" data-group="extensions">
+            <button class="nav-section" type="button" aria-expanded="true">
+                <span data-i18n="nav.sectionExtensions">Extensions</span><i class="fas fa-chevron-down nav-caret"></i>
+            </button>
+            <div class="nav-group-body">
             <a class="side-link {% if 'reports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:reports' %}">
                 <i class="fas fa-flag"></i><span data-i18n="nav.reports">Reports</span>
             </a>
@@ -878,12 +1170,17 @@
                 <i class="fas fa-shield-halved"></i><span data-i18n="nav.backup">Backup</span>
             </a>
             {% endif %}
+            </div>
+            </div>
+
+            <div class="sidebar-pinned">
             <a class="side-link" href="{% url 'admin:index' %}">
                 <i class="fas fa-screwdriver-wrench"></i><span data-i18n="nav.djangoAdmin">Django Admin</span>
             </a>
             <a class="side-link" href="{% url 'admin_dashboard:logout' %}">
                 <i class="fas fa-right-from-bracket"></i><span data-i18n="nav.logout">Logout</span>
             </a>
+            </div>
             </div>
         </aside>
 
@@ -896,6 +1193,10 @@
                     <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}Admin Dashboard{% endblock %}</h1>
                 </div>
                 <div class="topbar-actions">
+                    <!-- Mobile Search Toggle -->
+                    <button class="icon-button d-md-none" id="mobileSearchBtn" type="button" title="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
                     <!-- Global Search -->
                     <div class="position-relative d-none d-md-block" style="min-width:280px;">
                         <input type="text" class="form-control form-control-sm" id="globalSearch" placeholder="Search users, movies, comments..." data-i18n-placeholder="search.globalPlaceholder" style="padding-left:36px;">
@@ -952,11 +1253,28 @@
                 </div>
             </header>
 
+            <div class="d-md-none px-3 pb-3" id="mobileSearchWrap" style="display:none;">
+                <div class="position-relative">
+                    <input type="text" class="form-control form-control-sm" id="mobileSearch" placeholder="Search users, movies, comments..." style="padding-left:36px;">
+                    <i class="fas fa-search position-absolute text-muted" style="left:12px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;"></i>
+                </div>
+                <div class="card mt-1" id="mobileSearchResults" style="display:none;max-height:300px;overflow-y:auto;background:var(--panel);border-color:var(--line);"></div>
+            </div>
+
             <main class="content">
                 {% if messages %}
                     {% for message in messages %}
                         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
+                            {% if 'error' in message.tags or 'danger' in message.tags %}
+                            <i class="fas fa-circle-xmark"></i>
+                            {% elif 'success' in message.tags %}
+                            <i class="fas fa-circle-check"></i>
+                            {% elif 'warning' in message.tags %}
+                            <i class="fas fa-triangle-exclamation"></i>
+                            {% else %}
+                            <i class="fas fa-circle-info"></i>
+                            {% endif %}
+                            <span>{{ message }}</span>
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     {% endfor %}
@@ -969,501 +1287,12 @@
     {% include 'admin_dashboard/includes/confirm_modal.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        window.AdminI18N = {
-            en: {
-                'nav.operate': 'Operate',
-                'nav.dashboard': 'Dashboard',
-                'nav.analytics': 'Analytics',
-                'nav.users': 'Users',
-                'nav.watchlist': 'Watchlist',
-                'nav.sectionData': 'Data',
-                'nav.watchProgress': 'Watch Progress',
-                'nav.searchHistory': 'Search History',
-                'nav.passwordTokens': 'Password Tokens',
-                'nav.blacklistedTokens': 'Blacklisted Tokens',
-                'nav.system': 'System',
-                'nav.cache': 'Cache',
-                'nav.monitoring': 'Monitoring',
-                'nav.auditLogs': 'Audit Logs',
-                'nav.errorLogs': 'Error Logs',
-                'nav.adminAccounts': 'Admin Accounts',
-                'nav.djangoAdmin': 'Django Admin',
-                'nav.changePassword': 'Change Password',
-                'nav.logout': 'Logout',
-                'nav.media': 'Media & Content',
-                'nav.movies': 'Movies',
-                'nav.tvShows': 'TV Shows',
-                'nav.comments': 'Comments',
-                'nav.rooms': 'Watch Rooms',
-                'nav.notifications': 'Notifications',
-                'nav.featuredContent': 'Featured Content',
-                'nav.sectionExtensions': 'Extensions',
-                'nav.reports': 'Reports',
-                'nav.changelog': 'Changelog',
-                'nav.email': 'Email',
-                'nav.scheduledTasks': 'Scheduled Tasks',
-                'nav.webhooks': 'Webhooks',
-                'nav.settings': 'Settings',
-                'nav.backup': 'Backup',
-                'theme.toggle': 'Dark/Light Mode',
-                'theme.light': 'Light mode',
-                'theme.dark': 'Dark mode',
-                'language.toggle': 'Switch Language',
-                'language.next': 'Switch language',
-                'common.loading': 'Loading...',
-                'search.globalPlaceholder': 'Search users, movies, comments...',
-                'common.confirm': 'Confirm',
-                'common.cancel': 'Cancel',
-                'admin.delete_title': 'Delete Admin Account',
-                'admin.delete_body': 'Are you sure you want to delete admin "{username}"? This action cannot be undone.',
-                'common.btn_export': 'Export Data',
-                'common.export_csv': 'Export CSV',
-                'common.export_excel': 'Export Excel (.xls)',
-                'common.export_pdf': 'Export PDF / Print',
-                'nav.admin_create': 'Create Admin',
-                'nav.admin_edit': 'Edit Admin',
-                'nav.admin_detail': 'Admin Detail',
-                'nav.servers': 'Servers',
-                'nav.sectionGame': 'GAME',
-                'nav.gameProfiles': 'Game Profiles',
-                'nav.gameHistories': 'Game Histories',
-                'servers.title': 'Servers',
-                'servers.subtitle': 'Configure 3 streaming video servers and auto domain crawler for Server 2.',
-                'servers.tab1': 'Server 1 (KKPhim)',
-                'servers.tab2': 'Server 2 (VidSrc)',
-                'servers.tab3': 'Server 3 (NguonC)',
-                'servers.crawlerTitle': 'Auto Domain Crawler',
-                'servers.sourceLabel': 'Source:',
-                'servers.autoSwitch': 'Auto pick best domain',
-                'servers.scanBtn': 'Scan domains',
-                'servers.scanning': 'Scanning...',
-                'servers.activeLabel': 'Active domain in use:',
-                'servers.lastScraped': 'Last scraped:',
-                'servers.notScraped': 'Not scraped yet',
-                'servers.cronBadge': '🟢 Running 6h schedule',
-                'servers.group1': '🟢 GROUP 1: NEW LIVE DOMAINS',
-                'servers.group2': '🟡 GROUP 2: OLD BACKUP DOMAINS',
-                'servers.group3': '🔴 GROUP 3: DEAD DOMAINS',
-                'servers.colDomain': 'VidSrc Domain',
-                'servers.colStatus': 'Status',
-                'servers.colLatency': 'Latency',
-                'servers.colAction': 'Action',
-                'servers.useThisDomain': 'Use this domain',
-                'servers.unavailable': 'Unavailable',
-
-                'gameProfiles.title': 'Game Profiles',
-                'gameProfiles.subtitle': 'Track player ratings, win/loss rates, and game stats.',
-                'gameProfiles.totalProfiles': 'Total Game Profiles',
-                'gameProfiles.maxRating': 'Highest System Rating',
-                'gameProfiles.searchPlaceholder': 'Search by player name, email, or User ID...',
-                'gameProfiles.filterBtn': 'Filter Data',
-                'gameProfiles.colPlayer': 'Player (User)',
-                'gameProfiles.colRating': 'Rating',
-                'gameProfiles.colWinLoss': 'Wins / Losses',
-                'gameProfiles.colStreak': 'Win Streak',
-                'gameProfiles.colXP': 'Experience (XP)',
-                'gameProfiles.colUpdated': 'Last Updated',
-                'gameProfiles.colAction': 'Action',
-                'gameProfiles.peakLabel': 'Peak:',
-                'gameProfiles.recordLabel': 'Record:',
-                'gameProfiles.emptyMsg': 'No game profiles found.',
-                'gameProfiles.bulkDeleteSelected': 'Delete selected items',
-
-                'gameHistories.title': 'Game Histories',
-                'gameHistories.subtitle': 'Track match logs, room IDs, winners, and match duration.',
-                'gameHistories.totalMatches': 'Total Matches Played',
-                'gameHistories.avgGuesses': 'Avg Guesses per Match',
-                'gameHistories.avgDuration': 'Avg Match Duration',
-                'gameHistories.searchPlaceholder': 'Search by Room ID or Winner ID...',
-                'gameHistories.colRoomId': 'Room ID',
-                'gameHistories.colWinner': 'Winner',
-                'gameHistories.colGuesses': 'Total Guesses',
-                'gameHistories.colDuration': 'Match Duration',
-                'gameHistories.colFinished': 'Finished At',
-                'gameHistories.colAction': 'Action',
-                'gameHistories.guessesCount': 'guesses',
-                'gameHistories.emptyMsg': 'No match histories found.',
-                'gameHistories.bulkDeleteSelected': 'Delete selected items'
-            },
-            vi: {
-                'nav.operate': 'Vận hành',
-                'nav.dashboard': 'Bảng điều khiển',
-                'nav.servers': 'Server',
-                'nav.sectionGame': 'GAME (Trò chơi)',
-                'nav.gameProfiles': 'Hồ sơ Game',
-                'nav.gameHistories': 'Lịch sử đấu Game',
-                'nav.analytics': 'Phân tích',
-                'nav.users': 'Người dùng',
-                'nav.watchlist': 'Danh sách xem',
-                'nav.sectionData': 'Dữ liệu',
-                'nav.watchProgress': 'Tiến trình xem',
-                'nav.searchHistory': 'Lịch sử tìm kiếm',
-                'nav.passwordTokens': 'Token mật khẩu',
-                'nav.blacklistedTokens': 'Token Blacklist',
-                'nav.system': 'Hệ thống',
-                'nav.cache': 'Bộ nhớ đệm',
-                'nav.monitoring': 'Giám sát hệ thống',
-                'nav.auditLogs': 'Nhật ký vận hành',
-                'nav.errorLogs': 'Nhật ký lỗi',
-                'nav.adminAccounts': 'Tài khoản admin',
-                'nav.djangoAdmin': 'Django Admin',
-                'nav.changePassword': 'Đổi mật khẩu',
-                'nav.logout': 'Đăng xuất',
-                'nav.media': 'Đa phương tiện',
-                'nav.movies': 'Phim lẻ',
-                'nav.tvShows': 'Phim bộ',
-                'nav.comments': 'Bình luận',
-                'nav.rooms': 'Phòng xem',
-                'nav.notifications': 'Thông báo',
-                'nav.featuredContent': 'Nội dung nổi bật',
-                'nav.sectionExtensions': 'Tiện ích mở rộng',
-                'nav.reports': 'Báo cáo vi phạm',
-                'nav.changelog': 'Nhật ký cập nhật',
-                'nav.email': 'Gửi Email',
-                'nav.scheduledTasks': 'Tác vụ định kỳ',
-                'nav.webhooks': 'Webhooks',
-                'nav.settings': 'Cài đặt hệ thống',
-                'nav.backup': 'Sao lưu dữ liệu',
-                'theme.toggle': 'Giao diện Sáng/Tối',
-                'theme.light': 'Giao diện sáng',
-                'theme.dark': 'Giao diện tối',
-                'language.toggle': 'Đổi ngôn ngữ',
-                'language.next': 'Đổi ngôn ngữ',
-                'common.loading': 'Đang tải...',
-                'search.globalPlaceholder': 'Tìm người dùng, phim lẻ, bình luận...',
-                'common.confirm': 'Xác nhận',
-                'common.cancel': 'Hủy',
-                'admin.delete_title': 'Xóa tài khoản admin',
-                'admin.delete_body': 'Bạn có chắc chắn muốn xóa admin "{username}"? Thao tác này không thể hoàn tác.',
-                'common.btn_export': 'Xuất dữ liệu',
-                'common.export_csv': 'Xuất CSV',
-                'common.export_excel': 'Xuất Excel (.xls)',
-                'common.export_pdf': 'Xuất PDF / In',
-                'nav.admin_create': 'Tạo Admin Mới',
-                'nav.admin_edit': 'Chỉnh sửa Admin',
-                'nav.admin_detail': 'Chi tiết Admin',
-                'servers.title': 'Máy Chủ',
-                'servers.subtitle': 'Cấu hình 3 máy chủ phát video và tự động cào tên miền cho Server 2.',
-                'servers.tab1': 'Máy Chủ 1 (KKPhim)',
-                'servers.tab2': 'Máy Chủ 2 (VidSrc)',
-                'servers.tab3': 'Máy Chủ 3 (NguonC)',
-                'servers.crawlerTitle': 'Bộ Cào Tên Miền Tự Động',
-                'servers.sourceLabel': 'Nguồn:',
-                'servers.autoSwitch': 'Tự động chọn tên miền tốt nhất',
-                'servers.scanBtn': 'Quét tên miền',
-                'servers.scanning': 'Đang quét...',
-                'servers.activeLabel': 'Tên miền đang sử dụng:',
-                'servers.lastScraped': 'Lần quét:',
-                'servers.notScraped': 'Chưa quét',
-                'servers.cronBadge': '🟢 Chạy ngầm 6h/lần',
-                'servers.group1': '🟢 NHÓM 1: TÊN MIỀN MỚI ACTIVE',
-                'servers.group2': '🟡 NHÓM 2: TÊN MIỀN CŨ DỰ PHÒNG',
-                'servers.group3': '🔴 NHÓM 3: TÊN MIỀN ĐÃ NGƯNG DÙNG',
-                'servers.colDomain': 'Tên Miền VidSrc',
-                'servers.colStatus': 'Trạng Thái Phản Hồi',
-                'servers.colLatency': 'Tốc Độ (Latency)',
-                'servers.colAction': 'Thao Tác',
-                'servers.useThisDomain': 'Dùng Domain này',
-                'servers.unavailable': 'Không khả dụng',
-
-                'gameProfiles.title': 'Hồ sơ Game',
-                'gameProfiles.subtitle': 'Theo dõi điểm số Rating, tỷ lệ Thắng/Thua và chỉ số thành tích của người chơi.',
-                'gameProfiles.totalProfiles': 'Tổng Hồ Sơ Game',
-                'gameProfiles.maxRating': 'Rating Cao Nhất Hệ Thống',
-                'gameProfiles.searchPlaceholder': 'Tìm theo tên người dùng, email hoặc User ID...',
-                'gameProfiles.filterBtn': 'Lọc Dữ Liệu',
-                'gameProfiles.colPlayer': 'Người Chơi (User)',
-                'gameProfiles.colRating': 'Xếp Hạng (Rating)',
-                'gameProfiles.colWinLoss': 'Thắng / Thua',
-                'gameProfiles.colStreak': 'Chuỗi Thắng',
-                'gameProfiles.colXP': 'Kinh Nghiệm (XP)',
-                'gameProfiles.colUpdated': 'Cập Nhật Lần Cuối',
-                'gameProfiles.colAction': 'Thao Tác',
-                'gameProfiles.peakLabel': 'Cao nhất:',
-                'gameProfiles.recordLabel': 'Kỷ lục:',
-                'gameProfiles.emptyMsg': 'Không tìm thấy hồ sơ game nào.',
-                'gameProfiles.bulkDeleteSelected': 'Xóa các mục đã chọn',
-
-                'gameHistories.title': 'Lịch sử trận đấu',
-                'gameHistories.subtitle': 'Theo dõi nhật ký các trận đấu game, mã phòng, người chiến thắng và thời gian hoàn thành.',
-                'gameHistories.totalMatches': 'Tổng Số Trận Đấu',
-                'gameHistories.avgGuesses': 'Số Lần Đoán Trung Bình',
-                'gameHistories.avgDuration': 'Thời Gian Trận Trung Bình',
-                'gameHistories.searchPlaceholder': 'Tìm theo Mã phòng (Room ID) hoặc Winner ID...',
-                'gameHistories.colRoomId': 'Mã Phòng (Room ID)',
-                'gameHistories.colWinner': 'Người Thắng (Winner)',
-                'gameHistories.colGuesses': 'Tổng Số Lượt Đoán',
-                'gameHistories.colDuration': 'Thời Gian Đấu',
-                'gameHistories.colFinished': 'Thời Gian Kết Thúc',
-                'gameHistories.colAction': 'Thao Tác',
-                'gameHistories.guessesCount': 'lượt',
-                'gameHistories.emptyMsg': 'Không tìm thấy lịch sử trận đấu nào.',
-                'gameHistories.bulkDeleteSelected': 'Xóa các mục đã chọn'
-            }
-        };
-
-        function mergeTranslations(extra) {
-            Object.entries(extra || {}).forEach(([lang, messages]) => {
-                window.AdminI18N[lang] = Object.assign(window.AdminI18N[lang] || {}, messages || {});
-            });
-            if (typeof translatePage === 'function') {
-                translatePage();
-            }
-        }
-
-        function currentLanguage() {
-            return localStorage.getItem('admin-language') || 'vi';
-        }
-
-        function translateValue(key, params = {}) {
-            const lang = currentLanguage();
-            const hasLangKey = window.AdminI18N[lang] && (key in window.AdminI18N[lang]);
-            const hasEnKey = window.AdminI18N.en && (key in window.AdminI18N.en);
-            if (!hasLangKey && !hasEnKey) {
-                return undefined;
-            }
-            const fallback = window.AdminI18N.en?.[key] || key;
-            let value = window.AdminI18N[lang]?.[key] || fallback;
-            Object.entries(params).forEach(([name, paramValue]) => {
-                value = value.replaceAll(`{${name}}`, paramValue);
-            });
-            return value;
-        }
-
-        function translatePage(root = document) {
-            const lang = currentLanguage();
-            document.documentElement.lang = lang;
-            root.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.dataset.i18n;
-                if (!el.hasOwnProperty('i18nOriginal')) {
-                    el.i18nOriginal = el.textContent;
-                }
-                const translated = translateValue(key);
-                el.textContent = (translated !== undefined && translated !== key) ? translated : el.i18nOriginal;
-            });
-            root.querySelectorAll('[data-i18n-title]').forEach(el => {
-                const key = el.dataset.i18nTitle;
-                if (!el.hasOwnProperty('i18nOriginalTitle')) {
-                    el.i18nOriginalTitle = el.title;
-                }
-                const translated = translateValue(key);
-                el.title = (translated !== undefined && translated !== key) ? translated : el.i18nOriginalTitle;
-            });
-            root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-                const key = el.dataset.i18nPlaceholder;
-                if (!el.hasOwnProperty('i18nOriginalPlaceholder')) {
-                    el.i18nOriginalPlaceholder = el.placeholder;
-                }
-                const translated = translateValue(key);
-                el.placeholder = (translated !== undefined && translated !== key) ? translated : el.i18nOriginalPlaceholder;
-            });
-            const langToggle = document.getElementById('langToggle');
-            if (langToggle) {
-                langToggle.querySelector('span').textContent = lang.toUpperCase();
-                langToggle.title = translateValue('language.next');
-            }
-        }
-
-        function applyTheme(theme) {
-            document.documentElement.dataset.theme = theme;
-            localStorage.setItem('admin-theme', theme);
-            const icon = document.querySelector('#themeToggle i');
-            const button = document.getElementById('themeToggle');
-            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            if (button) button.title = translateValue(theme === 'dark' ? 'theme.light' : 'theme.dark');
-            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
-        }
-
-        function initializePreferences() {
-            const savedTheme = localStorage.getItem('admin-theme') || 'light';
-            applyTheme(savedTheme);
-            translatePage();
-        }
-
-        window.AdminUI = {
-            addTranslations: mergeTranslations,
-            t: translateValue,
-            translate: translatePage,
-            language: currentLanguage,
-            theme: () => document.documentElement.dataset.theme || 'light'
-        };
-
-        const sidebar = document.getElementById('sidebar');
-        const backdrop = document.getElementById('sidebarBackdrop');
-        const menuButton = document.getElementById('menuButton');
-        const themeToggle = document.getElementById('themeToggle');
-        const langToggle = document.getElementById('langToggle');
-
-        const appShell = document.querySelector('.app-shell');
-        const isMobile = () => window.innerWidth <= 980;
-
-        // Restore desktop sidebar state
-        if (!isMobile() && localStorage.getItem('sidebar-collapsed') === 'true') {
-            appShell?.classList.add('sidebar-collapsed');
-        }
-
-        function closeSidebar() {
-            sidebar.classList.remove('open');
-            backdrop.classList.remove('show');
-        }
-
-        menuButton?.addEventListener('click', () => {
-            if (isMobile()) {
-                sidebar.classList.add('open');
-                backdrop.classList.add('show');
-            } else {
-                appShell.classList.toggle('sidebar-collapsed');
-                localStorage.setItem('sidebar-collapsed', appShell.classList.contains('sidebar-collapsed'));
-            }
-        });
-        backdrop?.addEventListener('click', closeSidebar);
-        document.querySelectorAll('.side-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                closeSidebar();
-                const href = link.getAttribute('href');
-                if (href && !href.startsWith('#') && !link.classList.contains('active')) {
-                    const loader = document.getElementById('globalLoader');
-                    if (loader) loader.classList.add('active');
-                }
-            });
-        });
-        themeToggle?.addEventListener('click', () => {
-            applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-        });
-        langToggle?.addEventListener('click', () => {
-            const next = currentLanguage() === 'vi' ? 'en' : 'vi';
-            localStorage.setItem('admin-language', next);
-            translatePage();
-            document.dispatchEvent(new CustomEvent('admin:language-change', { detail: { language: next } }));
-        });
-
-        initializePreferences();
-
-        // Hide loader when page is shown (handles browser back/forward cache)
-        window.addEventListener('pageshow', (event) => {
-            const loader = document.getElementById('globalLoader');
-            if (loader) loader.classList.remove('active');
-        });
-    </script>
-    <script>
-    // ── Global Search ──────────────────────────────────────────────
-    (function() {
-        const input = document.getElementById('globalSearch');
-        const results = document.getElementById('searchResults');
-        if (!input || !results) return;
-        let debounce;
-        input.addEventListener('input', () => {
-            clearTimeout(debounce);
-            const q = input.value.trim();
-            if (q.length < 2) { results.style.display = 'none'; return; }
-            debounce = setTimeout(() => {
-                fetch(`/dashboard/api/global-search/?q=${encodeURIComponent(q)}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.success || !Object.keys(data.results).length) {
-                        results.innerHTML = '<div class="p-3 text-muted small">No results found</div>';
-                        results.style.display = 'block'; return;
-                    }
-                    let html = '';
-                    const sections = {users: {icon: 'fa-user', label: 'Users', url: '/dashboard/users/'}, comments: {icon: 'fa-comment', label: 'Comments', url: '#'}, movies: {icon: 'fa-film', label: 'Movies', url: '#'}};
-                    Object.entries(data.results).forEach(([key, items]) => {
-                        const sec = sections[key] || {icon: 'fa-circle', label: key};
-                        html += `<div class="px-3 py-1 border-bottom small fw-bold text-muted" style="background:var(--control-hover);border-color:var(--line)!important;"><i class="fas ${sec.icon} me-1"></i>${sec.label}</div>`;
-                        items.forEach(item => {
-                            const title = item.name || item.title || item.content || item.id;
-                            const sub = item.email || item.movieId || item.type || '';
-                            let href = '#';
-                            if (key === 'users') href = `/dashboard/users/${item.id}/`;
-                            else if (key === 'movies') href = item.type === 'tv' ? `/dashboard/tv-shows/${item.id}/` : `/dashboard/movies/${item.id}/`;
-                            html += `<a href="${href}" class="d-block px-3 py-2 text-decoration-none border-bottom" style="color:var(--ink);border-color:var(--line)!important;" onmouseover="this.style.background='var(--control-hover)'" onmouseout="this.style.background=''"><div class="small">${title}</div>${sub ? `<div class="text-muted" style="font-size:11px;">${sub}</div>` : ''}</a>`;
-                        });
-                    });
-                    results.innerHTML = html;
-                    results.style.display = 'block';
-                });
-            }, 300);
-        });
-        input.addEventListener('blur', () => setTimeout(() => results.style.display = 'none', 200));
-        input.addEventListener('focus', () => { if (results.innerHTML && input.value.length >= 2) results.style.display = 'block'; });
-    })();
-
-    // ── Notification Bell Polling ──────────────────────────────────
-    (function() {
-        const list = document.getElementById('notifList');
-        const badge = document.getElementById('notifBadge');
-        if (!list) return;
-        function fetchNotifs() {
-            fetch('/dashboard/api/admin-notifications/')
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) return;
-                if (badge) { badge.textContent = data.count > 99 ? '99+' : data.count; badge.classList.toggle('d-none', !data.count); }
-                if (!data.events.length) { list.innerHTML = '<div class="text-center py-3 text-muted small">No recent events</div>'; return; }
-                list.innerHTML = data.events.map(e => `<div class="d-flex gap-2 px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><i class="fas ${e.icon} text-muted mt-1" style="font-size:12px;"></i><div class="small">${e.title}<br><span class="text-muted" style="font-size:11px;">${e.time || ''}</span></div></div>`).join('');
-            }).catch(() => {});
-        }
-        fetchNotifs();
-        setInterval(fetchNotifs, 30000);
-    })();
-
-    // ── CSRF Helper for AJAX ───────────────────────────────────────
-    window.getCsrfToken = function() {
-        const cookie = document.cookie.match(/csrftoken=([^;]+)/);
-        if (cookie) return cookie[1];
-        const input = document.querySelector('[name=csrfmiddlewaretoken]');
-        return input ? input.value : '';
-    };
-
-    // ── Shimmering Table Skeleton Loader Helper ────────────────────
-    window.getTableSkeleton = function(cols = 5, rows = 5) {
-        let html = '';
-        for (let r = 0; r < rows; r++) {
-            html += '<tr>';
-            for (let c = 0; c < cols; c++) {
-                const width = 45 + Math.floor(Math.random() * 45);
-                html += `<td><span class="skeleton-line" style="width: ${width}%;"></span></td>`;
-            }
-            html += '</tr>';
-        }
-        return html;
-    };
-    </script>
+    <script src="{% static 'admin_dashboard/js/admin_i18n.js' %}"></script>
+    <script src="{% static 'admin_dashboard/js/admin_ui.js' %}"></script>
 
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
 
-    <script>
-    // ── Global Toast Notification helper ───────────────────────────
-    window.showToast = function(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-        
-        const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white border-0 bg-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'}`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="fas ${type === 'error' ? 'fa-circle-xmark' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-check'} me-2"></i>
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        `;
-        
-        container.appendChild(toast);
-        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
-        bsToast.show();
-        
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
-    };
-    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -14,6 +14,6 @@
             <a class="page-link" href="?page={{ page|add:'1' }}&{{ preserved_params }}">&raquo;</a>
         </li>
     </ul>
-    <p class="text-center text-muted small mt-1 mb-0">Page {{ page }} of {{ total_pages }} ({{ total }} items)</p>
+    <p class="text-center text-muted small mt-1 mb-0"><span data-i18n="pagination.page">Page</span> {{ page }} <span data-i18n="pagination.of">of</span> {{ total_pages }} ({{ total }} <span data-i18n="pagination.items">items</span>)</p>
 </nav>
 {% endif %}

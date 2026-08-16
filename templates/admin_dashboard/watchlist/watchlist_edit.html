@@ -2,6 +2,7 @@
 
 {% block title %}Edit {{ item.title }} - Watchlist{% endblock %}
 {% block page_title %}Edit Watchlist Item{% endblock %}
+{% block page_i18n_key %}page.watchlistEdit{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -9,7 +10,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-edit"></i> Edit Watchlist Item
+                    <i class="fas fa-edit"></i> <span data-i18n="watchEdit.title">Edit Watchlist Item</span>
                 </h5>
             </div>
             <div class="card-body">
@@ -31,34 +32,34 @@
                         <div class="col-md-8">
                             <div class="mb-3">
                                 <label for="title" class="form-label">
-                                    <strong>Movie Title *</strong>
+                                    <strong data-i18n="watchEdit.titleLabel">Movie Title *</strong>
                                 </label>
                                 <input type="text" class="form-control" id="title" name="title" 
                                        value="{{ item.title }}" required>
-                                <div class="form-text">The title of the movie</div>
+                                <div class="form-text" data-i18n="watchEdit.titleHelp">The title of the movie</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="movie_id" class="form-label">
-                                    <strong>Movie ID *</strong>
+                                    <strong data-i18n="watchEdit.movieIdLabel">Movie ID *</strong>
                                 </label>
                                 <input type="number" class="form-control" id="movie_id" name="movie_id" 
                                        value="{{ item.movie_id }}" readonly>
-                                <div class="form-text">Movie ID cannot be changed</div>
+                                <div class="form-text" data-i18n="watchEdit.movieIdHelp">Movie ID cannot be changed</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="poster_path" class="form-label">
-                                    <strong>Poster URL</strong>
+                                    <strong data-i18n="watchEdit.posterUrlLabel">Poster URL</strong>
                                 </label>
                                 <input type="url" class="form-control" id="poster_path" name="poster_path" 
                                        value="{{ item.poster_path|default:'' }}">
-                                <div class="form-text">URL to the movie poster image</div>
+                                <div class="form-text" data-i18n="watchEdit.posterUrlHelp">URL to the movie poster image</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="user" class="form-label">
-                                    <strong>User *</strong>
+                                    <strong data-i18n="watchEdit.userLabel">User *</strong>
                                 </label>
                                 <select class="form-select" id="user" name="user" required>
                                     {% for user in users %}
@@ -67,15 +68,15 @@
                                         </option>
                                     {% endfor %}
                                 </select>
-                                <div class="form-text">Select the user who owns this watchlist item</div>
+                                <div class="form-text" data-i18n="watchEdit.userHelp">Select the user who owns this watchlist item</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label class="form-label">
-                                    <strong>Added Date</strong>
+                                    <strong data-i18n="watchEdit.addedDateLabel">Added Date</strong>
                                 </label>
                                 <input type="text" class="form-control" value="{{ item.added_at|date:'F d, Y \a\t H:i' }}" readonly>
-                                <div class="form-text">Date when this item was added to watchlist</div>
+                                <div class="form-text" data-i18n="watchEdit.addedDateHelp">Date when this item was added to watchlist</div>
                             </div>
                         </div>
                     </div>
@@ -84,10 +85,10 @@
                     
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
+                            <i class="fas fa-save"></i> <span data-i18n="watchEdit.saveBtn">Save Changes</span>
                         </button>
                         <a href="{% url 'admin_dashboard:watchlist_detail' item.id %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
+                            <i class="fas fa-times"></i> <span data-i18n="watchEdit.cancelBtn">Cancel</span>
                         </a>
                     </div>
                 </form>
@@ -100,7 +101,7 @@
         <div class="card mb-3">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-user"></i> Current User
+                    <i class="fas fa-user"></i> <span data-i18n="watchEdit.currentUser">Current User</span>
                 </h6>
             </div>
             <div class="card-body">
@@ -122,26 +123,26 @@
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">User ID:</small>
+                    <small class="text-muted" data-i18n="watchEdit.userId">User ID:</small>
                     <br>
                                                     <code>{{ item.user.id }}</code>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">API ID:</small>
+                    <small class="text-muted" data-i18n="watchEdit.apiId">API ID:</small>
                     <br>
                                                     <code>{{ item.user.id|default:"Not synced" }}</code>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Total Watchlist:</small>
+                    <small class="text-muted" data-i18n="watchEdit.totalWatchlist">Total Watchlist:</small>
                     <br>
-                    <strong>{{ item.user.watchlist_count }} items</strong>
+                    <strong>{{ item.user.watchlist_count }} <span data-i18n="watchEdit.itemsSuffix">items</span></strong>
                 </div>
                 
                                         <a href="{% url 'admin_dashboard:user_detail' item.user.id %}" 
                    class="btn btn-outline-primary btn-sm w-100">
-                    <i class="fas fa-eye"></i> View User Details
+                    <i class="fas fa-eye"></i> <span data-i18n="watchEdit.viewUser">View User Details</span>
                 </a>
             </div>
         </div>
@@ -150,36 +151,36 @@
         <div class="card">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="fas fa-film"></i> Movie Information
+                    <i class="fas fa-film"></i> <span data-i18n="watchEdit.movieInfo">Movie Information</span>
                 </h6>
             </div>
             <div class="card-body">
                 <div class="mb-2">
-                    <small class="text-muted">Movie ID:</small>
+                    <small class="text-muted" data-i18n="watchEdit.movieId">Movie ID:</small>
                     <br>
                     <code>{{ item.movie_id }}</code>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Title:</small>
+                    <small class="text-muted" data-i18n="watchEdit.movieTitle">Title:</small>
                     <br>
                     <strong>{{ item.title }}</strong>
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Poster URL:</small>
+                    <small class="text-muted" data-i18n="watchEdit.posterUrl">Poster URL:</small>
                     <br>
                     {% if item.poster_path %}
                         <a href="{{ item.poster_path }}" target="_blank" class="text-break small">
                             {{ item.poster_path|truncatechars:30 }}
                         </a>
                     {% else %}
-                        <span class="text-muted small">No poster available</span>
+                        <span class="text-muted small" data-i18n="watchEdit.noPoster">No poster available</span>
                     {% endif %}
                 </div>
                 
                 <div class="mb-2">
-                    <small class="text-muted">Added:</small>
+                    <small class="text-muted" data-i18n="watchEdit.added">Added:</small>
                     <br>
                     {{ item.added_at|date:"M d, Y" }}
                 </div>
@@ -187,4 +188,65 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.AdminUI.addTranslations({
+    en: {
+        'watchEdit.title': 'Edit Watchlist Item',
+        'watchEdit.titleLabel': 'Movie Title *',
+        'watchEdit.titleHelp': 'The title of the movie',
+        'watchEdit.movieIdLabel': 'Movie ID *',
+        'watchEdit.movieIdHelp': 'Movie ID cannot be changed',
+        'watchEdit.posterUrlLabel': 'Poster URL',
+        'watchEdit.posterUrlHelp': 'URL to the movie poster image',
+        'watchEdit.userLabel': 'User *',
+        'watchEdit.userHelp': 'Select the user who owns this watchlist item',
+        'watchEdit.addedDateLabel': 'Added Date',
+        'watchEdit.addedDateHelp': 'Date when this item was added to watchlist',
+        'watchEdit.saveBtn': 'Save Changes',
+        'watchEdit.cancelBtn': 'Cancel',
+        'watchEdit.currentUser': 'Current User',
+        'watchEdit.userId': 'User ID:',
+        'watchEdit.apiId': 'API ID:',
+        'watchEdit.totalWatchlist': 'Total Watchlist:',
+        'watchEdit.itemsSuffix': 'items',
+        'watchEdit.viewUser': 'View User Details',
+        'watchEdit.movieInfo': 'Movie Information',
+        'watchEdit.movieId': 'Movie ID:',
+        'watchEdit.movieTitle': 'Title:',
+        'watchEdit.posterUrl': 'Poster URL:',
+        'watchEdit.added': 'Added:',
+        'watchEdit.noPoster': 'No poster available'
+    },
+    vi: {
+        'watchEdit.title': 'Chỉnh sửa mục danh sách xem',
+        'watchEdit.titleLabel': 'Tiêu đề phim *',
+        'watchEdit.titleHelp': 'Tiêu đề của phim',
+        'watchEdit.movieIdLabel': 'Mã phim *',
+        'watchEdit.movieIdHelp': 'Không thể thay đổi mã phim',
+        'watchEdit.posterUrlLabel': 'Đường dẫn áp phích',
+        'watchEdit.posterUrlHelp': 'Đường dẫn đến ảnh áp phích của phim',
+        'watchEdit.userLabel': 'Người dùng *',
+        'watchEdit.userHelp': 'Chọn người dùng sở hữu mục danh sách xem này',
+        'watchEdit.addedDateLabel': 'Ngày thêm',
+        'watchEdit.addedDateHelp': 'Ngày mục này được thêm vào danh sách xem',
+        'watchEdit.saveBtn': 'Lưu thay đổi',
+        'watchEdit.cancelBtn': 'Hủy',
+        'watchEdit.currentUser': 'Người dùng hiện tại',
+        'watchEdit.userId': 'Mã người dùng:',
+        'watchEdit.apiId': 'Mã API:',
+        'watchEdit.totalWatchlist': 'Tổng Watchlist:',
+        'watchEdit.itemsSuffix': 'mục',
+        'watchEdit.viewUser': 'Xem chi tiết người dùng',
+        'watchEdit.movieInfo': 'Thông tin phim',
+        'watchEdit.movieId': 'Mã phim:',
+        'watchEdit.movieTitle': 'Tiêu đề:',
+        'watchEdit.posterUrl': 'Đường dẫn áp phích:',
+        'watchEdit.added': 'Đã thêm:',
+        'watchEdit.noPoster': 'Không có áp phích'
+    }
+});
+</script>
 {% endblock %}

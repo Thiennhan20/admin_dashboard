@@ -1,6 +1,7 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}User Reports - Admin Panel{% endblock %}
 {% block page_title %}User Reports{% endblock %}
+{% block page_i18n_key %}nav.reports{% endblock %}
 {% block content %}
 <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-warning">{{ stats.pending }}</h3><small class="text-muted" data-i18n="rep.status_pending">Pending</small></div></div></div>
