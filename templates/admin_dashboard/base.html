@@ -308,6 +308,55 @@
         }
 
         .side-link i { width: 18px; text-align: center; flex-shrink: 0; }
+        .side-badge {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #e5e7eb;
+            letter-spacing: 0.2px;
+            flex-shrink: 0;
+            transition: all .15s ease;
+        }
+        .side-link:hover .side-badge {
+            background: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+        }
+        .side-link.active .side-badge {
+            background: rgba(96, 165, 250, 0.25);
+            color: #93c5fd;
+        }
+        .side-badge.live {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.45);
+            gap: 5px;
+            padding: 2px 7px;
+        }
+        .side-badge.live .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulseLive 1.6s infinite;
+        }
+        @keyframes pulseLive {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .side-badge.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
         .main { min-width: 0; }
         .topbar {
             position: sticky;
@@ -1052,6 +1101,7 @@
             </a>
             <a class="side-link {% if 'users' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:users_list' %}">
                 <i class="fas fa-users"></i><span data-i18n="nav.users">Users</span>
+                {% if sidebar_counts.users %}<span class="side-badge" title="Total users">{{ sidebar_counts.users }}</span>{% endif %}
             </a>
             <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
                 <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
@@ -1066,6 +1116,7 @@
             <div class="nav-group-body">
             <a class="side-link {% if 'watch_progress' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watch_progress' %}">
                 <i class="fas fa-history"></i><span data-i18n="nav.watchProgress">Watch Progress</span>
+                {% if sidebar_counts.watch_progress %}<span class="side-badge">{{ sidebar_counts.watch_progress }}</span>{% endif %}
             </a>
             <a class="side-link {% if 'search_history' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:search_history' %}">
                 <i class="fas fa-clock-rotate-left"></i><span data-i18n="nav.searchHistory">Search History</span>
@@ -1092,9 +1143,15 @@
             </a>
             <a class="side-link {% if 'comments' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:comments' %}">
                 <i class="fas fa-comments"></i><span data-i18n="nav.comments">Comments</span>
+                {% if sidebar_counts.comments %}<span class="side-badge" title="Total comments">{{ sidebar_counts.comments }}</span>{% endif %}
             </a>
             <a class="side-link {% if 'rooms' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:rooms' %}">
                 <i class="fas fa-video"></i><span data-i18n="nav.rooms">Watch Rooms</span>
+                {% if sidebar_counts.rooms > 0 %}
+                <span class="side-badge live" title="Live Watch Rooms"><span class="pulse-dot"></span>LIVE {{ sidebar_counts.rooms }}</span>
+                {% else %}
+                <span class="side-badge" style="opacity: 0.5;">0</span>
+                {% endif %}
             </a>
             <a class="side-link {% if 'notifications' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:notifications' %}">
                 <i class="fas fa-bell"></i><span data-i18n="nav.notifications">Notifications</span>
@@ -1112,6 +1169,7 @@
             <div class="nav-group-body">
             <a class="side-link {% if 'game_profiles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_profiles' %}">
                 <i class="fas fa-gamepad"></i><span data-i18n="nav.gameProfiles">Game Profiles</span>
+                {% if sidebar_counts.game_profiles %}<span class="side-badge">{{ sidebar_counts.game_profiles }}</span>{% endif %}
             </a>
             <a class="side-link {% if 'game_histories' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_histories' %}">
                 <i class="fas fa-trophy"></i><span data-i18n="nav.gameHistories">Game Histories</span>
@@ -1135,6 +1193,9 @@
             </a>
             <a class="side-link {% if 'error_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:error_logs' %}">
                 <i class="fas fa-bug"></i><span data-i18n="nav.errorLogs">Error Logs</span>
+                {% if sidebar_counts.error_logs > 0 %}
+                <span class="side-badge danger" title="Errors">{{ sidebar_counts.error_logs }}</span>
+                {% endif %}
             </a>
             <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
                 <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>

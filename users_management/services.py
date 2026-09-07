@@ -59,7 +59,10 @@ def clean_value(value):
 
 def api_get(path, params=None, timeout=API_TIMEOUT):
     url = f'{settings.API_BASE_URL}{path}'
-    response = requests.get(url, params=params, timeout=timeout)
+    headers = {}
+    if getattr(settings, 'ADMIN_API_KEY', None):
+        headers['x-admin-api-key'] = settings.ADMIN_API_KEY
+    response = requests.get(url, params=params, headers=headers, timeout=timeout)
     response.raise_for_status()
     return response.json()
 
