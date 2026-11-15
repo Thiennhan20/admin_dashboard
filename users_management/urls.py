@@ -6,6 +6,8 @@ app_name = 'admin_dashboard'
 urlpatterns = [
     # ── Authentication ──────────────────────────────────────────────
     path('login/', views.admin_login, name='login'),
+    path('login/2fa/', views.admin_login_2fa, name='login_2fa'),
+    path('login/2fa/cancel/', views.admin_login_2fa_cancel, name='login_2fa_cancel'),
     path('logout/', views.admin_logout, name='logout'),
     path('register/', views.admin_register, name='register'),
 
@@ -31,6 +33,7 @@ urlpatterns = [
     path('admins/<int:admin_id>/', views.admin_detail, name='admin_detail'),
     path('admins/<int:admin_id>/edit/', views.admin_edit, name='admin_edit'),
     path('admins/<int:admin_id>/delete/', views.admin_delete, name='admin_delete'),
+    path('admins/<int:admin_id>/reset-2fa/', views.admin_reset_2fa, name='admin_reset_2fa'),
 
     # ── Media ───────────────────────────────────────────────────────
     path('movies/', views.movies_list, name='movies'),
@@ -40,30 +43,46 @@ urlpatterns = [
     path('comments/', views.comments_list, name='comments'),
     path('rooms/', views.rooms_list, name='rooms'),
     path('notifications/', views.notifications_list, name='notifications'),
+    path('push-devices/', views.push_devices_list, name='push_devices'),
+    path('api/push-devices/test/', views.api_push_devices_test, name='api_push_devices_test'),
+    path('api/push-devices/remove/', views.api_push_devices_remove, name='api_push_devices_remove'),
     path('cache/', views.cache_management, name='cache'),
     path('servers/', views.server_management, name='servers'),
+    path('api/servers/probe/', views.api_servers_probe, name='api_servers_probe'),
     path('api/servers/vidsrc/scan/', views.api_vidsrc_scan, name='api_vidsrc_scan'),
     path('api/servers/vidsrc/select/', views.api_vidsrc_select, name='api_vidsrc_select'),
     path('api/servers/vidsrc/toggle-auto/', views.api_vidsrc_toggle_auto, name='api_vidsrc_toggle_auto'),
 
-    # ── NEW: Watch Progress ─────────────────────────────────────────
+    # ── NEW: Watch Progress & Stream History ────────────────────────
     path('watch-progress/', views.watch_progress_list, name='watch_progress'),
+    path('stream-history/', views.stream_history_list, name='stream_history'),
+    path('api/stream-history/probe/', views.api_stream_history_probe, name='api_stream_history_probe'),
+    path('api/stream-history/delete/', views.api_stream_history_delete, name='api_stream_history_delete'),
 
-    # ── GAME MANAGEMENT ─────────────────────────────────────────────
+    # ── GAME MANAGEMENT (3D Arena, Profiles & Daily Challenge) ───────
     path('games/profiles/', views.game_profiles_list, name='game_profiles'),
     path('games/histories/', views.game_histories_list, name='game_histories'),
+    path('games/daily-challenge/', views.daily_challenge_list, name='daily_challenge'),
+    path('api/games/profiles/update/', views.api_game_profile_update, name='api_game_profile_update'),
     path('api/games/profiles/delete/', views.api_game_profile_delete, name='api_game_profile_delete'),
     path('api/games/histories/delete/', views.api_game_history_delete, name='api_game_history_delete'),
+    path('api/games/daily-challenge/', views.api_daily_challenge_action, name='api_daily_challenge_action'),
+    path('api/games/arena/', views.api_arena_control, name='api_arena_control'),
 
     # ── NEW: Search History ─────────────────────────────────────────
     path('search-history/', views.search_history_list, name='search_history'),
 
-    # ── NEW: Token Management ───────────────────────────────────────
+    # ── NEW: Token Management & Sessions ────────────────────────────
+    path('sessions/', views.sessions_list, name='sessions_list'),
     path('password-resets/', views.password_resets_list, name='password_resets'),
     path('blacklisted-tokens/', views.blacklisted_tokens_list, name='blacklisted_tokens'),
 
-    # ── NEW: Admin Profile ──────────────────────────────────────────
+    # ── NEW: Admin Profile & 2FA ────────────────────────────────────
     path('profile/', views.admin_profile, name='admin_profile'),
+    path('profile/2fa/setup/', views.setup_2fa, name='profile_2fa_setup'),
+    path('profile/2fa/enable/', views.enable_2fa, name='profile_2fa_enable'),
+    path('profile/2fa/disable/', views.disable_2fa, name='profile_2fa_disable'),
+    path('profile/2fa/backup-codes/', views.regenerate_backup_codes, name='profile_2fa_backup_codes'),
 
     # ── NEW: Analytics ──────────────────────────────────────────────
     path('analytics/', views.analytics_dashboard, name='analytics'),
@@ -75,6 +94,9 @@ urlpatterns = [
     path('monitoring/', views.monitoring_dashboard, name='monitoring'),
     path('settings/', views.system_settings, name='system_settings'),
     path('backup/', views.backup_management, name='backup'),
+    path('backup/restore/preview/', views.backup_restore_preview, name='backup_restore_preview'),
+    path('backup/restore/confirm/', views.backup_restore_confirm, name='backup_restore_confirm'),
+    path('backup/restore/cancel/', views.backup_restore_cancel, name='backup_restore_cancel'),
     path('error-logs/', views.error_logs_list, name='error_logs'),
 
     # ── NEW: Content & Extensions ───────────────────────────────────

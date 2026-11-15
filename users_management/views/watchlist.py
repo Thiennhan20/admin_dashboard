@@ -5,8 +5,9 @@ from django.http import JsonResponse, Http404
 from django.contrib import messages
 from bson import ObjectId
 
+from users_management.decorators import require_permission
 from users_management.models import AuditLog
-from users_management.services import mongo_admin, clean_value
+from users_management.services import mongo_admin, clean_value, parallel_run, cached_swr
 from users_management.views_legacy import check_admin_access, check_api_status
 
 __all__ = ['watchlist_list', 'watchlist_detail', 'watchlist_edit', 'watchlist_delete']
@@ -14,6 +15,7 @@ __all__ = ['watchlist_list', 'watchlist_detail', 'watchlist_edit', 'watchlist_de
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watchlist.view')
 def watchlist_list(request):
     """Trang danh sách watchlist dùng MongoDB Aggregation để phân trang và tìm kiếm."""
     page = int(request.GET.get('page', 1))
@@ -24,36 +26,67 @@ def watchlist_list(request):
     try:
         db = mongo_admin.db()
         
-        # Build query match for unwound watchlists
+        # Combined $facet pipeline: project only needed fields before $unwind
         match_query = {}
         if search:
             match_query['watchlist.title'] = {'$regex': search, '$options': 'i'}
         if media_type:
             match_query['watchlist.type'] = media_type
 
-        # Count total matched items using aggregation
-        count_pipeline = []
-        count_pipeline.append({'$unwind': '$watchlist'})
+        facet_pipeline = [
+            {'$match': {'watchlist.0': {'$exists': True}}},
+            {'$project': {'name': 1, 'email': 1, 'createdAt': 1, 'watchlist': 1}},
+            {'$unwind': '$watchlist'},
+        ]
         if match_query:
-            count_pipeline.append({'$match': match_query})
-        count_pipeline.append({'$count': 'total'})
-        
-        count_result = list(db.users.aggregate(count_pipeline))
-        total_items = count_result[0]['total'] if count_result else 0
+            facet_pipeline.append({'$match': match_query})
+        facet_pipeline.append({
+            '$facet': {
+                'meta': [{'$count': 'total'}],
+                'items': [
+                    {'$sort': {'watchlist.title': 1}},
+                    {'$skip': (page - 1) * limit},
+                    {'$limit': limit},
+                ],
+            }
+        })
+
+        def _fetch_watchlist_stats():
+            unique_movies_pipeline = [
+                {'$match': {'watchlist.0': {'$exists': True}}},
+                {'$project': {'watchlist.id': 1}},
+                {'$unwind': '$watchlist'},
+                {'$group': {'_id': '$watchlist.id'}},
+                {'$count': 'total'},
+            ]
+            sub = parallel_run({
+                'unique_movies': lambda: list(db.users.aggregate(unique_movies_pipeline)),
+                'unique_users': lambda: db.users.count_documents({'watchlist.0': {'$exists': True}}),
+            }, max_workers=2)
+            um_res = sub['unique_movies']
+            return {
+                'unique_movies': um_res[0]['total'] if um_res else 0,
+                'unique_users': sub['unique_users'],
+            }
+
+        force_stats = request.GET.get('refresh') == '1'
+        results = parallel_run({
+            'facet': lambda: list(db.users.aggregate(facet_pipeline)),
+            'stats': lambda: cached_swr(
+                'watchlist_global_stats_v1',
+                fresh_ttl=30,
+                stale_ttl=120,
+                fetcher=_fetch_watchlist_stats,
+                force=force_stats,
+            ),
+        }, max_workers=2)
+
+        facet_doc = results['facet'][0] if results['facet'] else {}
+        meta_list = facet_doc.get('meta', [])
+        total_items = meta_list[0]['total'] if meta_list else 0
         total_pages = max(1, -(-total_items // limit))
 
-        # Fetch items
-        pipeline = []
-        pipeline.append({'$unwind': '$watchlist'})
-        if match_query:
-            pipeline.append({'$match': match_query})
-        pipeline.extend([
-            {'$sort': {'watchlist.title': 1}},
-            {'$skip': (page - 1) * limit},
-            {'$limit': limit},
-        ])
-        
-        items = list(db.users.aggregate(pipeline))
+        items = facet_doc.get('items', [])
         watchlist_items = []
         for doc in items:
             wl = doc.get('watchlist', {})
@@ -74,17 +107,8 @@ def watchlist_list(request):
             })
 
         watchlist_items = clean_value(watchlist_items)
-
-        # Basic stats
-        unique_movies_pipeline = [
-            {'$unwind': '$watchlist'},
-            {'$group': {'_id': '$watchlist.id'}},
-            {'$count': 'total'}
-        ]
-        unique_movies_result = list(db.users.aggregate(unique_movies_pipeline))
-        unique_movies = unique_movies_result[0]['total'] if unique_movies_result else 0
-
-        unique_users = db.users.count_documents({'watchlist.0': {'$exists': True}})
+        unique_movies = results['stats']['unique_movies']
+        unique_users = results['stats']['unique_users']
 
         context = {
             'watchlist_items': watchlist_items,
@@ -118,6 +142,7 @@ def watchlist_list(request):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watchlist.view')
 def watchlist_detail(request, item_id):
     """Xem chi tiết một item trong watchlist."""
     try:
@@ -131,7 +156,7 @@ def watchlist_detail(request, item_id):
         # Get user details
         user = db.users.find_one({'_id': ObjectId(user_id)})
         if not user:
-            messages.error(request, 'Không tìm thấy user!')
+            messages.error(request, 'Không tìm thấy người dùng!')
             return redirect('admin_dashboard:watchlist_list')
 
         # Find movie inside user's watchlist
@@ -143,7 +168,7 @@ def watchlist_detail(request, item_id):
                 break
 
         if not movie_item:
-            messages.error(request, 'Không tìm thấy phim trong watchlist của user!')
+            messages.error(request, 'Không tìm thấy phim trong danh sách xem của người dùng!')
             return redirect('admin_dashboard:watchlist_list')
 
         movie_item = clean_value(movie_item)
@@ -165,14 +190,16 @@ def watchlist_detail(request, item_id):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watchlist.edit')
 def watchlist_edit(request, item_id):
     """Edit watchlist item is usually not required or is simple redirect, but we provide it for compatibility."""
-    messages.info(request, "Watchlist items are managed by users directly.")
+    messages.info(request, 'Mục danh sách xem do người dùng trực tiếp quản lý.')
     return redirect('admin_dashboard:watchlist_detail', item_id=item_id)
 
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watchlist.delete')
 def watchlist_delete(request, item_id):
     """Xóa một item khỏi watchlist của user."""
     try:
@@ -201,7 +228,7 @@ def watchlist_delete(request, item_id):
             )
 
         AuditLog.log(request, 'delete_watchlist_item', 'watchlist', item_id)
-        messages.success(request, 'Đã xóa phim khỏi watchlist của user!')
+        messages.success(request, 'Đã xóa phim khỏi danh sách xem của người dùng!')
     except Exception as e:
         messages.error(request, f'Lỗi: {e}')
 

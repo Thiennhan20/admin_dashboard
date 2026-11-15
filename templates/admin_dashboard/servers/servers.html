@@ -1,6 +1,6 @@
 {% extends "admin_dashboard/base.html" %}
 
-{% block title %}Quản lý Server & Tên miền VidSrc — Movie Admin{% endblock %}
+{% block title %}Quản lý máy chủ phát — ENTN Admin{% endblock %}
 {% block page_i18n_key %}nav.servers{% endblock %}
 
 {% block extra_css %}
@@ -44,21 +44,29 @@
         color: #ffffff !important;
     }
 
-    /* High contrast banner text */
+    /* High contrast banner text (Theme-aware) */
     .banner-contrast-box {
-        background-color: #e0edff !important;
-        border: 1px solid #93c5fd !important;
-        color: #0f172a !important;
+        background: var(--brand-soft) !important;
+        border: 1px solid var(--brand-border) !important;
+        color: var(--ink) !important;
     }
 
     .banner-title-text {
-        color: #334155 !important;
+        color: var(--ink-secondary) !important;
         font-weight: 700 !important;
     }
 
     .banner-time-text {
-        color: #1e293b !important;
+        color: var(--ink) !important;
         font-weight: 700 !important;
+    }
+
+    .cluster-telemetry-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 1rem 1.15rem;
+        height: 100%;
     }
 
     .table-responsive {
@@ -82,13 +90,64 @@
 {% block content %}
 <div class="container-fluid py-3 px-2 px-sm-3 px-md-4">
     <!-- Header -->
-    <div class="mb-3">
-        <h1 class="h4 font-weight-bold mb-1">
-            <i class="fas fa-server text-primary me-2"></i><span data-i18n="servers.title">Máy Chủ</span>
-        </h1>
-        <p class="text-muted small mb-0" data-i18n="servers.subtitle">
-            Cấu hình 3 máy chủ phát video và tự động cào tên miền cho Server 2.
-        </p>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+        <div>
+            <h1 class="h4 font-weight-bold mb-1">
+                <i class="fas fa-satellite-dish text-primary me-2"></i><span data-i18n="servers.title">Máy chủ phát</span>
+            </h1>
+            <p class="text-muted small mb-0" data-i18n="servers.subtitle">
+                Cấu hình 3 máy chủ phát video và tự động quét tên miền cho Máy chủ 2.
+            </p>
+        </div>
+        <button type="button" id="btnProbeClusters" class="btn btn-outline-primary btn-sm fw-bold">
+            <i class="fas fa-heartbeat me-1" id="iconProbeClusters"></i><span data-i18n="servers.pingAll">Kiểm tra cả 3 máy chủ</span>
+        </button>
+    </div>
+
+    <!-- 3-Cluster Live Telemetry Bar -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="cluster-telemetry-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold"><i class="fas fa-play text-primary me-2"></i>{{ clusters.server1.name }}</span>
+                    <span class="badge {% if clusters.server1.online %}bg-success{% else %}bg-danger{% endif %}" id="cluster1-badge"{% if not clusters.server1.online %} data-i18n="servers.offline"{% endif %}>
+                        {% if clusters.server1.online %}HTTP {{ clusters.server1.status }}{% else %}MẤT KẾT NỐI{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted font-mono">
+                    <span>{{ clusters.server1.endpoint }}</span>
+                    <strong class="text-success" id="cluster1-latency">{% if clusters.server1.latency_ms %}{{ clusters.server1.latency_ms }} ms{% else %}—{% endif %}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="cluster-telemetry-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold"><i class="fas fa-globe text-info me-2"></i>{{ clusters.server2.name }}</span>
+                    <span class="badge {% if clusters.server2.online %}bg-success{% else %}bg-danger{% endif %}" id="cluster2-badge"{% if not clusters.server2.online %} data-i18n="servers.offline"{% endif %}>
+                        {% if clusters.server2.online %}HTTP {{ clusters.server2.status }}{% else %}MẤT KẾT NỐI{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted font-mono">
+                    <span id="cluster2-endpoint">{{ clusters.server2.endpoint }}</span>
+                    <strong class="text-info" id="cluster2-latency">{% if clusters.server2.latency_ms %}{{ clusters.server2.latency_ms }} ms{% else %}—{% endif %}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="cluster-telemetry-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold"><i class="fas fa-film text-warning me-2"></i>{{ clusters.server3.name }}</span>
+                    <span class="badge {% if clusters.server3.online %}bg-success{% else %}bg-danger{% endif %}" id="cluster3-badge"{% if not clusters.server3.online %} data-i18n="servers.offline"{% endif %}>
+                        {% if clusters.server3.online %}HTTP {{ clusters.server3.status }}{% else %}MẤT KẾT NỐI{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted font-mono">
+                    <span>{{ clusters.server3.endpoint }}</span>
+                    <strong class="text-warning" id="cluster3-latency">{% if clusters.server3.latency_ms %}{{ clusters.server3.latency_ms }} ms{% else %}—{% endif %}</strong>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Server Selector Tabs (Clean non-sticking gap) -->
@@ -97,17 +156,17 @@
             <ul class="nav nav-pills d-flex flex-column flex-md-row gap-2 gap-md-3 m-0" id="serverTabs" role="tablist">
                 <li class="nav-item flex-fill p-0" role="presentation">
                     <button class="nav-link server-tab-link fw-bold" id="tab-server1" data-bs-toggle="tab" data-bs-target="#content-server1" type="button" role="tab">
-                        <i class="fas fa-play me-2 text-primary"></i><span data-i18n="servers.tab1">Máy Chủ 1 (KKPhim)</span>
+                        <i class="fas fa-play me-2 text-primary"></i><span data-i18n="servers.tab1">Máy chủ 1 (KKPhim)</span>
                     </button>
                 </li>
                 <li class="nav-item flex-fill p-0" role="presentation">
                     <button class="nav-link server-tab-link active fw-bold" id="tab-server2" data-bs-toggle="tab" data-bs-target="#content-server2" type="button" role="tab">
-                        <i class="fas fa-globe me-2 text-info"></i><span data-i18n="servers.tab2">Máy Chủ 2 (VidSrc)</span>
+                        <i class="fas fa-globe me-2 text-info"></i><span data-i18n="servers.tab2">Máy chủ 2 (VidSrc)</span>
                     </button>
                 </li>
                 <li class="nav-item flex-fill p-0" role="presentation">
                     <button class="nav-link server-tab-link fw-bold" id="tab-server3" data-bs-toggle="tab" data-bs-target="#content-server3" type="button" role="tab">
-                        <i class="fas fa-film me-2 text-warning"></i><span data-i18n="servers.tab3">Máy Chủ 3 (NguonC)</span>
+                        <i class="fas fa-film me-2 text-warning"></i><span data-i18n="servers.tab3">Máy chủ 3 (NguonC)</span>
                     </button>
                 </li>
             </ul>
@@ -126,29 +185,30 @@
                             <i class="fas fa-play fs-5"></i>
                         </div>
                         <div class="min-w-0 flex-grow-1">
-                            <h4 class="h5 mb-1 font-weight-bold text-dark">Máy Chủ 1: KKPhim / PhimAPI</h4>
+                            <h4 class="h5 mb-1 font-weight-bold text-dark" data-i18n="servers.srv1Title">Máy chủ 1: KKPhim / PhimAPI</h4>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
-                                <span class="status-pulse"></span>ONLINE - NGUỒN CHÍNH
+                                <span class="status-pulse"></span><span data-i18n="servers.srv1Badge">TRỰC TUYẾN - NGUỒN CHÍNH</span>
                             </span>
                         </div>
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Giao thức truyền tải</small>
-                                <span class="h6 font-weight-bold mb-0 text-dark">HLS Stream (M3U8)</span>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.protocol">Giao thức truyền tải</small>
+                                <span class="h6 font-weight-bold mb-0 text-dark" data-i18n="servers.protoHls">Luồng HLS (M3U8)</span>
                             </div>
                         </div>
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Chất lượng tối đa</small>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.maxQuality">Chất lượng tối đa</small>
                                 <span class="h6 font-weight-bold mb-0 text-dark">Full HD 1080p</span>
                             </div>
                         </div>
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Độ trễ trung bình</small>
-                                <span class="h6 font-weight-bold mb-0 text-success">~120 ms</span>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.liveLatency">Độ trễ thực tế</small>
+                                <span class="h6 font-weight-bold mb-0 text-success font-mono" id="tab1-latency"{% if not clusters.server1.latency_ms %} data-i18n="servers.offline"{% endif %}>{% if clusters.server1.latency_ms %}{{ clusters.server1.latency_ms }} ms{% else %}MẤT KẾT NỐI{% endif %}</span>
+                                <small class="text-muted d-block font-mono mt-1"><span data-i18n="servers.checkedAt">Kiểm tra lúc:</span> <span id="tab1-checked">{{ clusters.server1.checked_at }}</span></small>
                             </div>
                         </div>
                     </div>
@@ -164,7 +224,7 @@
                     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center gap-3">
                         <div>
                             <h5 class="h6 font-weight-bold text-dark mb-1 text-nowrap">
-                                <i class="fas fa-robot text-danger me-2"></i><span data-i18n="servers.crawlerTitle">Bộ Cào Tên Miền Tự Động</span>
+                                <i class="fas fa-robot text-danger me-2"></i><span data-i18n="servers.crawlerTitle">Bộ quét tên miền tự động</span>
                             </h5>
                             <small class="text-muted text-nowrap"><span data-i18n="servers.sourceLabel">Nguồn:</span> <a href="https://vidsrc.domains/" target="_blank" class="text-decoration-none font-weight-bold">vidsrc.domains</a></small>
                         </div>
@@ -196,9 +256,9 @@
                             </div>
 
                             <div class="d-flex flex-wrap align-items-center gap-2 small">
-                                <span class="banner-time-text"><i class="fas fa-clock text-primary me-1"></i><span data-i18n="servers.lastScraped">Lần quét:</span> <strong class="font-mono" id="lblLastScraped">{{ vidsrc_config.last_scraped|default:"Chưa quét" }}</strong></span>
-                                <span class="badge bg-success text-white px-2.5 py-1 font-weight-bold" data-i18n="servers.cronBadge">
-                                    <span class="status-pulse"></span>🟢 Chạy ngầm 20p/lần
+                                <span class="banner-time-text"><i class="fas fa-clock text-primary me-1"></i><span data-i18n="servers.lastScraped">Lần quét:</span> <strong class="font-mono" id="lblLastScraped">{% if vidsrc_config.last_scraped %}{{ vidsrc_config.last_scraped }}{% else %}<span data-i18n="servers.notScraped">Chưa quét</span>{% endif %}</strong></span>
+                                <span class="badge bg-success text-white px-2.5 py-1 font-weight-bold">
+                                    <span class="status-pulse"></span><span data-i18n="servers.cronBadge">🟢 Chạy ngầm 20 phút/lần</span>
                                 </span>
                             </div>
                         </div>
@@ -211,7 +271,7 @@
                         {% else %}
                             <div class="text-center py-5">
                                 <i class="fas fa-search-location text-muted fa-3x mb-3"></i>
-                                <p class="text-muted font-weight-bold">Chưa có dữ liệu quét tên miền. Bấm nút <strong>"Quét tên miền"</strong> để bắt đầu!</p>
+                                <p class="text-muted font-weight-bold" data-i18n="servers.emptyHint">Chưa có dữ liệu quét tên miền. Bấm nút quét tên miền để bắt đầu!</p>
                             </div>
                         {% endif %}
                     </div>
@@ -228,29 +288,30 @@
                             <i class="fas fa-film fs-5"></i>
                         </div>
                         <div class="min-w-0 flex-grow-1">
-                            <h4 class="h5 mb-1 font-weight-bold text-dark">Máy Chủ 3: NguonC / Alternates</h4>
+                            <h4 class="h5 mb-1 font-weight-bold text-dark" data-i18n="servers.srv3Title">Máy chủ 3: NguonC / Dự phòng</h4>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
-                                <span class="status-pulse"></span>ONLINE - DỰ PHÒNG 2
+                                <span class="status-pulse"></span><span data-i18n="servers.srv3Badge">TRỰC TUYẾN - DỰ PHÒNG 2</span>
                             </span>
                         </div>
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Giao thức truyền tải</small>
-                                <span class="h6 font-weight-bold mb-0 text-dark">Embed iFrame</span>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.protocol">Giao thức truyền tải</small>
+                                <span class="h6 font-weight-bold mb-0 text-dark" data-i18n="servers.protoEmbed">Nhúng khung phát</span>
                             </div>
                         </div>
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Chất lượng tối đa</small>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.maxQuality">Chất lượng tối đa</small>
                                 <span class="h6 font-weight-bold mb-0 text-dark">HD 720p / 1080p</span>
                             </div>
                         </div>
                         <div class="col-12 col-sm-4">
                             <div class="p-3 bg-light rounded-3 border">
-                                <small class="text-muted text-uppercase d-block font-weight-bold">Độ trễ trung bình</small>
-                                <span class="h6 font-weight-bold mb-0 text-warning">~210 ms</span>
+                                <small class="text-muted text-uppercase d-block font-weight-bold" data-i18n="servers.liveLatency">Độ trễ thực tế</small>
+                                <span class="h6 font-weight-bold mb-0 text-warning font-mono" id="tab3-latency"{% if not clusters.server3.latency_ms %} data-i18n="servers.offline"{% endif %}>{% if clusters.server3.latency_ms %}{{ clusters.server3.latency_ms }} ms{% else %}MẤT KẾT NỐI{% endif %}</span>
+                                <small class="text-muted d-block font-mono mt-1"><span data-i18n="servers.checkedAt">Kiểm tra lúc:</span> <span id="tab3-checked">{{ clusters.server3.checked_at }}</span></small>
                             </div>
                         </div>
                     </div>
@@ -268,6 +329,109 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    window.AdminUI?.addTranslations({
+        en: {
+            'servers.pingAll': 'Ping All 3 Clusters',
+            'servers.offline': 'OFFLINE',
+            'servers.srv1Title': 'Server 1: KKPhim / PhimAPI',
+            'servers.srv1Badge': 'ONLINE - PRIMARY',
+            'servers.srv3Title': 'Server 3: NguonC / Alternates',
+            'servers.srv3Badge': 'ONLINE - BACKUP 2',
+            'servers.protocol': 'Streaming Protocol',
+            'servers.protoHls': 'HLS Stream (M3U8)',
+            'servers.protoEmbed': 'Embed iFrame',
+            'servers.maxQuality': 'Max Quality',
+            'servers.liveLatency': 'Live Latency',
+            'servers.checkedAt': 'Checked:',
+            'servers.emptyHint': 'No domain scan data yet. Click "Scan domains" to start!',
+            'servers.probeOk': 'Probed all 3 streaming clusters successfully!',
+            'servers.probeError': 'Cluster probe error: {msg}',
+            'servers.autoOn': '✅ Enabled automatic best domain selection!',
+            'servers.autoOff': 'ℹ️ Disabled auto selection. You can manually pick a domain.',
+            'servers.scanError': 'Scan error: {msg}',
+            'servers.genericError': 'Error: {msg}',
+            'servers.applyTitle': 'Apply Domain',
+            'servers.applyConfirm': 'Are you sure you want to set Server 2 active domain to {url}?',
+            'servers.applyOk': '🎉 Successfully applied {url} to Server 2!'
+        },
+        vi: {
+            'servers.pingAll': 'Kiểm tra cả 3 máy chủ',
+            'servers.offline': 'MẤT KẾT NỐI',
+            'servers.srv1Title': 'Máy chủ 1: KKPhim / PhimAPI',
+            'servers.srv1Badge': 'TRỰC TUYẾN - NGUỒN CHÍNH',
+            'servers.srv3Title': 'Máy chủ 3: NguonC / Dự phòng',
+            'servers.srv3Badge': 'TRỰC TUYẾN - DỰ PHÒNG 2',
+            'servers.protocol': 'Giao thức truyền tải',
+            'servers.protoHls': 'Luồng HLS (M3U8)',
+            'servers.protoEmbed': 'Nhúng khung phát',
+            'servers.maxQuality': 'Chất lượng tối đa',
+            'servers.liveLatency': 'Độ trễ thực tế',
+            'servers.checkedAt': 'Kiểm tra lúc:',
+            'servers.emptyHint': 'Chưa có dữ liệu quét tên miền. Bấm nút "Quét tên miền" để bắt đầu!',
+            'servers.probeOk': 'Đã kiểm tra đồng bộ cả 3 máy chủ phát thành công!',
+            'servers.probeError': 'Lỗi kiểm tra máy chủ: {msg}',
+            'servers.autoOn': '✅ Đã bật tự động chọn tên miền nhanh nhất!',
+            'servers.autoOff': 'ℹ️ Đã tắt tự động. Bạn có thể chọn tên miền thủ công.',
+            'servers.scanError': 'Lỗi quét: {msg}',
+            'servers.genericError': 'Lỗi: {msg}',
+            'servers.applyTitle': 'Áp dụng tên miền',
+            'servers.applyConfirm': 'Bạn có chắc chắn muốn chuyển Máy chủ 2 sang sử dụng tên miền {url}?',
+            'servers.applyOk': '🎉 Đã áp dụng thành công tên miền {url} cho Máy chủ 2!'
+        }
+    });
+
+    const t = (key, params = {}, fallback = '') => (window.AdminUI && window.AdminUI.t(key, params)) || fallback || key;
+
+    const btnProbe = document.getElementById('btnProbeClusters');
+    const iconProbe = document.getElementById('iconProbeClusters');
+    if (btnProbe) {
+        btnProbe.addEventListener('click', async function() {
+            btnProbe.disabled = true;
+            if (iconProbe) iconProbe.classList.add('fa-spin');
+            try {
+                const res = await fetch("{% url 'admin_dashboard:api_servers_probe' %}");
+                const data = await res.json();
+                if (data.ok && data.clusters) {
+                    const c = data.clusters;
+                    ['1', '2', '3'].forEach(idx => {
+                        const srv = c['server' + idx];
+                        if (!srv) return;
+                        const badge = document.getElementById(`cluster${idx}-badge`);
+                        const lat = document.getElementById(`cluster${idx}-latency`);
+                        if (badge) {
+                            badge.className = 'badge ' + (srv.online ? 'bg-success' : 'bg-danger');
+                            if (srv.online) {
+                                badge.removeAttribute('data-i18n');
+                                badge.textContent = `HTTP ${srv.status}`;
+                            } else {
+                                badge.setAttribute('data-i18n', 'servers.offline');
+                                badge.textContent = t('servers.offline', {}, 'MẤT KẾT NỐI');
+                            }
+                        }
+                        if (lat) lat.textContent = srv.latency_ms ? `${srv.latency_ms} ms` : '—';
+                        const tabLat = document.getElementById(`tab${idx}-latency`);
+                        const tabChk = document.getElementById(`tab${idx}-checked`);
+                        if (tabLat) {
+                            if (srv.latency_ms) {
+                                tabLat.removeAttribute('data-i18n');
+                                tabLat.textContent = `${srv.latency_ms} ms`;
+                            } else {
+                                tabLat.setAttribute('data-i18n', 'servers.offline');
+                                tabLat.textContent = t('servers.offline', {}, 'MẤT KẾT NỐI');
+                            }
+                        }
+                        if (tabChk) tabChk.textContent = srv.checked_at || '';
+                    });
+                    window.showToast(t('servers.probeOk'), 'success');
+                }
+            } catch (e) {
+                window.showToast(t('servers.probeError', { msg: e.message }), 'error');
+            } finally {
+                btnProbe.disabled = false;
+                if (iconProbe) iconProbe.classList.remove('fa-spin');
+            }
+        });
+    }
     const btnScan = document.getElementById('btnScanDomains');
     const iconScan = document.getElementById('iconScan');
     const textScan = document.getElementById('textScan');
@@ -313,14 +477,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 const data = await res.json();
                 if (data.ok) {
-                    const isEn = window.AdminUI && window.AdminUI.language() === 'en';
-                    showToast(isChecked 
-                        ? (isEn ? '✅ Enabled automatic best domain selection!' : '✅ Đã BẬT tự động chọn tên miền nhanh nhất!') 
-                        : (isEn ? 'ℹ️ Disabled auto selection. You can manually pick a domain.' : 'ℹ️ Đã TẮT tự động. Bạn có thể chọn tên miền thủ công.'), isChecked ? 'success' : undefined);
+                    showToast(t(isChecked ? 'servers.autoOn' : 'servers.autoOff'), isChecked ? 'success' : undefined);
                 }
-} catch (err) {
-                        showToast('Lỗi: ' + err.message, 'error');
-                    }
+            } catch (err) {
+                showToast(t('servers.genericError', { msg: err.message }), 'error');
+            }
         });
     }
 
@@ -329,8 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnScan.addEventListener('click', async function() {
             btnScan.disabled = true;
             iconScan.classList.add('fa-spin');
-            const scanningText = (window.AdminUI && window.AdminUI.t('servers.scanning')) || 'Đang quét...';
-            textScan.textContent = scanningText;
+            textScan.textContent = t('servers.scanning', {}, 'Đang quét...');
 
             try {
                 const res = await fetch("{% url 'admin_dashboard:api_vidsrc_scan' %}");
@@ -345,15 +505,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     currentScanData = data.scan_results;
                     renderDomainTables(currentScanData);
                 } else {
-                    showToast('Lỗi quét: ' + (data.error || 'Unknown error'), 'error');
+                    showToast(t('servers.scanError', { msg: data.error || t('servers.unavailable') }), 'error');
                 }
             } catch (err) {
-                showToast('Lỗi: ' + err.message, 'error');
+                showToast(t('servers.genericError', { msg: err.message }), 'error');
             } finally {
                 btnScan.disabled = false;
                 iconScan.classList.remove('fa-spin');
-                const btnText = (window.AdminUI && window.AdminUI.t('servers.scanBtn')) || 'Quét tên miền';
-                textScan.textContent = btnText;
+                textScan.textContent = t('servers.scanBtn', {}, 'Quét tên miền');
             }
         });
     }
@@ -362,22 +521,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!container) return;
         let html = '';
 
-        const t = (key, fallback) => (window.AdminUI && window.AdminUI.t(key)) || fallback;
-
         const createGroupTable = (titleKey, defaultTitle, badgeClass, icon, list) => {
             if (!list || list.length === 0) return '';
             let rows = '';
             list.forEach((item, index) => {
                 const statusBadge = item.ok 
                     ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><span class="status-pulse"></span>HTTP ${item.status}</span>`
-                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${item.error || 'OFFLINE'}</span>`;
+                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${item.error || t('servers.offline')}</span>`;
                 
                 const latencyBadge = item.ok
                     ? `<span class="fw-bold font-mono text-dark"><i class="fas fa-bolt text-warning me-1"></i>${item.latency} ms</span>`
                     : `<span class="text-muted">-</span>`;
 
-                const btnText = t('servers.useThisDomain', 'Use this domain');
-                const unavailableText = t('servers.unavailable', 'Unavailable');
+                const btnText = t('servers.useThisDomain', {}, 'Dùng tên miền này');
+                const unavailableText = t('servers.unavailable', {}, 'Không khả dụng');
 
                 rows += `
                     <tr>
@@ -395,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             });
 
-            const groupTitle = t(titleKey, defaultTitle);
+            const groupTitle = t(titleKey, {}, defaultTitle);
 
             return `
                 <div class="mb-4">
@@ -404,10 +561,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <table class="table table-hover align-middle border mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>${t('servers.colDomain', 'Tên Miền VidSrc')}</th>
-                                    <th>${t('servers.colStatus', 'Trạng Thái Phản Hồi')}</th>
-                                    <th>${t('servers.colLatency', 'Tốc Độ (Latency)')}</th>
-                                    <th class="text-end">${t('servers.colAction', 'Thao Tác')}</th>
+                                    <th>${t('servers.colDomain', {}, 'Tên miền VidSrc')}</th>
+                                    <th>${t('servers.colStatus', {}, 'Trạng thái phản hồi')}</th>
+                                    <th>${t('servers.colLatency', {}, 'Độ trễ')}</th>
+                                    <th class="text-end">${t('servers.colAction', {}, 'Thao tác')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -419,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         };
 
-        html += createGroupTable('servers.group1', '🟢 NHÓM 1: TÊN MIỀN MỚI ACTIVE', 'text-success', 'fas fa-check-circle', data.active_group);
+        html += createGroupTable('servers.group1', '🟢 NHÓM 1: TÊN MIỀN ĐANG HOẠT ĐỘNG', 'text-success', 'fas fa-check-circle', data.active_group);
         html += createGroupTable('servers.group2', '🟡 NHÓM 2: TÊN MIỀN CŨ DỰ PHÒNG', 'text-warning', 'fas fa-exclamation-circle', data.old_group);
         html += createGroupTable('servers.group3', '🔴 NHÓM 3: TÊN MIỀN ĐÃ NGƯNG DÙNG', 'text-danger', 'fas fa-times-circle', data.dead_group);
 
@@ -429,12 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.btn-apply-domain').forEach(btn => {
             btn.addEventListener('click', function() {
                 const targetUrl = btn.getAttribute('data-url');
-                const isEn = window.AdminUI && window.AdminUI.language() === 'en';
-                const confirmMsg = isEn 
-                    ? `Are you sure you want to set Server 2 active domain to ${targetUrl}?`
-                    : `Bạn có chắc chắn muốn chuyển Server 2 sang sử dụng tên miền ${targetUrl} cho Client?`;
-
-                confirmAction(isEn ? 'Apply Domain' : 'Áp dụng tên miền', confirmMsg, async function() {
+                confirmAction(t('servers.applyTitle'), t('servers.applyConfirm', { url: targetUrl }), async function() {
                     const formData = new FormData();
                     formData.append('domain', targetUrl);
                     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
@@ -447,10 +599,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         const resData = await res.json();
                         if (resData.ok) {
                             if (lblActiveDomain) lblActiveDomain.textContent = targetUrl;
-                            showToast(isEn ? `🎉 Successfully applied ${targetUrl} to Server 2!` : `🎉 Đã áp dụng thành công tên miền ${targetUrl} cho Server 2 trên Client Website!`, 'success');
+                            showToast(t('servers.applyOk', { url: targetUrl }), 'success');
                         }
                     } catch (err) {
-showToast('Lỗi: ' + err.message, 'error');
+                        showToast(t('servers.genericError', { msg: err.message }), 'error');
                     }
                 });
             });

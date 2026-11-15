@@ -18,24 +18,53 @@
                         </h5>
                         <p class="text-muted mb-0" data-i18n="notif.subtitle">View user notification history and broadcast new system updates or announcements.</p>
                     </div>
+                    <a href="{% url 'admin_dashboard:push_devices' %}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-mobile-screen-button me-1"></i>
+                        <span data-i18n="notif.manageDevices">Push Devices</span> ({{ stats.push_tokens|default:0 }})
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-{% if messages %}
-<div class="row mb-4">
-    <div class="col-12">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            <i class="fas fa-info-circle me-2"></i>{{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="notif.statTotal">Tổng Thông Báo</div>
+                <div class="fs-3 fw-bold text-primary mt-1">{{ stats.total_all|default:0 }}</div>
+            </div>
         </div>
-        {% endfor %}
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="notif.statUnread">Chưa Đọc</div>
+                <div class="fs-3 fw-bold text-warning mt-1">{{ stats.unread|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="notif.statPushUsers">Users Bật Mobile Push</div>
+                <div class="fs-3 fw-bold text-info mt-1">{{ stats.push_users|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <a href="{% url 'admin_dashboard:push_devices' %}" class="text-decoration-none d-block h-100">
+            <div class="card stats-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold" data-i18n="notif.statPushTokens">Expo Push Devices</div>
+                    <div class="fs-3 fw-bold text-success mt-1">{{ stats.push_tokens|default:0 }}</div>
+                    <small class="text-muted" data-i18n="notif.viewDevicesLink">Xem & dọn token &rarr;</small>
+                </div>
+            </div>
+        </a>
     </div>
 </div>
-{% endif %}
 
 <div class="row">
     <!-- Dispatch Announcement Form -->
@@ -50,6 +79,19 @@
                 <form method="POST" action="" id="broadcastForm">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="broadcast">
+
+                    <div class="mb-3">
+                        <label for="targetMode" class="form-label" data-i18n="notif.targetLabel">Đối tượng nhận</label>
+                        <select class="form-select" id="targetMode" name="target_mode" onchange="toggleTargetUsersInput()">
+                            <option value="all" data-i18n="notif.targetAll">Tất cả người dùng hệ thống</option>
+                            <option value="specific" data-i18n="notif.targetSpecific">Người dùng chỉ định (Email / ID)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="targetUsersWrap">
+                        <label for="targetUsersInput" class="form-label" data-i18n="notif.targetListLabel">Danh sách Email hoặc User ID</label>
+                        <textarea class="form-control form-control-sm font-mono" id="targetUsersInput" name="target_users" rows="2" placeholder="user1@gmail.com, 69c3..."></textarea>
+                    </div>
                     
                     <div class="mb-3">
                         <label for="broadcastType" class="form-label" data-i18n="notif.typeLabel">Notification Type</label>
@@ -70,9 +112,17 @@
                         <textarea class="form-control" id="broadcastMessage" name="message" rows="4" 
                                   placeholder="Type the message detail that will be shown in user notifications..." data-i18n-placeholder="notif.messagePlaceholder" required></textarea>
                     </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="sendExpoPush" name="send_expo_push">
+                        <label class="form-check-label small" for="sendExpoPush">
+                            <span data-i18n="notif.expoPushOpt">Gửi kèm thông báo đẩy di động (Expo)</span>
+                            <span class="badge bg-success bg-opacity-10 text-success ms-1">{{ stats.push_tokens|default:0 }} <span data-i18n="notif.devicesSuffix">devices</span></span>
+                        </label>
+                    </div>
                     
-                    <div class="d-grid mt-4">
-                        <button type="button" class="btn btn-primary" onclick="confirmAction(window.AdminUI.t('notif.confirmBroadcastTitle') || 'Phát thông báo', window.AdminUI.t('notif.confirmBroadcastBody') || 'Bạn có chắc chắn muốn gửi thông báo phát sóng này tới TẤT CẢ người dùng trên hệ thống?', () => { document.getElementById('broadcastForm').submit(); })">
+                    <div class="d-grid mt-3">
+                        <button type="button" class="btn btn-primary" onclick="confirmBroadcastSubmit()">
                             <i class="fas fa-paper-plane me-2"></i><span data-i18n="notif.sendBtn">Send Broadcast</span>
                         </button>
                     </div>
@@ -84,10 +134,54 @@
     <!-- Notifications Log -->
     <div class="col-xl-8 col-lg-7 mb-4">
         <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">
-                    <i class="fas fa-history me-2"></i><span data-i18n="notif.historyTitle">Notification Dispatch History</span>
-                </h6>
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i><span data-i18n="notif.historyTitle">Notification Dispatch History</span> ({{ total }})
+                    </h6>
+                </div>
+                <form method="GET" class="filter-stack filter-stack--compact">
+                    <div class="filter-search-row">
+                        <div class="filter-field">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" name="search" class="form-control" value="{{ search }}" placeholder="Tìm nội dung, email hoặc tên..." data-i18n-placeholder="notif.filterSearchPlaceholder">
+                            </div>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary filter-action-btn">
+                                <i class="fas fa-search"></i><span data-i18n="common.btn_search">Search</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="filter-controls-row">
+                        <div class="filter-dropdowns filter-dropdowns--2">
+                            <div class="filter-field">
+                                <select name="type" class="form-select" onchange="this.form.submit()">
+                                    <option value="" data-i18n="notif.allTypes">Tất cả loại</option>
+                                    <option value="version_updated" {% if type_filter == 'version_updated' %}selected{% endif %} data-i18n="notif.type_version_updated">Version Updated</option>
+                                    <option value="comment_replied" {% if type_filter == 'comment_replied' %}selected{% endif %} data-i18n="notif.type_comment_replied">Comment Reply</option>
+                                    <option value="comment_liked" {% if type_filter == 'comment_liked' %}selected{% endif %} data-i18n="notif.type_comment_liked">Comment Like</option>
+                                    <option value="friend_request" {% if type_filter == 'friend_request' %}selected{% endif %} data-i18n="notif.type_friend_request">Friend Request</option>
+                                    <option value="friend_accept" {% if type_filter == 'friend_accept' %}selected{% endif %} data-i18n="notif.type_friend_accept">Friend Accepted / Alert</option>
+                                    <option value="room_invite" {% if type_filter == 'room_invite' %}selected{% endif %} data-i18n="notif.type_room_invite">Room Invite</option>
+                                </select>
+                            </div>
+                            <div class="filter-field">
+                                <select name="read" class="form-select" onchange="this.form.submit()">
+                                    <option value="" data-i18n="notif.allStatus">Trạng thái</option>
+                                    <option value="false" {% if read_filter == 'false' %}selected{% endif %} data-i18n="notif.badgeUnread">Chưa đọc</option>
+                                    <option value="true" {% if read_filter == 'true' %}selected{% endif %} data-i18n="notif.badgeRead">Đã đọc</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{% url 'admin_dashboard:notifications' %}" class="btn btn-outline-secondary filter-action-btn">
+                                <i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear Filters</span>
+                            </a>
+                        </div>
+                    </div>
+                </form>
             </div>
             <div class="card-body p-0">
                 {% if notifications %}
@@ -106,12 +200,16 @@
                                 {% for noti in notifications %}
                                 <tr id="noti-row-{{ noti.id }}">
                                     <td>
-                                        <div class="fw-semibold">{{ noti.recipient_name|default:"Unknown User" }}</div>
+                                        <div class="fw-semibold">
+                                            {% if noti.recipient_id_str %}
+                                            <a href="{% url 'admin_dashboard:user_detail' noti.recipient_id_str %}" class="text-decoration-none">{% if noti.recipient_name %}{{ noti.recipient_name }}{% else %}<span data-i18n="notif.unknownUser">Unknown User</span>{% endif %}</a>
+                                            {% else %}{% if noti.recipient_name %}{{ noti.recipient_name }}{% else %}<span data-i18n="notif.unknownUser">Unknown User</span>{% endif %}{% endif %}
+                                        </div>
                                         <small class="text-muted">{{ noti.recipient_email|default:"" }}</small>
                                     </td>
                                     <td>
                                         <div>
-                                            <span class="badge bg-secondary text-capitalize" style="font-size: 0.75rem;">{{ noti.type }}</span>
+                                            <span class="badge bg-secondary" style="font-size: 0.75rem;" data-i18n="notif.type_{{ noti.type }}">{{ noti.type }}</span>
                                         </div>
                                         <div class="small text-dark mt-1" style="max-width: 300px; white-space: normal; word-break: break-word;">
                                             {% if noti.metadata.versionMessage %}
@@ -136,7 +234,7 @@
                                         <small class="text-muted">{{ noti.createdAt|slice:":10" }} {{ noti.createdAt|slice:"11:16" }}</small>
                                     </td>
                                     <td class="text-end">
-                                        <div class="btn-group">
+                                        <div class="table-actions">
                                             <button onclick="toggleRead('{{ noti.id }}', {% if noti.read %}false{% else %}true{% endif %})" 
                                                     id="btn-read-{{ noti.id }}"
                                                     class="btn btn-sm {% if noti.read %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
@@ -147,7 +245,7 @@
                                                 {% endif %}
                                             </button>
                                             <button onclick="deleteNotification('{{ noti.id }}')" 
-                                                    class="btn btn-sm btn-outline-danger ms-1">
+                                                    class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="notif.btnDeleteTitle">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </div>
@@ -158,29 +256,11 @@
                         </table>
                     </div>
                     
-                    <!-- Pagination -->
-                    {% if total_pages > 1 %}
-                    <div class="card-footer bg-white border-top-0 py-3 d-flex justify-content-between align-items-center">
-                        <span class="text-muted small"><span data-i18n="notif.showingPage">Showing page</span> {{ page }} <span data-i18n="pagination.of">of</span> {{ total_pages }}</span>
-                        <ul class="pagination pagination-sm mb-0">
-                            <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                                <a class="page-link border-0" href="?page={{ page|add:"-1" }}"><i class="fas fa-chevron-left"></i></a>
-                            </li>
-                            {% for p in "x"|rjust:total_pages %}
-                                <li class="page-item {% if forloop.counter == page %}active{% endif %}">
-                                    <a class="page-link border-0 {% if forloop.counter == page %}rounded{% endif %}" href="?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-                                </li>
-                            {% endfor %}
-                            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                                <a class="page-link border-0" href="?page={{ page|add:"1" }}"><i class="fas fa-chevron-right"></i></a>
-                            </li>
-                        </ul>
-                    </div>
-                    {% endif %}
+                    {% include 'admin_dashboard/includes/pagination.html' %}
                 {% else %}
                     <div class="text-center py-5 text-muted h-100 d-flex flex-column justify-content-center">
                         <div class="mb-4">
-                            <i class="fas fa-inbox fa-4x text-light-subtle"></i>
+                            <i class="fas fa-inbox fa-4x text-muted opacity-50"></i>
                         </div>
                         <h5 data-i18n="notif.emptyTitle">No Notifications</h5>
                         <p class="small mb-0" data-i18n="notif.emptyDesc">No notifications found in dispatch history.</p>
@@ -227,13 +307,37 @@
             'notif.showingPage': 'Showing page',
             'notif.confirmBroadcastTitle': 'Send Broadcast',
             'notif.confirmBroadcastBody': 'Are you sure you want to send this broadcast to ALL users on the system?',
+            'notif.confirmBroadcastSpecific': 'Send this notification to the selected users?',
             'notif.confirmDeleteTitle': 'Delete Notification',
             'notif.confirmDeleteBody': 'Are you sure you want to permanently delete this notification?',
             'notif.alertMarkedRead': 'Notification marked as read.',
             'notif.alertMarkedUnread': 'Notification marked as unread.',
             'notif.alertDeleted': 'Notification permanently deleted.',
             'notif.errorPrefix': 'Error:',
-            'notif.networkError': 'Network error:'
+            'notif.networkError': 'Network error:',
+            'notif.manageDevices': 'Push Devices',
+            'notif.viewDevicesLink': 'View & prune devices →',
+            'notif.devicesSuffix': 'devices',
+            'notif.unknownUser': 'Unknown User',
+            'notif.btnDeleteTitle': 'Delete',
+            'notif.type_version_updated': 'Version Updated',
+            'notif.type_comment_replied': 'Comment Reply',
+            'notif.type_comment_liked': 'Comment Like',
+            'notif.type_friend_request': 'Friend Request',
+            'notif.type_friend_accept': 'Friend Accepted / Alert',
+            'notif.type_room_invite': 'Room Invite',
+            'notif.statTotal': 'Total Notifications',
+            'notif.statUnread': 'Unread',
+            'notif.statPushUsers': 'Push-Enabled Users',
+            'notif.statPushTokens': 'Expo Push Devices',
+            'notif.targetLabel': 'Audience',
+            'notif.targetAll': 'All platform users',
+            'notif.targetSpecific': 'Specific users (Email / User ID)',
+            'notif.targetListLabel': 'Recipient Emails or User IDs',
+            'notif.expoPushOpt': 'Also send Mobile Push (Expo)',
+            'notif.filterSearchPlaceholder': 'Search message, email, or name...',
+            'notif.allTypes': 'All Types',
+            'notif.allStatus': 'All Statuses'
         },
         vi: {
             'notif.title': 'Thông báo & Phát sóng hệ thống',
@@ -264,15 +368,54 @@
             'notif.showingPage': 'Đang hiển thị trang',
             'notif.confirmBroadcastTitle': 'Phát thông báo',
             'notif.confirmBroadcastBody': 'Bạn có chắc chắn muốn gửi thông báo phát sóng này tới TẤT CẢ người dùng trên hệ thống?',
+            'notif.confirmBroadcastSpecific': 'Gửi thông báo tới các người dùng đã chọn?',
             'notif.confirmDeleteTitle': 'Xóa thông báo',
             'notif.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa vĩnh viễn thông báo này không?',
             'notif.alertMarkedRead': 'Thông báo đã được đánh dấu là đã đọc.',
             'notif.alertMarkedUnread': 'Thông báo đã được đánh dấu là chưa đọc.',
             'notif.alertDeleted': 'Thông báo đã bị xóa vĩnh viễn.',
             'notif.errorPrefix': 'Lỗi:',
-            'notif.networkError': 'Lỗi mạng:'
+            'notif.networkError': 'Lỗi mạng:',
+            'notif.manageDevices': 'Thiết bị nhận thông báo',
+            'notif.viewDevicesLink': 'Xem & dọn thiết bị →',
+            'notif.devicesSuffix': 'thiết bị',
+            'notif.unknownUser': 'Người dùng không xác định',
+            'notif.btnDeleteTitle': 'Xóa',
+            'notif.type_version_updated': 'Cập nhật phiên bản',
+            'notif.type_comment_replied': 'Phản hồi bình luận',
+            'notif.type_comment_liked': 'Thích bình luận',
+            'notif.type_friend_request': 'Lời mời kết bạn',
+            'notif.type_friend_accept': 'Chấp nhận kết bạn / Cảnh báo',
+            'notif.type_room_invite': 'Mời vào phòng xem',
+            'notif.statTotal': 'Tổng Thông Báo',
+            'notif.statUnread': 'Chưa Đọc',
+            'notif.statPushUsers': 'Người dùng bật thông báo đẩy',
+            'notif.statPushTokens': 'Thiết bị nhận đẩy Expo',
+            'notif.targetLabel': 'Đối tượng nhận',
+            'notif.targetAll': 'Tất cả người dùng hệ thống',
+            'notif.targetSpecific': 'Người dùng chỉ định (Email / ID)',
+            'notif.targetListLabel': 'Danh sách Email hoặc ID người dùng',
+            'notif.expoPushOpt': 'Gửi kèm thông báo đẩy di động (Expo)',
+            'notif.filterSearchPlaceholder': 'Tìm nội dung, email hoặc tên...',
+            'notif.allTypes': 'Tất cả loại',
+            'notif.allStatus': 'Trạng thái'
         }
     });
+
+    function toggleTargetUsersInput() {
+        const mode = document.getElementById('targetMode')?.value;
+        document.getElementById('targetUsersWrap')?.classList.toggle('d-none', mode !== 'specific');
+    }
+
+    function confirmBroadcastSubmit() {
+        const mode = document.getElementById('targetMode')?.value;
+        const msg = mode === 'specific'
+            ? (t('notif.confirmBroadcastSpecific') || 'Gửi thông báo tới các người dùng đã chọn?')
+            : (t('notif.confirmBroadcastBody') || 'Bạn có chắc chắn muốn gửi thông báo phát sóng này tới TẤT CẢ người dùng trên hệ thống?');
+        confirmAction(t('notif.confirmBroadcastTitle') || 'Phát thông báo', msg, () => {
+            document.getElementById('broadcastForm').submit();
+        });
+    }
 
     function toggleRead(notiId, read) {
         const action = read ? 'read' : 'unread';
@@ -292,15 +435,15 @@
                 const btn = document.getElementById(`btn-read-${notiId}`);
                 
                 if (read) {
-                    badge.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-envelope-open me-1"></i>${t('notif.badgeRead') || 'Read'}</span>`;
+                    badge.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-envelope-open me-1"></i><span data-i18n="notif.badgeRead">${t('notif.badgeRead') || 'Read'}</span></span>`;
                     btn.className = 'btn btn-sm btn-outline-warning';
-                    btn.innerHTML = `<i class="fas fa-envelope me-1"></i>${t('notif.btnUnread') || 'Unread'}`;
+                    btn.innerHTML = `<i class="fas fa-envelope me-1"></i><span data-i18n="notif.btnUnread">${t('notif.btnUnread') || 'Unread'}</span>`;
                     btn.setAttribute('onclick', `toggleRead('${notiId}', false)`);
                     showAlert(t('notif.alertMarkedRead') || 'Notification marked as read.', 'success');
                 } else {
-                    badge.innerHTML = `<span class="badge bg-warning bg-opacity-10 text-warning"><i class="fas fa-envelope me-1"></i>${t('notif.badgeUnread') || 'Unread'}</span>`;
+                    badge.innerHTML = `<span class="badge bg-warning bg-opacity-10 text-warning"><i class="fas fa-envelope me-1"></i><span data-i18n="notif.badgeUnread">${t('notif.badgeUnread') || 'Unread'}</span></span>`;
                     btn.className = 'btn btn-sm btn-outline-success';
-                    btn.innerHTML = `<i class="fas fa-envelope-open me-1"></i>${t('notif.btnRead') || 'Read'}`;
+                    btn.innerHTML = `<i class="fas fa-envelope-open me-1"></i><span data-i18n="notif.btnRead">${t('notif.btnRead') || 'Read'}</span>`;
                     btn.setAttribute('onclick', `toggleRead('${notiId}', true)`);
                     showAlert(t('notif.alertMarkedUnread') || 'Notification marked as unread.', 'warning');
                 }

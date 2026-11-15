@@ -1,0 +1,146 @@
+{% comment %}Shared Custom RBAC Permission Matrix Card used in admin_create and admin_edit{% endcomment %}
+<input type="hidden" name="perm_matrix_submitted" value="1">
+<div class="card mt-4 mb-3" style="background: var(--control); border: 1px solid var(--line); border-radius: 12px;">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2" style="background: transparent; border-bottom: 1px solid var(--line);">
+        <div>
+            <h6 class="mb-0">
+                <i class="fas fa-th-list text-primary me-1"></i>
+                <span data-i18n="rbac.matrix_title">Ma trận phân quyền chi tiết</span>
+            </h6>
+            <small class="text-muted" data-i18n="rbac.matrix_subtitle">Tự động đồng bộ theo vai trò, hoặc tick/bỏ tick để tùy biến quyền ngoại lệ.</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="rbacApplyRoleDefaults()">
+                <i class="fas fa-rotate"></i> <span data-i18n="rbac.btn_reset_role">Mặc định theo vai trò</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rbacToggleCollapse()">
+                <i class="fas fa-chevron-down" id="rbacCollapseIcon"></i>
+                <span data-i18n="rbac.btn_toggle">Thu gọn / Mở rộng</span>
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0" id="rbacMatrixBody">
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead style="position: sticky; top: 0; background: var(--panel); z-index: 2;">
+                    <tr>
+                        <th style="min-width: 190px;" data-i18n="rbac.col_module">Chức năng</th>
+                        <th class="text-center" data-i18n="rbac.act_view">Xem</th>
+                        <th class="text-center" data-i18n="rbac.act_edit">Sửa</th>
+                        <th class="text-center" data-i18n="rbac.act_delete">Xóa</th>
+                        <th class="text-center" data-i18n="rbac.act_export">Xuất</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rbac_matrix %}
+                    <tr data-module="{{ row.module }}">
+                        <td>
+                            <span class="fw-semibold" data-i18n="rbac.mod_{{ row.module }}">{{ row.label }}</span>
+                        </td>
+                        {% for act in row.actions %}
+                        <td class="text-center">
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input rbac-perm-checkbox"
+                                       type="checkbox"
+                                       id="perm_{{ act.code }}"
+                                       name="perm_{{ act.code }}"
+                                       data-perm-code="{{ act.code }}"
+                                       {% if act.effective %}checked{% endif %}>
+                            </div>
+                            {% if act.is_overridden %}
+                            <span class="badge bg-warning text-dark" style="font-size: 9px;" title="Tùy chỉnh riêng" data-i18n-title="rbac.custom_title" data-i18n="rbac.custom_badge">Tùy chỉnh</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var roleDefaults = {};
+    try {
+        roleDefaults = JSON.parse("{{ role_defaults_json|default:'{}'|escapejs }}");
+    } catch (e) {
+        roleDefaults = {};
+    }
+
+    window.rbacApplyRoleDefaults = function() {
+        var roleEl = document.getElementById('role');
+        if (!roleEl) return;
+        var role = roleEl.value || 'viewer';
+        var allowed = new Set(roleDefaults[role] || []);
+        document.querySelectorAll('.rbac-perm-checkbox').forEach(function(cb) {
+            cb.checked = allowed.has(cb.dataset.permCode);
+        });
+        if (typeof window.checkForChanges === 'function') {
+            window.hasChanges = true;
+            var ind = document.getElementById('changesIndicator');
+            if (ind) ind.classList.add('show');
+        }
+    };
+
+    window.rbacToggleCollapse = function() {
+        var body = document.getElementById('rbacMatrixBody');
+        var icon = document.getElementById('rbacCollapseIcon');
+        if (!body) return;
+        var hidden = body.style.display === 'none';
+        body.style.display = hidden ? 'block' : 'none';
+        if (icon) icon.className = hidden ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var roleEl = document.getElementById('role');
+        if (roleEl) {
+            roleEl.addEventListener('change', function() {
+                window.rbacApplyRoleDefaults();
+            });
+        }
+        document.querySelectorAll('.rbac-perm-checkbox').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                if (typeof window.checkForChanges === 'function') {
+                    window.hasChanges = true;
+                    var ind = document.getElementById('changesIndicator');
+                    if (ind) ind.classList.add('show');
+                }
+            });
+        });
+
+        if (window.AdminUI && typeof window.AdminUI.addTranslations === 'function') {
+            window.AdminUI.addTranslations({
+                en: {
+                    'rbac.matrix_title': 'Custom Permission Matrix',
+                    'rbac.matrix_subtitle': 'Synced to role defaults automatically, or check/uncheck individual permissions to override.',
+                    'rbac.btn_reset_role': 'Apply Role Defaults',
+                    'rbac.btn_toggle': 'Collapse / Expand',
+                    'rbac.col_module': 'Module',
+                    'rbac.act_view': 'View',
+                    'rbac.act_edit': 'Edit',
+                    'rbac.act_delete': 'Delete',
+                    'rbac.act_export': 'Export',
+                    'rbac.custom_badge': 'Custom',
+                    'rbac.custom_title': 'Custom override'
+                },
+                vi: {
+                    'rbac.matrix_title': 'Ma trận phân quyền chi tiết',
+                    'rbac.matrix_subtitle': 'Tự động đồng bộ theo vai trò, hoặc đánh dấu để tùy biến quyền ngoại lệ.',
+                    'rbac.btn_reset_role': 'Mặc định theo vai trò',
+                    'rbac.btn_toggle': 'Thu gọn / Mở rộng',
+                    'rbac.col_module': 'Chức năng',
+                    'rbac.act_view': 'Xem',
+                    'rbac.act_edit': 'Sửa',
+                    'rbac.act_delete': 'Xóa',
+                    'rbac.act_export': 'Xuất',
+                    'rbac.custom_badge': 'Tùy chỉnh',
+                    'rbac.custom_title': 'Tùy chỉnh riêng'
+                }
+            });
+        }
+    });
+})();
+</script>
+

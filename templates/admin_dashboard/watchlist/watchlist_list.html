@@ -27,10 +27,10 @@
                                 <button class="btn btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-file-export me-2"></i><span data-i18n="common.btn_export">Export Data</span>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--panel); border-color: var(--line);">
-                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=csv"><i class="fas fa-file-csv me-2 text-primary"></i>CSV</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=excel"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xls)</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF / In</a></li>
+                                <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu shadow" aria-labelledby="exportDropdown">
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=csv"><i class="fas fa-file-csv fa-fw text-primary"></i><span data-i18n="common.csv">CSV</span></a></li>
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=excel"><i class="fas fa-file-excel fa-fw text-success"></i><span data-i18n="common.excel">Excel (.xls)</span></a></li>
+                                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchlist' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf fa-fw text-danger"></i><span data-i18n="common.pdf">PDF / Print</span></a></li>
                                 </ul>
                             </div>
                         </div>
@@ -43,7 +43,7 @@
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-xl-4 col-lg-4 col-md-6 mb-3">
+    <div class="col-md-4 col-sm-6 mb-3">
         <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
@@ -58,7 +58,7 @@
             </div>
         </div>
     </div>
-    <div class="col-xl-4 col-lg-4 col-md-6 mb-3">
+    <div class="col-md-4 col-sm-6 mb-3">
         <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
@@ -73,7 +73,7 @@
             </div>
         </div>
     </div>
-    <div class="col-xl-4 col-lg-4 col-md-6 mb-3">
+    <div class="col-md-4 col-12 mb-3">
         <div class="card stats-card" style="border: 1px solid var(--line);">
             <div class="card-body">
                 <div class="d-flex align-items-center">
@@ -98,34 +98,32 @@
         </h6>
     </div>
     <div class="card-body">
-        <form method="GET" id="searchForm">
-            <div class="row g-3">
-                <div class="col-lg-6 col-md-6">
-                    <label for="search" class="form-label" data-i18n="wl.search_label">Search Items</label>
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               value="{{ search }}" placeholder="Search by title..." data-i18n-placeholder="wl.placeholder_search">
-                    </div>
+        <form method="GET" id="searchForm" class="filter-inline-grid">
+            <div class="filter-field">
+                <label for="search" class="form-label" data-i18n="wl.search_label">Search Items</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Search by title..." data-i18n-placeholder="wl.placeholder_search">
                 </div>
-                <div class="col-lg-3 col-md-6">
-                    <label for="type" class="form-label" data-i18n="wl.type_label">Filter by Type</label>
-                    <select class="form-select" id="type" name="type">
-                        <option value="" data-i18n="wl.all_types">All Types</option>
-                        <option value="movie" {% if media_type == 'movie' %}selected{% endif %} data-i18n="wl.type_movie">Movies Only</option>
-                        <option value="tv" {% if media_type == 'tv' %}selected{% endif %} data-i18n="wl.type_tv">TV Shows Only</option>
-                    </select>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <label class="form-label">&nbsp;</label>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search me-2"></i><span data-i18n="wl.btn_search">Search</span>
-                        </button>
-                    </div>
-                </div>
+            </div>
+            <div class="filter-field">
+                <label for="type" class="form-label" data-i18n="wl.type_label">Filter by Type</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="" data-i18n="wl.all_types">All Types</option>
+                    <option value="movie" {% if media_type == 'movie' %}selected{% endif %} data-i18n="wl.type_movie">Movies Only</option>
+                    <option value="tv" {% if media_type == 'tv' %}selected{% endif %} data-i18n="wl.type_tv">TV Shows Only</option>
+                </select>
+            </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn btn-primary filter-action-btn">
+                    <i class="fas fa-search"></i><span data-i18n="wl.btn_search">Search</span>
+                </button>
+                <a href="{% url 'admin_dashboard:watchlist_list' %}" class="btn btn-outline-secondary filter-action-btn">
+                    <i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear</span>
+                </a>
             </div>
         </form>
     </div>
@@ -133,11 +131,11 @@
 
 <!-- Watchlist Items Table -->
 <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <h6 class="mb-0">
             <i class="fas fa-list me-2"></i><span data-i18n="wl.list_title">Watchlist Items</span> ({{ total_items }})
         </h6>
-        <div>
+        <div class="card-toolbar">
             <button class="btn btn-sm btn-outline-danger d-none" id="bulkDeleteBtn" onclick="bulkDelete()"><i class="fas fa-trash me-1"></i><span data-i18n="wl.btn_delete_selected">Delete Selected</span></button>
         </div>
     </div>
@@ -148,20 +146,20 @@
                     <thead class="table-light">
                         <tr>
                             <th width="50">
-                                <input type="checkbox" id="selectAllCheckbox">
+                                <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
                             </th>
                             <th data-i18n="wl.col_user">User</th>
                             <th data-i18n="wl.col_media">Media</th>
                             <th data-i18n="wl.col_type">Type</th>
                             <th data-i18n="wl.col_added">Added At</th>
-                            <th width="150" data-i18n="wl.col_actions">Actions</th>
+                            <th class="text-end" width="120" data-i18n="wl.col_actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in watchlist_items %}
                         <tr>
                             <td>
-                                <input type="checkbox" class="row-check" value="{{ item.id }}">
+                                <input type="checkbox" class="form-check-input row-check" value="{{ item.id }}">
                             </td>
                             <td>
                                 <div>
@@ -174,6 +172,7 @@
                                     <div class="flex-shrink-0 me-3">
                                         {% if item.poster_path %}
                                             <img src="https://image.tmdb.org/t/p/w92{{ item.poster_path }}" alt="{{ item.title }}" 
+                                                 loading="lazy" decoding="async"
                                                  class="rounded" style="width: 40px; height: 60px; object-fit: cover;">
                                         {% else %}
                                             <div class="bg-primary rounded d-flex align-items-center justify-content-center" 
@@ -184,24 +183,25 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="mb-1">{{ item.title }}</h6>
-                                        <small class="text-muted">TMDB ID: {{ item.movie_id }}</small>
+                                        <small class="text-muted"><span data-i18n="wl.tmdbLabel">TMDB ID:</span> {{ item.movie_id }}</small>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 {% if item.type == 'tv' %}
-                                    <span class="badge bg-info">TV</span>
+                                    <span class="badge bg-info text-dark" data-i18n="wl.badge_tv">TV</span>
                                 {% else %}
-                                    <span class="badge bg-success">Movie</span>
+                                    <span class="badge bg-success" data-i18n="wl.badge_movie">Movie</span>
                                 {% endif %}
                             </td>
                             <td>
                                 <small class="text-muted">{{ item.added_at|default:"—" }}</small>
                             </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
-                                            onclick="deleteItem('{{ item.id }}', '{{ item.title }}')">
+                            <td class="text-end">
+                                <div class="table-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="wl.btn_delete_title"
+                                            data-id="{{ item.id }}" data-title="{{ item.title }}"
+                                            onclick="deleteItem(this.dataset.id, this.dataset.title)">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -285,7 +285,13 @@
             'wl.confirm_bulk_title': 'Bulk Remove Watchlist Items',
             'wl.confirm_bulk_body': 'Remove {count} selected items from user watchlists?',
             'wl.alert_deleted': '{count} item(s) removed successfully!',
-            'wl.alert_select_err': 'Please select items to remove.'
+            'wl.alert_select_err': 'Please select items to remove.',
+            'wl.tmdbLabel': 'TMDB ID:',
+            'wl.badge_tv': 'TV Show',
+            'wl.badge_movie': 'Movie',
+            'wl.btn_delete_title': 'Delete',
+            'wl.error_prefix': 'Error:',
+            'wl.network_error': 'Network error:'
         },
         vi: {
             'wl.manage_title': 'Danh sách xem',
@@ -303,20 +309,26 @@
             'wl.type_movie': 'Chỉ phim lẻ',
             'wl.type_tv': 'Chỉ phim bộ',
             'wl.btn_search': 'Tìm kiếm',
-            'wl.list_title': 'Mục trong Watchlist',
+            'wl.list_title': 'Danh sách mục đã lưu',
             'wl.btn_delete_selected': 'Xóa mục đã chọn',
             'wl.col_user': 'Người dùng',
-            'wl.col_media': 'Phim / TV Show',
+            'wl.col_media': 'Phim lẻ / Phim bộ',
             'wl.col_type': 'Loại',
             'wl.col_added': 'Thêm lúc',
             'wl.col_actions': 'Thao tác',
-            'wl.no_items': 'Không tìm thấy bộ phim nào trong Watchlist.',
-            'wl.confirm_delete_title': 'Xóa mục Watchlist',
+            'wl.no_items': 'Không tìm thấy phim nào trong danh sách xem.',
+            'wl.confirm_delete_title': 'Xóa khỏi danh sách xem',
             'wl.confirm_delete_body': 'Xóa phim "{title}" khỏi danh sách xem của người dùng này?',
-            'wl.confirm_bulk_title': 'Xóa nhiều mục Watchlist',
+            'wl.confirm_bulk_title': 'Xóa nhiều mục khỏi danh sách xem',
             'wl.confirm_bulk_body': 'Xóa {count} phim đã chọn khỏi danh sách xem của người dùng?',
-            'wl.alert_deleted': 'Đã xóa thành công {count} phim khỏi watchlist!',
-            'wl.alert_select_err': 'Vui lòng chọn các mục cần xóa.'
+            'wl.alert_deleted': 'Đã xóa thành công {count} phim khỏi danh sách xem!',
+            'wl.alert_select_err': 'Vui lòng chọn các mục cần xóa.',
+            'wl.tmdbLabel': 'Mã TMDB:',
+            'wl.badge_tv': 'Phim bộ',
+            'wl.badge_movie': 'Phim lẻ',
+            'wl.btn_delete_title': 'Xóa',
+            'wl.error_prefix': 'Lỗi:',
+            'wl.network_error': 'Lỗi mạng:'
         }
     });
 
@@ -354,9 +366,12 @@
         const btn = document.getElementById('bulkDeleteBtn');
         if (btn) {
             btn.classList.toggle('d-none', checked === 0);
-            btn.innerHTML = `<i class="fas fa-trash me-1"></i>${t('wl.btn_delete_selected')} (${checked})`;
+            btn.innerHTML = checked > 0
+                ? `<i class="fas fa-trash me-1"></i><span>${t('wl.btn_delete_selected')} (${checked})</span>`
+                : `<i class="fas fa-trash me-1"></i><span data-i18n="wl.btn_delete_selected">${t('wl.btn_delete_selected')}</span>`;
         }
     }
+    window.addEventListener('admin:language-change', toggleBulk);
 
     function deleteItem(itemId, title) {
         confirmAction(t('wl.confirm_delete_title'), t('wl.confirm_delete_body', {title}), () => {
@@ -415,13 +430,13 @@
                 showToast(data.message, 'success');
                 setTimeout(() => location.reload(), 900);
             } else {
-                showToast(`Error: ${data.error}`, 'error');
+                showToast(`${t('wl.error_prefix')} ${data.error}`, 'error');
             }
         })
         .catch(error => {
             icon.classList.remove('fa-spin');
             button.disabled = false;
-            showToast(`Network error: ${error.message}`, 'error');
+            showToast(`${t('wl.network_error')} ${error.message}`, 'error');
         });
     }
 </script>

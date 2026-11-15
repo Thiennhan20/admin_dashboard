@@ -22,19 +22,6 @@
     </div>
 </div>
 
-{% if messages %}
-<div class="row mb-4">
-    <div class="col-12">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            <i class="fas fa-info-circle me-2"></i>{{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
 <!-- Stats -->
 <div class="row mb-4">
     <div class="col-md-6 mb-3">
@@ -67,8 +54,15 @@
 
 <!-- Movies List -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h6 class="mb-0"><i class="fas fa-list me-2"></i><span data-i18n="movies.listTitle">Active Movies List</span></h6>
+        <form method="GET" class="header-search-form">
+            <input type="text" name="search" value="{{ search|default:'' }}" class="form-control form-control-sm header-search-input" placeholder="TMDb ID / Title..." data-i18n-placeholder="movies.searchPlaceholder">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if search %}
+            <a href="{% url 'admin_dashboard:movies' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </form>
     </div>
     <div class="card-body p-0">
         {% if movies %}
@@ -91,7 +85,7 @@
                             <td>
                                 {% if movie.poster %}
                                     <img src="{% if 'http' in movie.poster %}{{ movie.poster }}{% else %}https://image.tmdb.org/t/p/w92{{ movie.poster }}{% endif %}" 
-                                         alt="{{ movie.title }}" 
+                                         alt="{{ movie.title }}" loading="lazy" decoding="async"
                                          class="rounded shadow-sm" style="width: 45px; height: 68px; object-fit: cover;">
                                 {% else %}
                                     <div class="bg-secondary rounded d-flex align-items-center justify-content-center" 
@@ -108,7 +102,7 @@
                                 <div class="text-muted small"><span data-i18n="movies.idLabel">ID:</span> {{ movie.id }}</div>
                             </td>
                             <td>
-                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ movie.watchlist_count }} <span data-i18n="movies.usersSuffix">users</span></span>
+                                <span class="badge bg-info text-dark"><i class="fas fa-heart me-1"></i>{{ movie.watchlist_count }} <span data-i18n="movies.usersSuffix">users</span></span>
                             </td>
                             <td>
                                 <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ movie.progress_count }} <span data-i18n="movies.playsSuffix">plays</span></span>
@@ -123,7 +117,7 @@
                                 </small>
                             </td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction(window.AdminUI.t('movies.confirmDeleteTitle') || 'Xóa phim lẻ', window.AdminUI.t('movies.confirmDeleteBody', {title: '&quot;{{ movie.title }}&quot;'}) || 'Bạn có chắc chắn muốn xóa phim lẻ &quot;{{ movie.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
+                                <form method="POST" class="d-inline" data-title="{{ movie.title }}" onsubmit="return confirmDeleteMovie(this)">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete_media">
                                     <input type="hidden" name="media_id" value="{{ movie.id }}">
@@ -138,10 +132,15 @@
                     </tbody>
                 </table>
             </div>
+            {% if total_pages > 1 %}
+            <div class="pb-3 border-top">
+                {% include 'admin_dashboard/includes/pagination.html' %}
+            </div>
+            {% endif %}
         {% else %}
             <div class="text-center py-5 text-muted">
                 <div class="mb-4">
-                    <i class="fas fa-film fa-4x text-light-subtle"></i>
+                    <i class="fas fa-film fa-4x text-muted opacity-50"></i>
                 </div>
                 <h5 data-i18n="movies.emptyTitle">No Movies Found</h5>
                 <p class="small mb-0" data-i18n="movies.emptyMsg">No movies are currently present in user watchlists or watch progress records.</p>
@@ -189,18 +188,19 @@ window.AdminUI.addTranslations({
         'movies.emptyTitle': 'No Movies Found',
         'movies.emptyMsg': 'No movies are currently present in user watchlists or watch progress records.',
         'movies.confirmDeleteTitle': 'Delete Movie',
-        'movies.confirmDeleteBody': 'Are you sure you want to delete the movie {title} from the system?'
+        'movies.confirmDeleteBody': 'Are you sure you want to delete the movie {title} from the system?',
+        'movies.searchPlaceholder': 'Search title or TMDb ID...'
     },
     vi: {
         'movies.heading': 'Phim lẻ trên nền tảng',
         'movies.subtitle': 'Theo dõi phim lẻ trong danh sách xem và lịch sử xem của người dùng. Xóa các nội dung vi phạm bản quyền hoặc không còn hoạt động khỏi tất cả tài khoản.',
         'movies.statTotalMovies': 'Tổng số phim lẻ duy nhất',
-        'movies.statWatchlistSaves': 'Tổng lượt lưu Watchlist',
+        'movies.statWatchlistSaves': 'Tổng lượt lưu danh sách',
         'movies.listTitle': 'Danh sách phim lẻ đang hoạt động',
         'movies.colPoster': 'Áp phích',
         'movies.colTmdbId': 'Mã TMDb',
         'movies.colTitle': 'Tên phim',
-        'movies.colWatchlist': 'Lượt lưu Watchlist',
+        'movies.colWatchlist': 'Lượt lưu danh sách',
         'movies.colHistory': 'Lịch sử xem',
         'movies.colLastWatched': 'Xem gần nhất',
         'movies.colActions': 'Thao tác',
@@ -212,8 +212,15 @@ window.AdminUI.addTranslations({
         'movies.emptyTitle': 'Không tìm thấy phim lẻ',
         'movies.emptyMsg': 'Hiện không có phim lẻ nào trong danh sách xem hoặc bản ghi tiến trình xem của người dùng.',
         'movies.confirmDeleteTitle': 'Xóa phim lẻ',
-        'movies.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim lẻ {title} khỏi hệ thống?'
+        'movies.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim lẻ {title} khỏi hệ thống?',
+        'movies.searchPlaceholder': 'Tìm tên phim hoặc mã TMDb...'
     }
 });
+function confirmDeleteMovie(form) {
+    const title = form.dataset.title || '';
+    const t = window.AdminUI.t;
+    confirmAction(t('movies.confirmDeleteTitle'), t('movies.confirmDeleteBody', { title: `"${title}"` }), () => form.submit());
+    return false;
+}
 </script>
 {% endblock %}

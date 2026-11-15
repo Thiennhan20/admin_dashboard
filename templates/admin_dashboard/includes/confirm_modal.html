@@ -3,19 +3,19 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="background:var(--panel);border-color:var(--line);color:var(--ink);">
             <div class="modal-header" style="border-color:var(--line);">
-                <h5 class="modal-title" id="confirmModalTitle">Confirm Action</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="confirmModalTitle" data-i18n="confirm.defaultTitle">Xác nhận thao tác</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng" data-i18n-aria-label="common.close"></button>
             </div>
             <div class="modal-body">
-                <p id="confirmModalBody">Are you sure?</p>
+                <p id="confirmModalBody" data-i18n="confirm.defaultBody">Bạn có chắc chắn muốn thực hiện thao tác này?</p>
                 <div id="confirmInputWrap" class="d-none mt-3">
-                    <label class="form-label text-muted small">Type <strong id="confirmInputHint"></strong> to confirm:</label>
+                    <label class="form-label text-muted small" id="confirmInputLabel">Nhập <strong id="confirmInputHint"></strong> để xác nhận:</label>
                     <input type="text" class="form-control" id="confirmInput" autocomplete="off">
                 </div>
             </div>
             <div class="modal-footer" style="border-color:var(--line);">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmModalBtn" disabled data-i18n="common.confirm">Confirm</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirmModalBtn" disabled data-i18n="common.confirm">Xác nhận</button>
             </div>
         </div>
     </div>
@@ -23,17 +23,22 @@
 <script>
 window.confirmAction = function(title, message, onConfirm, opts) {
     opts = opts || {};
+    const t = (key, params) => (window.AdminUI ? window.AdminUI.t(key, params) : undefined);
     const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-    document.getElementById('confirmModalTitle').textContent = title;
-    document.getElementById('confirmModalBody').innerHTML = message;
+    document.getElementById('confirmModalTitle').textContent = title || t('confirm.defaultTitle') || 'Xác nhận thao tác';
+    document.getElementById('confirmModalBody').innerHTML = message || t('confirm.defaultBody') || 'Bạn có chắc chắn muốn thực hiện thao tác này?';
     const btn = document.getElementById('confirmModalBtn');
     const inputWrap = document.getElementById('confirmInputWrap');
     const input = document.getElementById('confirmInput');
     btn.disabled = false;
     btn.className = 'btn btn-' + (opts.btnClass || 'danger');
-    btn.textContent = opts.btnText || (window.AdminUI ? window.AdminUI.t('common.confirm') : 'Confirm');
+    btn.textContent = opts.btnText || t('common.confirm') || 'Xác nhận';
     if (opts.requireText) {
         inputWrap.classList.remove('d-none');
+        const label = document.getElementById('confirmInputLabel');
+        if (label) {
+            label.innerHTML = t('confirm.typePrompt', { token: '<strong id="confirmInputHint"></strong>' }) || 'Nhập <strong id="confirmInputHint"></strong> để xác nhận:';
+        }
         document.getElementById('confirmInputHint').textContent = opts.requireText;
         input.value = '';
         btn.disabled = true;

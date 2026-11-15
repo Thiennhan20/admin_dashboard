@@ -1,38 +1,177 @@
 {% extends 'admin_dashboard/base.html' %}
-{% block title %}Backup - Admin Panel{% endblock %}
-{% block page_title %}Database Backup{% endblock %}
+{% load admin_tags %}
+{% block title %}Backup & Restore - Admin Panel{% endblock %}
+{% block page_title %}Database Backup & Restore{% endblock %}
 {% block page_i18n_key %}nav.backup{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% has_perm 'backup.export' as can_export_backup %}
+{% has_perm 'backup.edit' as can_edit_backup %}
+
 <div class="card mb-4">
-    <div class="card-body">
-        <h5 class="mb-1"><i class="fas fa-shield-halved me-2"></i><span data-i18n="bk.title">Database Backup</span></h5>
-        <p class="text-muted mb-0" data-i18n="bk.subtitle">Export MongoDB collections as JSON files for safekeeping.</p>
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h5 class="mb-1"><i class="fas fa-shield-halved me-2"></i><span data-i18n="bk.title">Database Backup & Restore</span></h5>
+            <p class="text-muted mb-0" data-i18n="bk.subtitle">Export Extended JSON BSON snapshots (preserving ObjectId & datetime) and safely restore via mandatory Dry-Run preview.</p>
+        </div>
+        <span class="badge bg-info-subtle text-info" data-i18n="bk.format_badge">BSON Extended JSON v2</span>
     </div>
 </div>
+
+{% if pending_restore %}
+<!-- Dry-Run Restore Confirmation Card -->
+<div class="card border-warning mb-4">
+    <div class="card-header bg-warning bg-opacity-10 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h6 class="mb-0 text-warning fw-bold">
+                <i class="fas fa-microscope me-2"></i><span data-i18n="bk.dryrun_title">Dry-Run Preview: Ready to Confirm Restore</span>
+            </h6>
+            <small class="text-muted">
+                <span data-i18n="bk.file_label">File:</span> <strong>{{ pending_restore.filename }}</strong> ({{ pending_restore.file_size|filesizeformat }})
+                • <span data-i18n="bk.mode_short_label">Mode:</span> <code class="text-uppercase">{{ pending_restore.preview.mode }}</code>
+                • SHA256: <code>{{ pending_restore.sha256|truncatechars:16 }}</code>
+            </small>
+        </div>
+        <form method="POST" action="{% url 'admin_dashboard:backup_restore_cancel' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i><span data-i18n="bk.btn_cancel_restore">Cancel Preview</span>
+            </button>
+        </form>
+    </div>
+    <div class="card-body">
+        {% for warn in pending_restore.preview.warnings %}
+        <div class="alert alert-warning py-2 small mb-3">
+            <i class="fas fa-triangle-exclamation me-1"></i>{{ warn }}
+        </div>
+        {% endfor %}
+
+        <form method="POST" action="{% url 'admin_dashboard:backup_restore_confirm' %}">
+            {% csrf_token %}
+            <input type="hidden" name="confirm_token" value="{{ pending_restore.token }}">
+            <input type="hidden" name="mode" value="{{ pending_restore.preview.mode }}">
+
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"><input type="checkbox" class="form-check-input" checked onclick="document.querySelectorAll('.restore-coll-check').forEach(c=>c.checked=this.checked)"></th>
+                            <th data-i18n="bk.col_collections">Collection</th>
+                            <th class="text-end" data-i18n="bk.dr_incoming">Snapshot Docs</th>
+                            <th class="text-end" data-i18n="bk.dr_existing">Live DB Docs</th>
+                            <th class="text-end" data-i18n="bk.dr_insert">Will Insert</th>
+                            <th class="text-end" data-i18n="bk.dr_update">Will Update</th>
+                            <th class="text-end" data-i18n="bk.dr_skip">Will Skip</th>
+                            <th class="text-end" data-i18n="bk.dr_delete">Will Wipe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in pending_restore.preview.rows %}
+                        <tr>
+                            <td><input type="checkbox" class="form-check-input restore-coll-check" name="restore_collections" value="{{ r.collection }}" checked></td>
+                            <td>
+                                <span class="fw-semibold" data-i18n="bk.coll_{{ r.collection }}">{{ r.label }}</span>
+                                <small class="text-muted ms-1"><code>{{ r.collection }}</code></small>
+                            </td>
+                            <td class="text-end fw-semibold">{{ r.incoming }}</td>
+                            <td class="text-end">{{ r.existing_total }}</td>
+                            <td class="text-end text-success fw-semibold">+{{ r.will_insert }}</td>
+                            <td class="text-end text-info fw-semibold">~{{ r.will_update }}</td>
+                            <td class="text-end text-muted">{{ r.will_skip }}</td>
+                            <td class="text-end {% if r.will_delete %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ r.will_delete }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pending_restore.preview.mode == 'replace' %}
+            <div class="alert alert-danger py-2 mb-3">
+                <label class="form-label small fw-bold mb-1" data-i18n="bk.confirm_phrase_label">
+                    DESTRUCTIVE REPLACE MODE: Type RESTORE in uppercase to wipe &amp; replace selected live collections:
+                </label>
+                <input type="text" class="form-control form-control-sm font-monospace" name="confirm_phrase" placeholder="RESTORE" required style="max-width:260px;">
+            </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-{% if pending_restore.preview.mode == 'replace' %}danger{% else %}success{% endif %}">
+                    <i class="fas fa-check-double me-1"></i>
+                    <span data-i18n="bk.btn_confirm_restore">Confirm &amp; Execute Restore</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-4">
+    <!-- Left Column: Export Snapshot & Upload Restore -->
     <div class="col-lg-5">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0"><i class="fas fa-download me-2"></i><span data-i18n="bk.create_title">Create Backup</span></h6></div>
             <div class="card-body">
                 <form method="POST" action="{% url 'admin_dashboard:backup_download' %}">{% csrf_token %}
                     <p class="text-muted small" data-i18n="bk.select_prompt">Select collections to include in the backup:</p>
-                    {% for c in collections %}
-                    <div class="form-check mb-2">
-                        <input type="checkbox" class="form-check-input" name="collections" value="{{ c }}" id="col_{{ c }}" checked>
-                        <label class="form-check-label" for="col_{{ c }}">{{ c }}</label>
+                    <div class="row g-1 mb-2">
+                        {% for c in collections %}
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="collections" value="{{ c.name }}" id="col_{{ c.name }}" checked>
+                                <label class="form-check-label small" for="col_{{ c.name }}" data-i18n="bk.coll_{{ c.name }}">
+                                    {{ c.label }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                    <div class="mt-3 d-flex gap-2">
+                    <div class="mt-2 d-flex gap-2">
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('[name=collections]').forEach(c=>c.checked=true)" data-i18n="bk.btn_select_all">Select All</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('[name=collections]').forEach(c=>c.checked=false)" data-i18n="bk.btn_deselect_all">Deselect All</button>
                     </div>
                     <hr style="border-color:var(--line);">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="include_secrets" id="includeSecrets">
+                        <label class="form-check-label small" for="includeSecrets">
+                            <strong data-i18n="bk.include_secrets">Full Disaster Snapshot (include passwords &amp; tokens)</strong>
+                            <span class="d-block text-muted" style="font-size:11px;" data-i18n="bk.include_secrets_hint">Store snapshot securely! Required for complete DR migration.</span>
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary w-100"><i class="fas fa-cloud-arrow-down me-1"></i><span data-i18n="bk.btn_download">Download Backup (JSON)</span></button>
                 </form>
             </div>
         </div>
+
+        {% if can_edit_backup %}
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-upload me-2 text-warning"></i><span data-i18n="bk.restore_title">Restore Snapshot (Dry-Run First)</span></h6></div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'admin_dashboard:backup_restore_preview' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" data-i18n="bk.upload_label">Backup File (.json, max 50MB)</label>
+                        <input type="file" class="form-control form-control-sm" name="backup_file" accept=".json,application/json" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" data-i18n="bk.mode_label">Restore Mode</label>
+                        <select class="form-select form-select-sm" name="mode">
+                            <option value="upsert" selected data-i18n="bk.mode_upsert">Upsert (Insert missing + update matched, safe)</option>
+                            <option value="insert_only" data-i18n="bk.mode_insert_only">Insert Only (Only restore missing records)</option>
+                            {% if can_destructive_replace %}
+                            <option value="replace" data-i18n="bk.mode_replace">Replace All (Wipe collections &amp; re-import)</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="fas fa-microscope me-1"></i><span data-i18n="bk.btn_preview">Analyze &amp; Dry-Run Preview</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
     </div>
+
+    <!-- Right Column: History -->
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header"><h6 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i><span data-i18n="bk.history_title">Backup History</span></h6></div>
@@ -43,11 +182,11 @@
                     <tbody>
                         {% for log in logs %}
                         <tr>
-                            <td><small>{{ log.timestamp|date:"M d, Y H:i" }}</small></td>
-                            <td><small>{{ log.collections|join:", "|truncatechars:30 }}</small></td>
+                            <td><small>{{ log.timestamp|date:"Y-m-d H:i" }}</small></td>
+                            <td><small>{{ log.collections|join:", "|truncatechars:32 }}</small></td>
                             <td><small>{{ log.file_size|filesizeformat }}</small></td>
-                            <td><span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'failed' %}danger{% else %}warning{% endif %}">{{ log.status }}</span></td>
-                            <td><small>{{ log.created_by|default:"—" }}</small></td>
+                            <td><span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'failed' %}danger{% else %}warning text-dark{% endif %}" data-i18n="bk.status_{{ log.status }}">{{ log.status }}</span></td>
+                            <td><small>{% if log.created_by %}{{ log.created_by }}{% else %}<span data-i18n="bk.auto_cron">Tự động</span>{% endif %}</small></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -63,13 +202,53 @@
 <script>
 window.AdminUI.addTranslations({
     en: {
-        'bk.title': 'Database Backup',
-        'bk.subtitle': 'Export MongoDB collections as JSON files for safekeeping.',
+        'bk.title': 'Database Backup & Restore',
+        'bk.subtitle': 'Export Extended JSON BSON snapshots (preserving ObjectId & datetime) and safely restore via mandatory Dry-Run preview.',
+        'bk.format_badge': 'BSON Extended JSON v2',
+        'bk.file_label': 'File:',
+        'bk.mode_short_label': 'Mode:',
+        'bk.auto_cron': 'Auto Cron',
+        'bk.status_success': 'success',
+        'bk.status_failed': 'failed',
+        'bk.status_pending': 'pending',
+        'bk.coll_users': 'Users',
+        'bk.coll_sessions': 'Active Sessions',
+        'bk.coll_comments': 'Comments',
+        'bk.coll_watchprogresses': 'Watch Progress',
+        'bk.coll_streamhistories': 'Stream History',
+        'bk.coll_searchhistories': 'Search History',
+        'bk.coll_notifications': 'Notifications',
+        'bk.coll_passwordresettokens': 'Password Reset Tokens',
+        'bk.coll_blacklistedtokens': 'Blacklisted Tokens',
+        'bk.coll_gameprofiles': 'Game Profiles',
+        'bk.coll_gamehistories': 'Game Match Histories',
+        'bk.coll_dailychallenges': 'Daily Challenges',
+        'bk.coll_dailysubmissions': 'Daily Submissions',
+        'bk.coll_systemsettings': 'System Settings',
         'bk.create_title': 'Create Backup',
         'bk.select_prompt': 'Select collections to include in the backup:',
         'bk.btn_select_all': 'Select All',
         'bk.btn_deselect_all': 'Deselect All',
+        'bk.include_secrets': 'Full Disaster Snapshot (include passwords & tokens)',
+        'bk.include_secrets_hint': 'Store snapshot securely! Required for complete DR migration.',
         'bk.btn_download': 'Download Backup (JSON)',
+        'bk.restore_title': 'Restore Snapshot (Dry-Run First)',
+        'bk.upload_label': 'Backup File (.json, max 50MB)',
+        'bk.mode_label': 'Restore Mode',
+        'bk.mode_upsert': 'Upsert (Insert missing + update matched, safe)',
+        'bk.mode_insert_only': 'Insert Only (Only restore missing records)',
+        'bk.mode_replace': 'Replace All (Wipe collections & re-import)',
+        'bk.btn_preview': 'Analyze & Dry-Run Preview',
+        'bk.dryrun_title': 'Dry-Run Preview: Ready to Confirm Restore',
+        'bk.btn_cancel_restore': 'Cancel Preview',
+        'bk.btn_confirm_restore': 'Confirm & Execute Restore',
+        'bk.dr_incoming': 'Snapshot Docs',
+        'bk.dr_existing': 'Live DB Docs',
+        'bk.dr_insert': 'Will Insert',
+        'bk.dr_update': 'Will Update',
+        'bk.dr_skip': 'Will Skip',
+        'bk.dr_delete': 'Will Wipe',
+        'bk.confirm_phrase_label': 'DESTRUCTIVE REPLACE MODE: Type RESTORE in uppercase to wipe & replace selected live collections:',
         'bk.history_title': 'Backup History',
         'bk.col_date': 'Date',
         'bk.col_collections': 'Collections',
@@ -79,16 +258,56 @@ window.AdminUI.addTranslations({
         'bk.no_backups': 'No backups yet.'
     },
     vi: {
-        'bk.title': 'Sao lưu dữ liệu',
-        'bk.subtitle': 'Xuất các bộ sưu tập MongoDB thành file JSON để lưu trữ an toàn.',
+        'bk.title': 'Sao lưu & Khôi phục dữ liệu',
+        'bk.subtitle': 'Xuất bản sao lưu dữ liệu (giữ nguyên ObjectId & thời gian) và khôi phục an toàn qua bước xem trước.',
+        'bk.format_badge': 'Định dạng BSON JSON v2',
+        'bk.file_label': 'Tệp:',
+        'bk.mode_short_label': 'Chế độ:',
+        'bk.auto_cron': 'Tự động định kỳ',
+        'bk.status_success': 'Thành công',
+        'bk.status_failed': 'Thất bại',
+        'bk.status_pending': 'Đang xử lý',
+        'bk.coll_users': 'Người dùng',
+        'bk.coll_sessions': 'Phiên đăng nhập',
+        'bk.coll_comments': 'Bình luận',
+        'bk.coll_watchprogresses': 'Tiến trình xem',
+        'bk.coll_streamhistories': 'Lịch sử đường dẫn phát',
+        'bk.coll_searchhistories': 'Lịch sử tìm kiếm',
+        'bk.coll_notifications': 'Thông báo',
+        'bk.coll_passwordresettokens': 'Mã đặt lại mật khẩu',
+        'bk.coll_blacklistedtokens': 'Mã thông báo bị khóa',
+        'bk.coll_gameprofiles': 'Hồ sơ trò chơi',
+        'bk.coll_gamehistories': 'Lịch sử trận đấu',
+        'bk.coll_dailychallenges': 'Thử thách hàng ngày',
+        'bk.coll_dailysubmissions': 'Bài đoán thử thách',
+        'bk.coll_systemsettings': 'Cài đặt hệ thống',
         'bk.create_title': 'Tạo bản sao lưu',
-        'bk.select_prompt': 'Chọn các bộ sưu tập cần sao lưu:',
+        'bk.select_prompt': 'Chọn các bảng dữ liệu cần sao lưu:',
         'bk.btn_select_all': 'Chọn tất cả',
         'bk.btn_deselect_all': 'Bỏ chọn tất cả',
+        'bk.include_secrets': 'Bản sao lưu toàn hệ thống (gồm mật khẩu & mã bảo mật)',
+        'bk.include_secrets_hint': 'Bảo mật tệp này thật kỹ! Dùng để khôi phục toàn bộ hệ thống khi có sự cố.',
         'bk.btn_download': 'Tải bản sao lưu (JSON)',
+        'bk.restore_title': 'Khôi phục từ bản sao lưu (Xem trước)',
+        'bk.upload_label': 'Tệp sao lưu (.json, tối đa 50MB)',
+        'bk.mode_label': 'Chế độ khôi phục',
+        'bk.mode_upsert': 'Bổ sung & Cập nhật (Thêm mục thiếu + cập nhật mục trùng ID, an toàn)',
+        'bk.mode_insert_only': 'Chỉ thêm mới (Chỉ khôi phục bản ghi chưa tồn tại)',
+        'bk.mode_replace': 'Ghi đè toàn bộ (Xóa trắng & nạp lại toàn bộ)',
+        'bk.btn_preview': 'Phân tích & Xem trước',
+        'bk.dryrun_title': 'Xem trước thay đổi: Kiểm tra trước khi khôi phục',
+        'bk.btn_cancel_restore': 'Hủy xem trước',
+        'bk.btn_confirm_restore': 'Xác nhận & Thực thi khôi phục',
+        'bk.dr_incoming': 'Trong bản sao lưu',
+        'bk.dr_existing': 'Đang có trên CSDL',
+        'bk.dr_insert': 'Sẽ thêm mới',
+        'bk.dr_update': 'Sẽ cập nhật',
+        'bk.dr_skip': 'Bỏ qua',
+        'bk.dr_delete': 'Sẽ xóa trắng',
+        'bk.confirm_phrase_label': 'CHẾ ĐỘ GHI ĐÈ TOÀN BỘ: Nhập đúng chữ RESTORE để xóa & nạp lại các bảng dữ liệu đã chọn:',
         'bk.history_title': 'Lịch sử sao lưu',
         'bk.col_date': 'Thời gian',
-        'bk.col_collections': 'Bộ sưu tập',
+        'bk.col_collections': 'Bảng dữ liệu',
         'bk.col_size': 'Dung lượng',
         'bk.col_status': 'Trạng thái',
         'bk.col_by': 'Người thực hiện',

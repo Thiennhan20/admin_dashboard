@@ -64,7 +64,10 @@ window.AdminUI.addTranslations({
         'mon.col_status': 'Status',
         'mon.col_response': 'Response',
         'mon.collections': 'Collections',
-        'mon.data': 'Data'
+        'mon.data': 'Data',
+        'mon.status_online': 'ONLINE',
+        'mon.status_offline': 'OFFLINE',
+        'mon.status_not_configured': 'NOT CONFIGURED'
     },
     vi: {
         'mon.title': 'Bảng sức khỏe dịch vụ',
@@ -75,19 +78,45 @@ window.AdminUI.addTranslations({
         'mon.srv_nodejs': 'Máy chủ Node.js',
         'mon.srv_mongodb': 'MongoDB',
         'mon.srv_postgres': 'PostgreSQL',
-        'mon.srv_redis_cache': 'Redis Cache (Upstash)',
-        'mon.srv_redis_rooms': 'Redis Rooms (Upstash)',
+        'mon.srv_redis_cache': 'Bộ nhớ đệm Redis (Upstash)',
+        'mon.srv_redis_rooms': 'Phòng xem Redis (Upstash)',
         'mon.history_title': 'Lịch sử kiểm tra',
         'mon.col_time': 'Thời gian',
         'mon.col_service': 'Dịch vụ',
         'mon.col_status': 'Trạng thái',
         'mon.col_response': 'Phản hồi',
-        'mon.collections': 'Bộ sưu tập',
-        'mon.data': 'Dữ liệu'
+        'mon.collections': 'Bảng dữ liệu',
+        'mon.data': 'Dữ liệu',
+        'mon.status_online': 'TRỰC TUYẾN',
+        'mon.status_offline': 'MẤT KẾT NỐI',
+        'mon.status_not_configured': 'CHƯA CẤU HÌNH'
     }
 });
 
 let history = [];
+let lastServicesData = null;
+function statusLabel(status) {
+    return t('mon.status_' + status) || String(status || '').toUpperCase();
+}
+function serviceLabel(name) {
+    const keyMap = { nodejs: 'mon.srv_nodejs', mongodb: 'mon.srv_mongodb', postgresql: 'mon.srv_postgres', redis_cache: 'mon.srv_redis_cache', redis_rooms: 'mon.srv_redis_rooms' };
+    return t(keyMap[name]) || name;
+}
+function renderServices(services) {
+    Object.entries(services || {}).forEach(([name, info]) => {
+        const dot = document.getElementById('dot-' + name);
+        const infoEl = document.getElementById('info-' + name);
+        if (dot) dot.className = 'status-dot ' + info.status;
+        if (infoEl) {
+            let html = `<strong class="text-${info.status==='online'?'success':'danger'}">${statusLabel(info.status)}</strong>`;
+            if (info.response_ms) html += ` · ${info.response_ms}ms`;
+            if (info.error) html += `<br><span class="text-danger">${info.error}</span>`;
+            if (info.collections) html += `<br>${t('mon.collections')}: ${info.collections}`;
+            if (info.data_size) html += ` · ${t('mon.data')}: ${(info.data_size/1024/1024).toFixed(1)}MB`;
+            infoEl.innerHTML = html;
+        }
+    });
+}
 function runHealthCheck() {
     const btn = document.getElementById('checkBtn');
     btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>${t('mon.btn_checking')}`;
@@ -97,26 +126,21 @@ function runHealthCheck() {
     .then(data => {
         btn.disabled = false; btn.innerHTML = `<i class="fas fa-sync me-1"></i>${t('mon.btn_check')}`;
         if (!data.success) return;
+        lastServicesData = data.services;
+        renderServices(data.services);
         Object.entries(data.services).forEach(([name, info]) => {
-            const dot = document.getElementById('dot-' + name);
-            const infoEl = document.getElementById('info-' + name);
-            if (dot) dot.className = 'status-dot ' + info.status;
-            if (infoEl) {
-                let html = `<strong class="text-${info.status==='online'?'success':'danger'}">${info.status.toUpperCase()}</strong>`;
-                if (info.response_ms) html += ` · ${info.response_ms}ms`;
-                if (info.error) html += `<br><span class="text-danger">${info.error}</span>`;
-                if (info.collections) html += `<br>${t('mon.collections')}: ${info.collections}`;
-                if (info.data_size) html += ` · ${t('mon.data')}: ${(info.data_size/1024/1024).toFixed(1)}MB`;
-                infoEl.innerHTML = html;
-            }
             history.unshift({ time: new Date().toLocaleTimeString(), service: name, status: info.status, response: info.response_ms ? info.response_ms + 'ms' : info.error || '-' });
         });
         renderHistory();
     }).catch(e => { btn.disabled = false; btn.innerHTML = `<i class="fas fa-sync me-1"></i>${t('mon.btn_check')}`; });
 }
 function renderHistory() {
-    document.getElementById('historyBody').innerHTML = history.slice(0, 25).map(h => `<tr><td><small>${h.time}</small></td><td>${h.service}</td><td><span class="badge bg-${h.status==='online'?'success':h.status==='offline'?'danger':'warning'}">${h.status}</span></td><td><small>${h.response}</small></td></tr>`).join('');
+    document.getElementById('historyBody').innerHTML = history.slice(0, 25).map(h => `<tr><td><small>${h.time}</small></td><td>${serviceLabel(h.service)}</td><td><span class="badge bg-${h.status==='online'?'success':h.status==='offline'?'danger':'warning'}">${statusLabel(h.status)}</span></td><td><small>${h.response}</small></td></tr>`).join('');
 }
+document.addEventListener('admin:language-change', () => {
+    if (lastServicesData) renderServices(lastServicesData);
+    renderHistory();
+});
 runHealthCheck();
 </script>
 {% endblock %}

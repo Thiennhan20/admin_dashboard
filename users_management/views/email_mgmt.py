@@ -1,8 +1,10 @@
 """Email management views."""
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 
+from users_management.decorators import require_permission
 from users_management.models import EmailLog, AuditLog
 from users_management.services import mongo_admin, clean_value
 from users_management.views_legacy import check_admin_access
@@ -12,15 +14,19 @@ __all__ = ['email_management']
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('email.view')
 def email_management(request):
     if request.method == 'POST' and request.POST.get('action') == 'send':
+        profile = getattr(request.user, 'admin_profile', None)
+        if not (request.user.is_superuser or (profile and profile.has_perm('email.edit'))):
+            raise PermissionDenied('Permission email.edit required')
         recipient_type = request.POST.get('recipient_type', 'single')
         subject = request.POST.get('subject', '').strip()
         body = request.POST.get('body', '').strip()
         recipients = []
 
         if not subject or not body:
-            messages.error(request, 'Subject and body are required!')
+            messages.error(request, 'Vui lòng nhập tiêu đề và nội dung Email!')
             return redirect('admin_dashboard:email')
 
         try:
@@ -34,7 +40,7 @@ def email_management(request):
                     recipients = [email]
 
             if not recipients:
-                messages.error(request, 'No recipients found!')
+                messages.error(request, 'Không tìm thấy người nhận phù hợp!')
                 return redirect('admin_dashboard:email')
 
             # Try to send via Django mail
@@ -49,7 +55,7 @@ def email_management(request):
                     status = 'sent'
                 else:
                     status = 'pending'
-                    error_msg = 'SMTP not configured. Email saved but not sent.'
+                    error_msg = 'Chưa cấu hình SMTP. Email đã được lưu nhưng chưa gửi đi.'
             except Exception as e:
                 status = 'failed'
                 error_msg = str(e)
@@ -68,14 +74,14 @@ def email_management(request):
             })
 
             if status == 'sent':
-                messages.success(request, f'Email sent to {len(recipients)} recipient(s)!')
+                messages.success(request, f'Đã gửi Email tới {len(recipients)} người nhận!')
             elif status == 'pending':
-                messages.warning(request, f'Email saved ({len(recipients)} recipients) but SMTP not configured.')
+                messages.warning(request, f'Đã lưu Email ({len(recipients)} người nhận) nhưng máy chủ SMTP chưa được cấu hình.')
             else:
-                messages.error(request, f'Email failed: {error_msg}')
+                messages.error(request, f'Gửi Email thất bại: {error_msg}')
 
         except Exception as e:
-            messages.error(request, f'Error: {e}')
+            messages.error(request, f'Lỗi: {e}')
 
         return redirect('admin_dashboard:email')
 

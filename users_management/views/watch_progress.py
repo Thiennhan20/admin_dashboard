@@ -4,8 +4,9 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from datetime import datetime
 
+from users_management.decorators import require_permission
 from users_management.models import AuditLog
-from users_management.services import mongo_admin, clean_value
+from users_management.services import mongo_admin, clean_value, parallel_run, cached_swr
 from users_management.views_legacy import check_admin_access, check_api_status
 
 __all__ = ['watch_progress_list', 'api_watch_progress_delete']
@@ -13,6 +14,7 @@ __all__ = ['watch_progress_list', 'api_watch_progress_delete']
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watch_progress.view')
 def watch_progress_list(request):
     """Full watch-progress management page with stats, filters, pagination."""
     page = int(request.GET.get('page', 1))
@@ -33,9 +35,6 @@ def watch_progress_list(request):
         elif content_type == 'tv':
             query['isTVShow'] = True
 
-        total = db.watchprogresses.count_documents(query)
-        total_pages = max(1, -(-total // limit))
-
         pipeline = []
         if query:
             pipeline.append({'$match': query})
@@ -50,26 +49,69 @@ def watch_progress_list(request):
                 'as': 'user',
             }},
             {'$unwind': {'path': '$user', 'preserveNullAndEmptyArrays': True}},
+            {'$project': {
+                'user.password': 0,
+                'user.emailVerificationToken': 0,
+                'user.watchlist': 0,
+                'user.friends': 0,
+                'user.friendRequests': 0,
+                'user.sentFriendRequests': 0,
+            }},
         ])
-        items = clean_value(list(db.watchprogresses.aggregate(pipeline)))
+
+        def _fetch_wp_stats():
+            type_agg = list(db.watchprogresses.aggregate([
+                {'$group': {
+                    '_id': None,
+                    'total_all': {'$sum': 1},
+                    'tv_shows': {'$sum': {'$cond': [{'$eq': ['$isTVShow', True]}, 1, 0]}},
+                    'movies': {'$sum': {'$cond': [{'$ne': ['$isTVShow', True]}, 1, 0]}},
+                }}
+            ]))
+            top_list = clean_value(list(db.watchprogresses.aggregate([
+                {'$group': {'_id': '$contentId', 'count': {'$sum': 1}, 'title': {'$first': '$title'}}},
+                {'$sort': {'count': -1}},
+                {'$limit': 5},
+            ])))
+            for top_item in top_list:
+                top_item['id'] = top_item.get('_id', '')
+            s = type_agg[0] if type_agg else {}
+            return {
+                'movies': s.get('movies', 0),
+                'tv_shows': s.get('tv_shows', 0),
+                'total_all': s.get('total_all', 0),
+                'top_content': top_list,
+            }
+
+        force_stats = request.GET.get('refresh') == '1'
+        tasks = {
+            'items': lambda: list(db.watchprogresses.aggregate(pipeline)),
+            'wp_stats': lambda: cached_swr(
+                'watch_progress_stats_v1',
+                fresh_ttl=30,
+                stale_ttl=120,
+                fetcher=_fetch_wp_stats,
+                force=force_stats,
+            ),
+        }
+        if query:
+            tasks['total'] = lambda: db.watchprogresses.count_documents(query)
+
+        results = parallel_run(tasks, max_workers=3)
+        wp_stats = results['wp_stats']
+        total = results['total'] if query else wp_stats['total_all']
+        total_pages = max(1, -(-total // limit))
+
+        items = clean_value(results['items'])
         for item in items:
             item['id'] = item.get('_id')
 
-        # Stats
         stats = {
             'total': total,
-            'movies': db.watchprogresses.count_documents({'isTVShow': {'$ne': True}}),
-            'tv_shows': db.watchprogresses.count_documents({'isTVShow': True}),
+            'movies': wp_stats['movies'],
+            'tv_shows': wp_stats['tv_shows'],
+            'top_content': wp_stats['top_content'],
         }
-        # Top watched content
-        top_pipeline = [
-            {'$group': {'_id': '$contentId', 'count': {'$sum': 1}, 'title': {'$first': '$title'}}},
-            {'$sort': {'count': -1}},
-            {'$limit': 5},
-        ]
-        stats['top_content'] = clean_value(list(db.watchprogresses.aggregate(top_pipeline)))
-        for item in stats['top_content']:
-            item['id'] = item.get('_id', '')
 
         context = {
             'items': items,
@@ -93,6 +135,7 @@ def watch_progress_list(request):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watch_progress.delete')
 def api_watch_progress_delete(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)

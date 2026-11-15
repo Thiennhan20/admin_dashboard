@@ -1,11 +1,24 @@
 {% extends 'admin_dashboard/base.html' %}
 
-{% block title %}Operations - Movie Admin{% endblock %}
-{% block page_title %}Operations{% endblock %}
+{% block title %}Dashboard — ENTN Admin{% endblock %}
+{% block page_title %}ENTN Dashboard{% endblock %}
 {% block page_i18n_key %}ops.title{% endblock %}
 
 {% block extra_css %}
 <style>
+    .telemetry-hero {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, var(--panel) 55%, rgba(16, 185, 129, 0.12) 100%);
+        box-shadow: var(--shadow-card);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        padding: 18px 22px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
     .ops-grid {
         display: grid;
         grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -14,26 +27,61 @@
 
     .metric-card {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        box-shadow: var(--shadow-card);
         border: 1px solid var(--line);
         border-radius: var(--radius);
-        padding: 16px;
-        min-height: 118px;
+        padding: 16px 18px;
+        min-height: 122px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: transform .18s cubic-bezier(.22, 1, .36, 1), border-color .18s ease;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--line-strong);
+        }
+    }
+
+    .metric-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
     }
 
     .metric-label {
         color: var(--muted);
-        font-size: 12px;
-        font-weight: 800;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .metric-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        background: var(--control);
     }
 
     .metric-value {
-        font-size: clamp(24px, 2vw, 42px);
-        font-weight: 850;
-        line-height: 1.05;
+        font-family: var(--font-display);
+        font-size: clamp(24px, 2vw, 36px);
+        font-weight: 700;
+        line-height: 1.08;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
     }
 
     .metric-note {
@@ -52,8 +100,8 @@
     }
 
     .ops-panel-header {
-        min-height: 56px;
-        padding: 12px 14px;
+        min-height: 54px;
+        padding: 12px 16px;
         border-bottom: 1px solid var(--line);
         display: flex;
         align-items: center;
@@ -63,23 +111,28 @@
 
     .ops-panel-title {
         margin: 0;
+        font-family: var(--font-display);
         font-size: 15px;
-        font-weight: 850;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .ops-panel-body {
-        padding: 14px;
+        padding: 16px;
     }
 
     .status-pill {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
         border-radius: 999px;
         border: 1px solid var(--line);
-        padding: 5px 9px;
-        font-size: 12px;
-        font-weight: 800;
+        padding: 5px 11px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 600;
         background: var(--control);
     }
 
@@ -94,35 +147,35 @@
     .dot.warn { background: var(--amber); }
     .dot.bad { background: var(--red); }
 
-    .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        justify-content: space-between;
-    }
-
     .collection-tabs {
         display: flex;
         gap: 8px;
         overflow-x: auto;
-        padding-bottom: 2px;
+        padding-bottom: 4px;
     }
 
     .collection-tab {
         border: 1px solid var(--line);
         background: var(--control);
-        border-radius: var(--radius);
-        padding: 8px 10px;
-        font-weight: 800;
+        border-radius: 9px;
+        padding: 7px 12px;
+        font-weight: 700;
+        font-size: 12.5px;
         color: var(--muted);
         white-space: nowrap;
+        transition: all .15s;
+    }
+
+    .collection-tab:hover {
+        color: var(--ink);
+        border-color: var(--line-strong);
     }
 
     .collection-tab.active {
         color: #fff;
-        background: var(--nav);
-        border-color: var(--nav);
+        background: var(--blue);
+        border-color: var(--blue);
+        box-shadow: 0 4px 12px var(--blue-glow);
     }
 
     .table-wrap {
@@ -131,9 +184,7 @@
         border-radius: var(--radius);
     }
 
-    .data-table {
-        min-width: 920px;
-    }
+    .data-table { min-width: 920px; }
 
     .line-clamp {
         max-width: 360px;
@@ -147,7 +198,7 @@
     .skeleton {
         position: relative;
         overflow: hidden;
-        background: #eef2f7;
+        background: var(--control);
         border-radius: 6px;
         min-height: 18px;
     }
@@ -157,136 +208,206 @@
         position: absolute;
         inset: 0;
         transform: translateX(-100%);
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
-        animation: shimmer 1.2s infinite;
-    }
-
-    html[data-theme="dark"] .skeleton {
-        background: #1f2937;
-    }
-
-    html[data-theme="dark"] .skeleton::after {
         background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+        animation: shimmer 1.2s infinite;
     }
 
     @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-    .split-grid {
+    .bento-trio {
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(300px, 0.85fr);
         gap: 14px;
     }
 
-    @media (max-width: 1480px) {
-        .ops-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .triple-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
     }
 
-    @media (max-width: 980px) {
-        .ops-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .split-grid { grid-template-columns: 1fr; }
+    /* Real 7-Day Activity Chart Bars */
+    .chart-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 152px;
+        padding: 16px 4px 6px;
     }
 
-    @media (max-width: 560px) {
-        .ops-grid { grid-template-columns: 1fr; gap: 10px; }
-        .toolbar { align-items: stretch; }
-        .toolbar > * { width: 100%; }
-        .ops-panel-body { padding: 10px; }
+    .chart-bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        justify-content: flex-end;
     }
 
-    /* Chart bars */
-    .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 8px 0; }
-    .chart-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
     .chart-bar {
         width: 100%;
-        border-radius: 4px 4px 0 0;
-        transition: height .6s cubic-bezier(.4,0,.2,1);
-        transform-origin: bottom;
-        animation: barGrow .9s cubic-bezier(.34,1.56,.64,1) both;
+        min-height: 6px;
+        border-radius: 6px 6px 2px 2px;
+        background: linear-gradient(180deg, #6366f1 0%, rgba(99, 102, 241, 0.35) 100%);
         position: relative;
+        transition: height .45s ease, filter .15s;
     }
-    .chart-bar:hover { filter: brightness(1.15); }
+
+    .chart-bar.peak {
+        background: linear-gradient(180deg, #10b981 0%, rgba(16, 185, 129, 0.35) 100%);
+    }
+
+    .chart-bar:hover { filter: brightness(1.2); }
+
     .chart-bar .bar-value {
         position: absolute;
         left: 50%;
         bottom: calc(100% + 4px);
         transform: translateX(-50%);
-        background: var(--ink);
-        color: var(--panel);
+        background: var(--panel-elevated);
+        border: 1px solid var(--line-strong);
+        color: var(--ink);
+        font-family: var(--font-mono);
         font-size: 10px;
-        font-weight: 800;
+        font-weight: 700;
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: 5px;
         white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .15s;
     }
-    .chart-bar:hover .bar-value { opacity: 1; }
-    .chart-bar-col:nth-child(2) .chart-bar { animation-delay: .08s; }
-    .chart-bar-col:nth-child(3) .chart-bar { animation-delay: .16s; }
-    .chart-bar-col:nth-child(4) .chart-bar { animation-delay: .24s; }
-    .chart-bar-col:nth-child(5) .chart-bar { animation-delay: .32s; }
-    .chart-bar-col:nth-child(6) .chart-bar { animation-delay: .4s; }
-    .chart-bar-col:nth-child(7) .chart-bar { animation-delay: .48s; }
-    @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-    .chart-bar-label { font-size: 11px; color: var(--muted); font-weight: 700; }
 
-    /* Trending table */
-    .trend-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius); border-bottom: 1px solid var(--line); margin: 0 -4px; transition: background .15s; }
+    .chart-bar-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--muted);
+        font-weight: 600;
+    }
+
+    /* Trending Media Row with Poster */
+    .trend-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        border-bottom: 1px solid var(--line);
+        transition: background .15s;
+    }
+
     .trend-row:last-child { border-bottom: 0; }
     .trend-row:hover { background: var(--control-hover); }
-    .trend-rank { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 850; font-size: 13px; background: var(--control-hover); color: var(--muted); flex-shrink: 0; }
-    .trend-rank.gold { background: rgba(251,191,36,.15); color: #d97706; }
-    .trend-rank.silver { background: rgba(148,163,184,.15); color: #64748b; }
-    .trend-rank.bronze { background: rgba(180,120,60,.15); color: #b4783c; }
+
+    .trend-rank {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        font-family: var(--font-mono);
+        font-weight: 800;
+        font-size: 12px;
+        background: var(--control);
+        color: var(--muted);
+        flex-shrink: 0;
+    }
+
+    .trend-rank.gold { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
+    .trend-rank.silver { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+    .trend-rank.bronze { background: rgba(217, 119, 6, 0.18); color: #f59e0b; }
+
+    .trend-poster {
+        width: 34px;
+        height: 48px;
+        border-radius: 6px;
+        object-fit: cover;
+        background: var(--control);
+        flex-shrink: 0;
+    }
+
     .trend-info { flex: 1; min-width: 0; }
-    .trend-title { font-weight: 750; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .trend-meta { font-size: 12px; color: var(--muted); }
-    .trend-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: var(--control-hover); color: var(--muted); white-space: nowrap; }
+    .trend-title { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trend-meta { font-size: 11.5px; color: var(--muted); }
 
-    /* Quick actions */
     .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .quick-btn { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--ink); text-decoration: none; font-weight: 750; font-size: 14px; transition: border-color .15s, background .15s; cursor: pointer; }
+    .quick-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--control);
+        color: var(--ink);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all .15s;
+    }
     .quick-btn:hover { border-color: var(--blue); background: var(--control-hover); color: var(--ink); }
-    .quick-btn i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; font-size: 15px; flex-shrink: 0; }
+    .quick-btn i { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; font-size: 14px; flex-shrink: 0; }
 
-    /* System info */
-    .sys-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .sys-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
     .sys-row:last-child { border-bottom: 0; }
-    .sys-label { color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .sys-value { font-weight: 750; }
+    .sys-label { color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .sys-value { font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; }
 
-    /* Triple grid */
-    .triple-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-    @media (max-width: 1280px) { .triple-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 768px) { .triple-grid { grid-template-columns: 1fr; } .quick-grid { grid-template-columns: 1fr; } }
+    @media (min-width: 1920px) {
+        .ops-grid, .bento-trio, .triple-grid { gap: 18px; }
+        .metric-card { min-height: 136px; padding: 18px 22px; }
+    }
+
+    @media (max-width: 1480px) {
+        .ops-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .bento-trio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .bento-trio > .ops-panel:nth-child(3) { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 1024px) {
+        .ops-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .bento-trio, .triple-grid { grid-template-columns: 1fr; gap: 12px; }
+        .bento-trio > .ops-panel:nth-child(3) { grid-column: auto; }
+    }
+
+    @media (max-width: 640px) {
+        .ops-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .metric-card { min-height: 104px; padding: 12px 14px; }
+        .metric-value { font-size: 22px; }
+        .telemetry-hero { padding: 14px; gap: 10px; }
+    }
+
+    @media (max-width: 360px) {
+        .ops-grid { grid-template-columns: 1fr; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 {% csrf_token %}
-<section class="mb-3">
-    <div class="toolbar">
-        <div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="status-pill" id="serverStatus"><span class="dot"></span><span data-i18n="status.serverChecking">Server checking</span></span>
-                <span class="status-pill" id="mongoStatus"><span class="dot"></span><span data-i18n="status.mongoChecking">Mongo checking</span></span>
-            </div>
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ client_url }}" target="_blank" rel="noreferrer" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-up-right-from-square me-1"></i><span data-i18n="actions.client">Client</span>
-            </a>
-            <a href="{{ server_url }}" target="_blank" rel="noreferrer" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-server me-1"></i><span data-i18n="actions.server">Server</span>
-            </a>
-            <button class="btn btn-dark btn-sm" id="refreshButton" type="button">
-                <i class="fas fa-rotate me-1"></i><span data-i18n="actions.refresh">Refresh</span>
-            </button>
-        </div>
+
+<!-- Live Telemetry Command Bar -->
+<section class="telemetry-hero mb-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="status-pill" id="serverStatus"><span class="dot"></span><span data-i18n="status.serverChecking">API Server checking...</span></span>
+        <span class="status-pill" id="mongoStatus"><span class="dot"></span><span data-i18n="status.mongoChecking">MongoDB checking...</span></span>
+        <span class="status-pill" id="arenaStatus"><span class="dot"></span><span data-i18n="status.arenaChecking">3D Arena checking...</span></span>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ client_url }}" target="_blank" rel="noreferrer" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-film me-1 text-danger"></i><span data-i18n="quick.cinemaWeb">Cinema Web</span>
+        </a>
+        <a href="{% url 'admin_dashboard:game_profiles' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-cubes me-1 text-success"></i><span data-i18n="quick.arenaControl">3D Arena Control</span>
+        </a>
+        <a href="{% url 'admin_dashboard:servers' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-network-wired me-1 text-info"></i><span data-i18n="nav.servers">Stream Clusters</span>
+        </a>
+        <button class="btn btn-primary btn-sm" id="refreshButton" type="button">
+            <i class="fas fa-rotate me-1"></i><span data-i18n="actions.refresh">Sync Telemetry</span>
+        </button>
     </div>
 </section>
 
+<!-- 6 Bento KPI Cards -->
 <section class="ops-grid mb-3" id="metricsGrid">
     {% for item in "123456" %}
     <div class="metric-card">
@@ -297,38 +418,122 @@
     {% endfor %}
 </section>
 
-<section class="split-grid mb-3">
+<!-- Row 2: Live Activity + Watch Party Rooms + 3D Arena Rooms -->
+<section class="bento-trio mb-3">
     <div class="ops-panel">
         <div class="ops-panel-header">
-            <h2 class="ops-panel-title" data-i18n="activity.title">Recent Activity</h2>
-            <span class="badge badge-soft" id="activityCount" data-i18n="common.loading">Loading</span>
+            <h2 class="ops-panel-title"><i class="fas fa-bolt text-warning"></i><span data-i18n="activity.title">Real-time Activity Stream</span></h2>
+            <span class="badge badge-soft font-mono" id="activityCount">...</span>
         </div>
-        <div class="ops-panel-body">
-            <div id="activityFeed">
-                <div class="skeleton mb-2" style="height: 54px"></div>
-                <div class="skeleton mb-2" style="height: 54px"></div>
-                <div class="skeleton" style="height: 54px"></div>
-            </div>
+        <div class="ops-panel-body" id="activityFeed" style="max-height: 310px; overflow-y: auto;">
+            <div class="skeleton mb-2" style="height: 52px"></div>
+            <div class="skeleton mb-2" style="height: 52px"></div>
+            <div class="skeleton" style="height: 52px"></div>
         </div>
     </div>
 
     <div class="ops-panel">
         <div class="ops-panel-header">
-            <h2 class="ops-panel-title" data-i18n="rooms.title">Watch Rooms</h2>
-            <span class="badge badge-soft" id="roomCount" data-i18n="common.loading">Loading</span>
+            <h2 class="ops-panel-title"><i class="fas fa-tower-broadcast text-danger"></i><span data-i18n="rooms.title">Live Watch Rooms</span></h2>
+            <span class="badge badge-soft font-mono" id="roomCount">0</span>
         </div>
-        <div class="ops-panel-body" id="roomsPanel">
+        <div class="ops-panel-body" id="roomsPanel" style="max-height: 310px; overflow-y: auto;">
+            <div class="skeleton mb-2" style="height: 50px"></div>
+            <div class="skeleton" style="height: 50px"></div>
+        </div>
+    </div>
+
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title"><i class="fas fa-cubes text-success"></i><span data-i18n="arena.title">3D Voxel Arena</span></h2>
+            <a href="{% url 'admin_dashboard:game_profiles' %}" class="btn btn-sm btn-outline-primary py-0 px-2" data-i18n="actions.manage">Manage</a>
+        </div>
+        <div class="ops-panel-body" id="arenaPanel" style="max-height: 310px; overflow-y: auto;">
             <div class="skeleton mb-2" style="height: 50px"></div>
             <div class="skeleton" style="height: 50px"></div>
         </div>
     </div>
 </section>
 
+<!-- Row 3: Real 7-Day Activity Chart + Real Top Trending Media + Quick Command & System Info -->
+<section class="triple-grid mb-3">
+    <!-- Real Weekly Activity Chart -->
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title"><i class="fas fa-chart-column text-primary"></i><span data-i18n="chart.weeklyTitle">7-Day Platform Activity</span></h2>
+            <span class="badge badge-soft font-mono" id="weeklyBadge" data-i18n="chart.last7Days">Last 7 days</span>
+        </div>
+        <div class="ops-panel-body">
+            <div class="chart-bars" id="weeklyChart">
+                <div class="skeleton w-100" style="height: 120px;"></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                <span class="text-muted small" id="weeklyBreakdown"><i class="fas fa-layer-group me-1"></i><span data-i18n="chart.breakdown">Users + Comments + Watches</span></span>
+                <span class="small font-mono" id="weeklyGrowth"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real Trending Movies/TV -->
+    <div class="ops-panel">
+        <div class="ops-panel-header">
+            <h2 class="ops-panel-title"><i class="fas fa-fire text-danger"></i><span data-i18n="trending.title">Top Watched & Saved Media</span></h2>
+            <span class="badge badge-soft font-mono" data-i18n="trending.liveDb">Live DB</span>
+        </div>
+        <div class="ops-panel-body" id="trendingPanel">
+            <div class="skeleton mb-2" style="height: 48px"></div>
+            <div class="skeleton mb-2" style="height: 48px"></div>
+            <div class="skeleton" style="height: 48px"></div>
+        </div>
+    </div>
+
+    <!-- Quick Actions + Live Runtime Info -->
+    <div style="display:grid;gap:14px">
+        <div class="ops-panel">
+            <div class="ops-panel-header">
+                <h2 class="ops-panel-title"><i class="fas fa-compass text-info"></i><span data-i18n="quick.title">Command Shortcuts</span></h2>
+            </div>
+            <div class="ops-panel-body">
+                <div class="quick-grid">
+                    <a class="quick-btn" href="{% url 'admin_dashboard:users_list' %}">
+                        <i style="background:rgba(99,102,241,.15);color:var(--blue)"><span class="fas fa-user-astronaut"></span></i>
+                        <span data-i18n="quick.manageUsers">Users Hub</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin_dashboard:servers' %}">
+                        <i style="background:rgba(244,63,94,.15);color:var(--cinema)"><span class="fas fa-network-wired"></span></i>
+                        <span data-i18n="quick.streamServers">Stream Servers</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin_dashboard:game_profiles' %}">
+                        <i style="background:rgba(16,185,129,.15);color:var(--teal)"><span class="fas fa-cubes"></span></i>
+                        <span data-i18n="quick.arena">3D Arena</span>
+                    </a>
+                    <a class="quick-btn" href="{% url 'admin_dashboard:password_resets' %}">
+                        <i style="background:rgba(245,158,11,.15);color:var(--amber)"><span class="fas fa-shield-halved"></span></i>
+                        <span data-i18n="quick.sessionsJwt">Sessions & JWT</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="ops-panel">
+            <div class="ops-panel-header">
+                <h2 class="ops-panel-title"><i class="fas fa-microchip text-secondary"></i><span data-i18n="sys.title">Runtime Telemetry</span></h2>
+            </div>
+            <div class="ops-panel-body">
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-code-branch"></i> <span data-i18n="sys.django">Django Core</span></span><span class="sys-value" id="sysDjango">{{ system_info.django_version|default:"5.x" }}</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fab fa-python"></i> <span data-i18n="sys.python">Python Runtime</span></span><span class="sys-value" id="sysPython">{{ system_info.python_version|default:"3.x" }}</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-database"></i> <span data-i18n="sys.dataPlane">Data Plane</span></span><span class="sys-value">MongoDB + Upstash Redis</span></div>
+                <div class="sys-row"><span class="sys-label"><i class="fas fa-server"></i> <span data-i18n="sys.platform">OS Platform</span></span><span class="sys-value" id="sysPlatform">{{ system_info.platform|default:"-" }}</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Row 4: Multi-Collection Data Explorer -->
 <section class="ops-panel">
     <div class="ops-panel-header">
         <div>
-            <h2 class="ops-panel-title" data-i18n="data.title">Data Manager</h2>
-            <div class="text-muted small" data-i18n="data.subtitle">MongoDB collections used by app, web, and server</div>
+            <h2 class="ops-panel-title"><i class="fas fa-database text-primary"></i><span data-i18n="data.title">Live MongoDB Collection Explorer</span></h2>
+            <div class="text-muted small" data-i18n="data.subtitle">Inspect & moderate live collections across Cinema Web, Auth Sessions, and Watch Party</div>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary btn-sm" id="prevPage" type="button">
@@ -342,9 +547,9 @@
     <div class="ops-panel-body">
         <div class="collection-tabs mb-3" id="collectionTabs"></div>
         <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
-            <span class="text-muted small" id="collectionMeta" data-i18n="common.loading">Loading</span>
-            <button class="btn btn-dark btn-sm" id="reloadCollection" type="button">
-                <i class="fas fa-rotate me-1"></i><span data-i18n="actions.reloadTable">Reload table</span>
+            <span class="text-muted small font-mono" id="collectionMeta" data-i18n="common.loading">Loading...</span>
+            <button class="btn btn-outline-primary btn-sm" id="reloadCollection" type="button">
+                <i class="fas fa-rotate me-1"></i><span data-i18n="actions.reloadTable">Reload collection</span>
             </button>
         </div>
         <div class="table-wrap">
@@ -357,107 +562,6 @@
         </div>
     </div>
 </section>
-
-<!-- New panels row: Chart + Trending + Quick Actions -->
-<section class="triple-grid mb-3" style="margin-top:14px">
-    <!-- Weekly Activity Chart -->
-    <div class="ops-panel">
-        <div class="ops-panel-header">
-            <h2 class="ops-panel-title" data-i18n="chart.weeklyTitle">Weekly Activity</h2>
-            <span class="badge badge-soft" data-i18n="chart.last7">Last 7 days</span>
-        </div>
-        <div class="ops-panel-body">
-            <div class="chart-bars" id="weeklyChart">
-                <div class="chart-bar-col"><div class="chart-bar" style="height:45%;background:var(--blue)"><span class="bar-value">36</span></div><span class="chart-bar-label">Mon</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:72%;background:var(--blue)"><span class="bar-value">58</span></div><span class="chart-bar-label">Tue</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:58%;background:var(--blue)"><span class="bar-value">47</span></div><span class="chart-bar-label">Wed</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:85%;background:var(--teal)"><span class="bar-value">69</span></div><span class="chart-bar-label">Thu</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:64%;background:var(--blue)"><span class="bar-value">52</span></div><span class="chart-bar-label">Fri</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:92%;background:var(--teal)"><span class="bar-value">74</span></div><span class="chart-bar-label">Sat</span></div>
-                <div class="chart-bar-col"><div class="chart-bar" style="height:78%;background:var(--blue)"><span class="bar-value">63</span></div><span class="chart-bar-label">Sun</span></div>
-            </div>
-            <div class="d-flex justify-content-between mt-2">
-                <span class="text-muted small"><i class="fas fa-chart-line me-1"></i><span data-i18n="chart.newUsers">New users</span></span>
-                <span class="text-muted small"><strong style="color:var(--teal)">+18%</strong> <span data-i18n="chart.vsLastWeek">vs last week</span></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Trending Movies -->
-    <div class="ops-panel">
-        <div class="ops-panel-header">
-            <h2 class="ops-panel-title" data-i18n="trending.title">Trending Movies</h2>
-            <span class="badge badge-soft">Top 5</span>
-        </div>
-        <div class="ops-panel-body" id="trendingPanel">
-            <div class="trend-row">
-                <span class="trend-rank gold">1</span>
-                <div class="trend-info"><div class="trend-title">Dune: Part Two</div><div class="trend-meta">2024 • Action, Sci-Fi</div></div>
-                <span class="trend-badge">1.2k <i class="fas fa-eye" style="font-size:10px"></i></span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-rank silver">2</span>
-                <div class="trend-info"><div class="trend-title">Oppenheimer</div><div class="trend-meta">2023 • Drama, History</div></div>
-                <span class="trend-badge">980 <i class="fas fa-eye" style="font-size:10px"></i></span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-rank bronze">3</span>
-                <div class="trend-info"><div class="trend-title">The Batman</div><div class="trend-meta">2022 • Action, Crime</div></div>
-                <span class="trend-badge">874 <i class="fas fa-eye" style="font-size:10px"></i></span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-rank">4</span>
-                <div class="trend-info"><div class="trend-title">Spider-Man: Across the Spider-Verse</div><div class="trend-meta">2023 • Animation</div></div>
-                <span class="trend-badge">756 <i class="fas fa-eye" style="font-size:10px"></i></span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-rank">5</span>
-                <div class="trend-info"><div class="trend-title">Interstellar</div><div class="trend-meta">2014 • Drama, Sci-Fi</div></div>
-                <span class="trend-badge">701 <i class="fas fa-eye" style="font-size:10px"></i></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions + System -->
-    <div style="display:grid;gap:14px">
-        <div class="ops-panel">
-            <div class="ops-panel-header">
-                <h2 class="ops-panel-title" data-i18n="quick.title">Quick Actions</h2>
-            </div>
-            <div class="ops-panel-body">
-                <div class="quick-grid">
-                    <a class="quick-btn" href="{% url 'admin_dashboard:users_list' %}">
-                        <i style="background:rgba(37,99,235,.12);color:var(--blue)"><span class="fas fa-users"></span></i>
-                        <span data-i18n="quick.manageUsers">Manage Users</span>
-                    </a>
-                    <a class="quick-btn" href="{% url 'admin_dashboard:watchlist_list' %}">
-                        <i style="background:rgba(15,118,110,.12);color:var(--teal)"><span class="fas fa-bookmark"></span></i>
-                        <span data-i18n="quick.watchlist">Watchlist</span>
-                    </a>
-                    <a class="quick-btn" href="{% url 'admin_dashboard:admin_list' %}">
-                        <i style="background:rgba(217,119,6,.12);color:var(--amber)"><span class="fas fa-user-shield"></span></i>
-                        <span data-i18n="quick.admins">Admin Accounts</span>
-                    </a>
-                    <a class="quick-btn" href="{% url 'admin:index' %}">
-                        <i style="background:rgba(185,28,28,.12);color:var(--red)"><span class="fas fa-screwdriver-wrench"></span></i>
-                        <span>Django Admin</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="ops-panel">
-            <div class="ops-panel-header">
-                <h2 class="ops-panel-title" data-i18n="sys.title">System Info</h2>
-            </div>
-            <div class="ops-panel-body">
-                <div class="sys-row"><span class="sys-label"><i class="fas fa-code-branch"></i> Django</span><span class="sys-value">6.0.5</span></div>
-                <div class="sys-row"><span class="sys-label"><i class="fab fa-python"></i> Python</span><span class="sys-value">3.13</span></div>
-                <div class="sys-row"><span class="sys-label"><i class="fas fa-database"></i> Database</span><span class="sys-value">PostgreSQL + MongoDB</span></div>
-                <div class="sys-row"><span class="sys-label"><i class="fas fa-cloud"></i> <span data-i18n="sys.hosting">Hosting</span></span><span class="sys-value">Dokploy</span></div>
-            </div>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_js %}
@@ -465,170 +569,223 @@
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     window.AdminUI.addTranslations({
         en: {
-            'ops.title': 'Operations',
-            'status.serverChecking': 'Server checking',
-            'status.mongoChecking': 'Mongo checking',
-            'status.server': 'Server',
-            'status.mongo': 'Mongo',
-            'status.online': 'online',
-            'status.offline': 'offline',
-            'status.error': 'error',
-            'actions.client': 'Client',
-            'actions.server': 'Server',
-            'actions.refresh': 'Refresh',
-            'actions.reloadTable': 'Reload table',
-            'actions.open': 'Open',
-            'actions.delete': 'delete',
-            'actions.hide': 'hide',
-            'actions.restore': 'restore',
-            'actions.read': 'read',
-            'actions.unread': 'unread',
-            'common.loading': 'Loading',
-            'common.noData': 'No data.',
-            'metrics.users': 'Users',
-            'metrics.verified': '{count} verified',
+            'ops.title': 'ENTN Dashboard',
+            'status.serverChecking': 'API Server checking',
+            'status.mongoChecking': 'MongoDB checking',
+            'status.arenaChecking': '3D Arena checking',
+            'status.server': 'API Server',
+            'status.mongo': 'MongoDB',
+            'status.arena': '3D Arena',
+            'status.online': 'ONLINE',
+            'status.offline': 'OFFLINE',
+            'status.error': 'ERROR',
+            'status.arenaOnline': '{status} ({count} rooms)',
+            'actions.refresh': 'Sync Telemetry',
+            'actions.reloadTable': 'Reload collection',
+            'actions.open': 'Inspect',
+            'actions.manage': 'Manage',
+            'actions.delete': 'Delete',
+            'actions.hide': 'Hide',
+            'actions.restore': 'Restore',
+            'actions.read': 'Mark Read',
+            'actions.unread': 'Mark Unread',
+            'common.loading': 'Loading...',
+            'common.noData': 'No records found in this collection.',
+            'metrics.users': 'Total Users',
+            'metrics.verified': '{count} verified • {banned} banned',
+            'metrics.sessions': 'Active Sessions',
+            'metrics.sessionsNote': 'Authenticated user devices',
             'metrics.comments': 'Comments',
-            'metrics.commentsNote': 'All movie and TV comments',
+            'metrics.commentsNote': 'Movie & TV discussions',
             'metrics.watchProgress': 'Watch Progress',
-            'metrics.watchProgressNote': 'Recently watched records',
-            'metrics.searchDocs': 'Search Docs',
-            'metrics.searchDocsNote': 'Per-user search history docs',
-            'metrics.notifications': 'Notifications',
-            'metrics.notificationsNote': 'User notification records',
-            'metrics.rooms': 'Rooms',
-            'metrics.serverOnline': 'Server online',
-            'metrics.serverOffline': 'Server offline',
-            'activity.title': 'Recent Activity',
-            'activity.hiddenComment': 'Hidden comment',
+            'metrics.watchProgressNote': 'Playback state records',
+            'metrics.rooms': 'Watch Rooms',
+            'metrics.arena': '3D Arena Fighters',
+            'metrics.arenaOnlineNote': '{humans} humans • {bots} bots ({rooms} rooms)',
+            'metrics.arenaOfflineNote': 'Arena port 3006 offline',
+            'metrics.serverOnline': 'Stream Server Online',
+            'metrics.serverOffline': 'Stream Server Offline',
+            'activity.title': 'Real-time Activity Stream',
+            'activity.hiddenComment': 'Hidden Comment',
             'activity.comment': 'Comment',
-            'activity.watchProgress': 'Watch progress',
+            'activity.watchProgress': 'Playback',
             'activity.noActivity': 'No recent activity.',
-            'activity.items': '{count} items',
-            'rooms.title': 'Watch Rooms',
+            'activity.items': '{count} events',
+            'rooms.title': 'Live Watch Rooms',
             'rooms.active': '{count} active',
-            'rooms.noRooms': 'No active public rooms.',
+            'rooms.noRooms': 'No active public watch rooms right now.',
             'rooms.host': 'Host',
-            'data.title': 'Data Manager',
-            'data.subtitle': 'MongoDB collections used by app, web, and server',
-            'data.metaLoading': '{label} • loading',
-            'data.meta': '{label} • page {page} • {total} records',
+            'arena.title': '3D Voxel Arena',
+            'arena.offlineTitle': '3D Arena server (port 3006) is currently offline.',
+            'arena.offlineHint': 'Start game-3D-realtime/backend to manage MEGA-1 rooms, AI bots, and 3D rankings.',
+            'arena.leaderLabel': 'Leader:',
+            'arena.massUnit': 'mass',
+            'arena.none': 'None',
+            'arena.botsOn': '🤖 Bots ON',
+            'arena.botsOff': 'Bots OFF',
+            'arena.noRooms': 'No active 3D Arena rooms.',
+            'data.title': 'Live MongoDB Collection Explorer',
+            'data.subtitle': 'Inspect & moderate live collections across Cinema Web, Auth Sessions, and Watch Rooms',
+            'data.metaLoading': '{label} • loading...',
+            'data.meta': '{label} • page {page} • {total} documents',
             'collections.users': 'Users',
+            'collections.sessions': 'Active Sessions',
             'collections.comments': 'Comments',
             'collections.watchprogresses': 'Watch Progress',
+            'collections.streamhistories': 'Stream History',
             'collections.searchhistories': 'Search History',
             'collections.notifications': 'Notifications',
             'collections.passwordresettokens': 'Reset Tokens',
-            'collections.blacklistedtokens': 'Blacklisted Tokens',
+            'collections.blacklistedtokens': 'Revoked JWTs',
             'headers.id': 'ID',
             'headers.user': 'User',
-            'headers.auth': 'Auth',
-            'headers.email': 'Email',
+            'headers.auth': 'Auth / Handle',
+            'headers.email': 'Status',
             'headers.watchlist': 'Watchlist',
             'headers.action': 'Action',
             'headers.content': 'Content',
-            'headers.target': 'Target',
+            'headers.target': 'Media Target',
             'headers.likes': 'Likes',
             'headers.state': 'State',
             'headers.title': 'Title',
-            'headers.type': 'Type',
-            'headers.progress': 'Progress',
-            'headers.lastWatched': 'Last watched',
-            'headers.count': 'Count',
-            'headers.recentQueries': 'Recent queries',
+            'headers.type': 'Format',
+            'headers.progress': 'Playback',
+            'headers.lastWatched': 'Last Watched',
+            'headers.count': 'Queries',
+            'headers.recentQueries': 'Recent Terms',
             'headers.updated': 'Updated',
             'headers.recipient': 'Recipient',
-            'headers.created': 'Created',
-            'headers.payload': 'Payload',
+            'headers.created': 'Timestamp',
+            'headers.payload': 'Details',
+            'headers.device': 'Device / Browser',
+            'headers.ipLocation': 'IP & Location',
+            'headers.lastActive': 'Last Active',
+            'headers.host': 'Host',
+            'headers.streamedAt': 'Streamed At',
+            'sessions.unknownDevice': 'Unknown Device',
             'badges.verified': 'Verified',
             'badges.unverified': 'Unverified',
+            'badges.banned': 'Banned',
             'badges.hidden': 'Hidden',
             'badges.visible': 'Visible',
             'badges.read': 'Read',
             'badges.unread': 'Unread',
             'types.movie': 'Movie',
-            'types.tv': 'TV',
-            'table.watchlistCount': '{count} watchlist',
-            'table.queryCount': '{count} queries',
-            'messages.confirmDelete': 'Delete this record?',
+            'types.tv': 'TV Series',
+            'table.watchlistCount': '{count} saved',
+            'table.queryCount': '{count} searches',
+            'messages.confirmDelete': 'Permanently delete this document from MongoDB?',
             'messages.actionFailed': 'Action failed',
+            'messages.updated': 'Updated successfully!',
             'messages.collectionFailed': 'Failed to load collection',
             'messages.failedOverview': 'Failed to load overview: {message}',
-            'chart.weeklyTitle': 'Weekly Activity',
-            'chart.last7': 'Last 7 days',
-            'chart.newUsers': 'New users',
-            'chart.vsLastWeek': 'vs last week',
-            'trending.title': 'Trending Movies',
-            'quick.title': 'Quick Actions',
-            'quick.manageUsers': 'Manage Users',
-            'quick.watchlist': 'Watchlist',
-            'quick.admins': 'Admin Accounts',
-            'sys.title': 'System Info',
-            'sys.hosting': 'Hosting'
+            'chart.weeklyTitle': '7-Day Platform Activity',
+            'chart.last7Days': 'Last 7 days',
+            'chart.breakdown': 'Users + Comments + Watches',
+            'chart.noData': 'No activity data available',
+            'chart.tooltip': '{date}: {users} users, {comments} comments, {watches} watches',
+            'chart.weeklyEvents': '({count} events / 7d)',
+            'day.Mon': 'Mon',
+            'day.Tue': 'Tue',
+            'day.Wed': 'Wed',
+            'day.Thu': 'Thu',
+            'day.Fri': 'Fri',
+            'day.Sat': 'Sat',
+            'day.Sun': 'Sun',
+            'trending.title': 'Top Watched & Saved Media',
+            'trending.liveDb': 'Live DB',
+            'trending.noData': 'No watch or watchlist stats yet.',
+            'quick.title': 'Command Shortcuts',
+            'quick.cinemaWeb': 'Cinema Web',
+            'quick.arenaControl': '3D Arena Control',
+            'quick.manageUsers': 'Users Hub',
+            'quick.streamServers': 'Stream Servers',
+            'quick.arena': '3D Arena',
+            'quick.sessionsJwt': 'Sessions & JWT',
+            'sys.title': 'Runtime Telemetry',
+            'sys.django': 'Django Core',
+            'sys.python': 'Python Runtime',
+            'sys.dataPlane': 'Data Plane',
+            'sys.platform': 'OS Platform'
         },
         vi: {
-            'ops.title': 'Vận hành',
-            'status.serverChecking': 'Đang kiểm tra server',
-            'status.mongoChecking': 'Đang kiểm tra Mongo',
-            'status.server': 'Server',
-            'status.mongo': 'Mongo',
-            'status.online': 'đang hoạt động',
-            'status.offline': 'mất kết nối',
-            'status.error': 'lỗi',
-            'actions.client': 'Client',
-            'actions.server': 'Server',
-            'actions.refresh': 'Làm mới',
+            'ops.title': 'Bảng điều khiển ENTN',
+            'status.serverChecking': 'Đang kiểm tra máy chủ API',
+            'status.mongoChecking': 'Đang kiểm tra MongoDB',
+            'status.arenaChecking': 'Đang kiểm tra đấu trường 3D',
+            'status.server': 'Máy chủ API',
+            'status.mongo': 'MongoDB',
+            'status.arena': 'Đấu trường 3D',
+            'status.online': 'TRỰC TUYẾN',
+            'status.offline': 'MẤT KẾT NỐI',
+            'status.error': 'LỖI',
+            'status.arenaOnline': '{status} ({count} phòng)',
+            'actions.refresh': 'Đồng bộ dữ liệu',
             'actions.reloadTable': 'Tải lại bảng',
-            'actions.open': 'Mở',
-            'actions.delete': 'xóa',
-            'actions.hide': 'ẩn',
-            'actions.restore': 'khôi phục',
-            'actions.read': 'đã đọc',
-            'actions.unread': 'chưa đọc',
-            'common.loading': 'Đang tải',
-            'common.noData': 'Không có dữ liệu.',
+            'actions.open': 'Chi tiết',
+            'actions.manage': 'Quản lý',
+            'actions.delete': 'Xóa',
+            'actions.hide': 'Ẩn',
+            'actions.restore': 'Khôi phục',
+            'actions.read': 'Đã đọc',
+            'actions.unread': 'Chưa đọc',
+            'common.loading': 'Đang tải...',
+            'common.noData': 'Không có bản ghi nào trong bảng dữ liệu này.',
             'metrics.users': 'Người dùng',
-            'metrics.verified': '{count} đã xác thực',
+            'metrics.verified': '{count} xác thực • {banned} bị khóa',
+            'metrics.sessions': 'Phiên đăng nhập',
+            'metrics.sessionsNote': 'Thiết bị đang hoạt động',
             'metrics.comments': 'Bình luận',
-            'metrics.commentsNote': 'Bình luận phim và TV',
+            'metrics.commentsNote': 'Thảo luận phim lẻ & phim bộ',
             'metrics.watchProgress': 'Tiến độ xem',
-            'metrics.watchProgressNote': 'Các lượt xem gần đây',
-            'metrics.searchDocs': 'Lịch sử tìm',
-            'metrics.searchDocsNote': 'Lịch sử tìm kiếm theo user',
-            'metrics.notifications': 'Thông báo',
-            'metrics.notificationsNote': 'Thông báo của người dùng',
-            'metrics.rooms': 'Phòng xem',
-            'metrics.serverOnline': 'Server đang hoạt động',
-            'metrics.serverOffline': 'Server mất kết nối',
-            'activity.title': 'Hoạt động gần đây',
+            'metrics.watchProgressNote': 'Lượt lưu tiến độ phát',
+            'metrics.rooms': 'Phòng xem chung',
+            'metrics.arena': 'Đấu trường 3D',
+            'metrics.arenaOnlineNote': '{humans} người • {bots} máy ({rooms} phòng)',
+            'metrics.arenaOfflineNote': 'Máy chủ đấu trường cổng 3006 ngưng kết nối',
+            'metrics.serverOnline': 'Máy chủ đang hoạt động',
+            'metrics.serverOffline': 'Máy chủ mất kết nối',
+            'activity.title': 'Luồng hoạt động thời gian thực',
             'activity.hiddenComment': 'Bình luận đã ẩn',
-            'activity.comment': 'Bình luận',
-            'activity.watchProgress': 'Tiến độ xem',
+            'activity.comment': 'Bình luận mới',
+            'activity.watchProgress': 'Đang xem phim',
             'activity.noActivity': 'Chưa có hoạt động gần đây.',
-            'activity.items': '{count} mục',
+            'activity.items': '{count} sự kiện',
             'rooms.title': 'Phòng xem chung',
-            'rooms.active': '{count} đang mở',
-            'rooms.noRooms': 'Không có phòng công khai đang hoạt động.',
+            'rooms.active': '{count} đang chiếu',
+            'rooms.noRooms': 'Không có phòng công khai nào đang mở.',
             'rooms.host': 'Chủ phòng',
-            'data.title': 'Dữ liệu',
-            'data.subtitle': 'Các collection MongoDB app, web và server đang dùng',
-            'data.metaLoading': '{label} • đang tải',
+            'arena.title': 'Đấu trường 3D',
+            'arena.offlineTitle': 'Máy chủ Đấu trường 3D (cổng 3006) hiện đang ngưng kết nối.',
+            'arena.offlineHint': 'Khởi chạy máy chủ trò chơi 3D để điều khiển phòng đấu MEGA-1, máy tự động và bảng xếp hạng.',
+            'arena.leaderLabel': 'Dẫn đầu:',
+            'arena.massUnit': 'khối lượng',
+            'arena.none': 'Chưa có',
+            'arena.botsOn': '🤖 Bật máy đấu',
+            'arena.botsOff': 'Tắt máy đấu',
+            'arena.noRooms': 'Chưa có phòng đấu trường 3D nào.',
+            'data.title': 'Trình quản lý dữ liệu MongoDB',
+            'data.subtitle': 'Truy vấn và kiểm duyệt trực tiếp dữ liệu trang phim, phiên đăng nhập và phòng xem chung',
+            'data.metaLoading': '{label} • đang tải...',
             'data.meta': '{label} • trang {page} • {total} bản ghi',
             'collections.users': 'Người dùng',
+            'collections.sessions': 'Phiên thiết bị',
             'collections.comments': 'Bình luận',
             'collections.watchprogresses': 'Tiến độ xem',
-            'collections.searchhistories': 'Lịch sử tìm',
+            'collections.streamhistories': 'Lịch sử đường dẫn phát',
+            'collections.searchhistories': 'Lịch sử tìm kiếm',
             'collections.notifications': 'Thông báo',
-            'collections.passwordresettokens': 'Token reset',
-            'collections.blacklistedtokens': 'Token khóa',
-            'headers.id': 'ID',
+            'collections.passwordresettokens': 'Mã đặt lại mật khẩu',
+            'collections.blacklistedtokens': 'Mã thông báo bị khóa',
+            'headers.id': 'Mã',
             'headers.user': 'Người dùng',
-            'headers.auth': 'Đăng nhập',
-            'headers.email': 'Email',
+            'headers.auth': 'Phương thức đăng nhập',
+            'headers.email': 'Trạng thái',
             'headers.watchlist': 'Danh sách xem',
             'headers.action': 'Thao tác',
             'headers.content': 'Nội dung',
             'headers.target': 'Đích',
-            'headers.likes': 'Thích',
+            'headers.likes': 'Lượt thích',
             'headers.state': 'Trạng thái',
             'headers.title': 'Tiêu đề',
             'headers.type': 'Loại',
@@ -638,42 +795,68 @@
             'headers.recentQueries': 'Từ khóa gần đây',
             'headers.updated': 'Cập nhật',
             'headers.recipient': 'Người nhận',
-            'headers.created': 'Ngày tạo',
-            'headers.payload': 'Dữ liệu',
+            'headers.created': 'Thời gian',
+            'headers.payload': 'Chi tiết',
+            'headers.device': 'Thiết bị / Trình duyệt',
+            'headers.ipLocation': 'IP & Vị trí',
+            'headers.lastActive': 'Hoạt động gần nhất',
+            'headers.host': 'Chủ phòng',
+            'headers.streamedAt': 'Phát lúc',
+            'sessions.unknownDevice': 'Thiết bị không xác định',
             'badges.verified': 'Đã xác thực',
             'badges.unverified': 'Chưa xác thực',
+            'badges.banned': 'Đã khóa',
             'badges.hidden': 'Đã ẩn',
             'badges.visible': 'Hiển thị',
             'badges.read': 'Đã đọc',
             'badges.unread': 'Chưa đọc',
-            'types.movie': 'Phim',
-            'types.tv': 'TV',
-            'table.watchlistCount': '{count} mục',
+            'types.movie': 'Phim lẻ',
+            'types.tv': 'Phim bộ',
+            'table.watchlistCount': '{count} phim',
             'table.queryCount': '{count} từ khóa',
-            'messages.confirmDelete': 'Xóa bản ghi này?',
+            'messages.confirmDelete': 'Bạn có chắc chắn muốn xóa bản ghi này khỏi MongoDB?',
             'messages.actionFailed': 'Thao tác thất bại',
-            'messages.collectionFailed': 'Không tải được collection',
+            'messages.updated': 'Cập nhật thành công!',
+            'messages.collectionFailed': 'Không tải được dữ liệu',
             'messages.failedOverview': 'Không tải được tổng quan: {message}',
-            'chart.weeklyTitle': 'Hoạt động tuần',
-            'chart.last7': '7 ngày qua',
-            'chart.newUsers': 'Người dùng mới',
-            'chart.vsLastWeek': 'so với tuần trước',
-            'trending.title': 'Phim thịnh hành',
-            'quick.title': 'Thao tác nhanh',
-            'quick.manageUsers': 'Người dùng',
-            'quick.watchlist': 'Danh sách xem',
-            'quick.admins': 'Tài khoản admin',
-            'sys.title': 'Thông tin hệ thống',
-            'sys.hosting': 'Lưu trữ'
+            'chart.weeklyTitle': 'Hoạt động thực tế 7 ngày qua',
+            'chart.last7Days': '7 ngày qua',
+            'chart.breakdown': 'Người dùng + Bình luận + Lượt xem',
+            'chart.noData': 'Chưa có dữ liệu hoạt động',
+            'chart.tooltip': '{date}: {users} người dùng, {comments} bình luận, {watches} lượt xem',
+            'chart.weeklyEvents': '({count} sự kiện / 7 ngày)',
+            'day.Mon': 'T2',
+            'day.Tue': 'T3',
+            'day.Wed': 'T4',
+            'day.Thu': 'T5',
+            'day.Fri': 'T6',
+            'day.Sat': 'T7',
+            'day.Sun': 'CN',
+            'trending.title': 'Top phim xem & lưu nhiều nhất',
+            'trending.liveDb': 'Dữ liệu trực tiếp',
+            'trending.noData': 'Chưa có dữ liệu lượt xem hoặc danh sách xem.',
+            'quick.title': 'Lối tắt điều hành',
+            'quick.cinemaWeb': 'Trang xem phim',
+            'quick.arenaControl': 'Quản lý đấu trường',
+            'quick.manageUsers': 'Quản lý người dùng',
+            'quick.streamServers': 'Máy chủ phát',
+            'quick.arena': 'Đấu trường 3D',
+            'quick.sessionsJwt': 'Phiên & Mã bảo mật',
+            'sys.title': 'Thông số vận hành',
+            'sys.django': 'Lõi Django',
+            'sys.python': 'Phiên bản Python',
+            'sys.dataPlane': 'Tầng dữ liệu',
+            'sys.platform': 'Hệ điều hành'
         }
     });
     const t = (key, params = {}) => window.AdminUI.t(key, params);
-    window.AdminUI.translate();
 
     const collectionLabelKeys = {
         users: 'collections.users',
+        sessions: 'collections.sessions',
         comments: 'collections.comments',
         watchprogresses: 'collections.watchprogresses',
+        streamhistories: 'collections.streamhistories',
         searchhistories: 'collections.searchhistories',
         notifications: 'collections.notifications',
         passwordresettokens: 'collections.passwordresettokens',
@@ -705,18 +888,22 @@
     }
 
     function setStatus(el, ok, label, detail) {
+        if (!el) return;
         const dot = el.querySelector('.dot');
         dot.className = `dot ${ok ? 'ok status-pulse' : 'bad'}`;
         const textNode = el.querySelector('[data-i18n]') || el.lastElementChild;
         textNode.textContent = detail ? `${label}: ${detail}` : label;
     }
 
-    function metric(label, value, note, color, pulse = false) {
+    function metric(label, value, note, color, iconClass, pulse = false) {
         return `
             <div class="metric-card">
-                <div class="metric-label">${escapeHtml(label)}</div>
+                <div class="metric-top">
+                    <div class="metric-label">${escapeHtml(label)}</div>
+                    <div class="metric-icon" style="color:${color}"><i class="${iconClass}"></i></div>
+                </div>
                 <div class="metric-value" style="color:${color}">
-                    ${pulse ? '<span class="status-pulse" style="width:12px;height:12px;margin-right:8px;"></span>' : ''}${escapeHtml(value)}
+                    ${pulse ? '<span class="status-pulse me-2"></span>' : ''}${escapeHtml(value)}
                 </div>
                 <div class="metric-note">${escapeHtml(note)}</div>
             </div>
@@ -727,14 +914,121 @@
         const counts = data.mongo?.counts || {};
         const stats = data.mongo?.stats || {};
         const health = data.server_health || {};
+        const arena = data.arena_health || {};
+        const arenaFighters = arena.ok ? ((arena.totalHumans || 0) + (arena.totalBots || 0)) : 0;
+        const arenaNote = arena.ok
+            ? t('metrics.arenaOnlineNote', { humans: arena.totalHumans || 0, bots: arena.totalBots || 0, rooms: arena.roomsCount || 1 })
+            : t('metrics.arenaOfflineNote');
+
         document.getElementById('metricsGrid').innerHTML = [
-            metric(t('metrics.users'), counts.users ?? 0, t('metrics.verified', { count: stats.verified_users ?? 0 }), 'var(--blue)'),
-            metric(t('metrics.comments'), counts.comments ?? 0, t('metrics.commentsNote'), 'var(--teal)'),
-            metric(t('metrics.watchProgress'), counts.watchprogresses ?? 0, t('metrics.watchProgressNote'), 'var(--green)'),
-            metric(t('metrics.searchDocs'), counts.searchhistories ?? 0, t('metrics.searchDocsNote'), 'var(--amber)'),
-            metric(t('metrics.notifications'), counts.notifications ?? 0, t('metrics.notificationsNote'), 'var(--red)'),
-            metric(t('metrics.rooms'), (data.rooms || []).length, health.ok ? t('metrics.serverOnline') : t('metrics.serverOffline'), 'var(--ink)', true),
+            metric(t('metrics.users'), counts.users ?? 0, t('metrics.verified', { count: stats.verified_users ?? 0, banned: stats.banned_users ?? 0 }), 'var(--blue)', 'fas fa-user-astronaut'),
+            metric(t('metrics.sessions'), counts.sessions ?? 0, t('metrics.sessionsNote'), 'var(--cyan)', 'fas fa-shield-halved'),
+            metric(t('metrics.comments'), counts.comments ?? 0, t('metrics.commentsNote'), 'var(--amber)', 'fas fa-comments'),
+            metric(t('metrics.watchProgress'), counts.watchprogresses ?? 0, t('metrics.watchProgressNote'), 'var(--teal)', 'fas fa-bars-progress'),
+            metric(t('metrics.rooms'), (data.rooms || []).length, health.ok ? t('metrics.serverOnline') : t('metrics.serverOffline'), 'var(--cinema)', 'fas fa-tower-broadcast', (data.rooms || []).length > 0),
+            metric(t('metrics.arena'), arenaFighters, arenaNote, 'var(--green)', 'fas fa-cubes', arena.ok),
         ].join('');
+    }
+
+    function renderWeeklyChart(data) {
+        const days = data.mongo?.weekly_activity || [];
+        const stats = data.mongo?.stats || {};
+        const chartEl = document.getElementById('weeklyChart');
+        const growthEl = document.getElementById('weeklyGrowth');
+        if (!chartEl) return;
+
+        if (!days.length) {
+            chartEl.innerHTML = `<div class="text-muted small m-auto">${escapeHtml(t('chart.noData'))}</div>`;
+            return;
+        }
+
+        const maxVal = Math.max(1, ...days.map(d => d.total || 0));
+        chartEl.innerHTML = days.map(d => {
+            const pct = Math.max(8, Math.round(((d.total || 0) / maxVal) * 100));
+            const isPeak = d.total > 0 && d.total === maxVal;
+            const tooltip = t('chart.tooltip', { date: d.date, users: d.new_users, comments: d.comments, watches: d.watches });
+            const dayLabel = (d.label && t(`day.${d.label}`) !== `day.${d.label}`) ? t(`day.${d.label}`) : (d.label || '');
+            return `
+                <div class="chart-bar-col" title="${escapeHtml(tooltip)}">
+                    <div class="chart-bar ${isPeak ? 'peak' : ''}" style="height:${pct}%">
+                        <span class="bar-value">${d.total}</span>
+                    </div>
+                    <span class="chart-bar-label">${escapeHtml(dayLabel)}</span>
+                </div>
+            `;
+        }).join('');
+
+        if (growthEl) {
+            const g = Number(stats.weekly_growth_pct || 0);
+            const sign = g >= 0 ? '+' : '';
+            const color = g >= 0 ? 'var(--teal)' : 'var(--red)';
+            growthEl.innerHTML = `<strong style="color:${color}">${sign}${g}%</strong> <span class="text-muted">${escapeHtml(t('chart.weeklyEvents', { count: stats.weekly_total_events || 0 }))}</span>`;
+        }
+    }
+
+    function renderTrending(data) {
+        const list = data.mongo?.trending_media || [];
+        const panel = document.getElementById('trendingPanel');
+        if (!panel) return;
+
+        if (!list.length) {
+            panel.innerHTML = `<div class="text-muted py-4 text-center small">${escapeHtml(t('trending.noData'))}</div>`;
+            return;
+        }
+
+        const rankClasses = ['gold', 'silver', 'bronze', '', ''];
+        panel.innerHTML = list.map((item, idx) => {
+            const rawPoster = item.poster_path || '';
+            const posterUrl = rawPoster
+                ? (rawPoster.startsWith('http') ? rawPoster : `https://image.tmdb.org/t/p/w92${rawPoster}`)
+                : '';
+            const mediaType = item.isTVShow ? t('types.tv') : t('types.movie');
+            return `
+                <div class="trend-row">
+                    <span class="trend-rank ${rankClasses[idx] || ''}">${idx + 1}</span>
+                    ${posterUrl ? `<img src="${escapeHtml(posterUrl)}" loading="lazy" decoding="async" class="trend-poster" alt="" onerror="this.style.display='none'">` : `<div class="trend-poster d-grid place-items-center text-muted"><i class="fas fa-film"></i></div>`}
+                    <div class="trend-info">
+                        <div class="trend-title">${escapeHtml(item.title || `#${item._id}`)}</div>
+                        <div class="trend-meta">${escapeHtml(mediaType)} • ID: <span class="font-mono">${escapeHtml(item._id)}</span></div>
+                    </div>
+                    <span class="badge badge-soft font-mono">${escapeHtml(item.views || 0)} <i class="fas fa-eye ms-1" style="font-size:10px"></i></span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderArena(data) {
+        const arena = data.arena_health || {};
+        const panel = document.getElementById('arenaPanel');
+        if (!panel) return;
+
+        if (!arena.ok) {
+            panel.innerHTML = `
+                <div class="alert alert-warning mb-2">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>${escapeHtml(t('arena.offlineTitle'))}</span>
+                </div>
+                <div class="text-muted small">${escapeHtml(t('arena.offlineHint'))}</div>
+            `;
+            return;
+        }
+
+        const rooms = arena.rooms || [];
+        panel.innerHTML = rooms.map(r => `
+            <div class="border-bottom py-2">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div>
+                        <span class="badge bg-success bg-opacity-25 text-success font-mono me-1">${escapeHtml(r.id)}</span>
+                        <strong>${escapeHtml(r.title)}</strong>
+                    </div>
+                    <span class="badge badge-soft font-mono">${r.humans || 0} + ${r.bots || 0} / ${r.maxPlayers || 26}</span>
+                </div>
+                <div class="d-flex justify-content-between text-muted small mt-1">
+                    <span>${escapeHtml(t('arena.leaderLabel'))} <strong class="text-warning">${escapeHtml(r.leaderName || t('arena.none'))}</strong> (${r.topMass || 0} ${escapeHtml(t('arena.massUnit'))})</span>
+                    <span class="font-mono">${r.botsEnabled ? escapeHtml(t('arena.botsOn')) : escapeHtml(t('arena.botsOff'))}</span>
+                </div>
+            </div>
+        `).join('') || `<div class="text-muted small">${escapeHtml(t('arena.noRooms'))}</div>`;
     }
 
     function renderActivity(data) {
@@ -767,7 +1061,7 @@
                     <strong>${escapeHtml(row.title)}</strong>
                     <span class="badge badge-soft">${escapeHtml(row.type)}</span>
                 </div>
-                <div class="text-muted small">${escapeHtml(row.meta)}</div>
+                <div class="text-muted small font-mono">${escapeHtml(row.meta)}</div>
                 <div class="line-clamp small">${escapeHtml(row.body)}</div>
             </div>
         `).join('') : `<div class="text-muted">${escapeHtml(t('activity.noActivity'))}</div>`;
@@ -784,12 +1078,12 @@
             <div class="border-bottom py-2">
                 <div class="d-flex justify-content-between gap-2">
                     <strong>${escapeHtml(room.title || room.room_id)}</strong>
-                    <span class="badge badge-soft">${escapeHtml(room.member_count || 0)}/${escapeHtml(room.max_users || 0)}</span>
+                    <span class="badge badge-soft font-mono">${escapeHtml(room.member_count || 0)}/${escapeHtml(room.max_users || 0)}</span>
                 </div>
-                <div class="text-muted small">${escapeHtml(room.host_name || t('rooms.host'))} • ${escapeHtml(room.status || '-')}</div>
-                <div class="small">${escapeHtml(room.room_id)}</div>
+                <div class="text-muted small">${escapeHtml(room.host_name || t('rooms.host'))} • ${escapeHtml(room.status || 'active')}</div>
+                <div class="small font-mono text-muted">${escapeHtml(room.room_id)}</div>
             </div>
-        `).join('') : `<div class="text-muted">${escapeHtml(t('rooms.noRooms'))}</div>`;
+        `).join('') : `<div class="text-muted small py-3 text-center">${escapeHtml(t('rooms.noRooms'))}</div>`;
     }
 
     function setupTabs() {
@@ -811,61 +1105,92 @@
     function rowCells(row) {
         const id = row._id;
         if (state.collection === 'users') {
+            const statusBadges = [
+                row.isEmailVerified
+                    ? `<span class="badge bg-success bg-opacity-25 text-success">${escapeHtml(t('badges.verified'))}</span>`
+                    : `<span class="badge bg-warning bg-opacity-25 text-warning">${escapeHtml(t('badges.unverified'))}</span>`,
+                row.isBanned
+                    ? `<span class="badge bg-danger ms-1">${escapeHtml(t('badges.banned'))}</span>`
+                    : ''
+            ].join('');
             return [
-                shortId(id),
+                `<span class="font-mono">${shortId(id)}</span>`,
                 `<strong>${escapeHtml(row.name)}</strong><div class="text-muted small">${escapeHtml(row.email)}</div>`,
-                escapeHtml(row.authType || '-'),
-                row.isEmailVerified ? `<span class="badge text-bg-success">${escapeHtml(t('badges.verified'))}</span>` : `<span class="badge text-bg-warning">${escapeHtml(t('badges.unverified'))}</span>`,
-                t('table.watchlistCount', { count: (row.watchlist || []).length }),
+                `<span class="badge badge-soft font-mono">${escapeHtml(row.authType || 'email')}</span> ${row.username ? `<span class="text-muted small font-mono">@${escapeHtml(row.username)}</span>` : ''}`,
+                statusBadges,
+                `<span class="font-mono">${t('table.watchlistCount', { count: (row.watchlist || []).length })}</span>`,
                 `<a class="btn btn-outline-primary btn-sm" href="/dashboard/users/${id}/">${escapeHtml(t('actions.open'))}</a>`,
+            ];
+        }
+        if (state.collection === 'sessions') {
+            return [
+                `<span class="font-mono">${shortId(id)}</span>`,
+                `<a href="/dashboard/users/${escapeHtml(row.userId)}/" class="font-mono text-decoration-none">${shortId(row.userId)}</a>`,
+                escapeHtml(row.device || t('sessions.unknownDevice')),
+                `<span class="font-mono">${escapeHtml(row.ip || '-')}</span> <span class="text-muted small">(${escapeHtml(row.location || '-')})</span>`,
+                `<span class="font-mono small">${fmtDate(row.lastActive)}</span>`,
+                actionButtons(id, ['delete']),
             ];
         }
         if (state.collection === 'comments') {
             const hidden = !!row.isDeleted;
             return [
-                shortId(id),
+                `<span class="font-mono">${shortId(id)}</span>`,
                 `<div class="line-clamp">${escapeHtml(row.content)}</div>`,
-                `${escapeHtml(row.type || '-')} #${escapeHtml(row.movieId || '-')}`,
-                escapeHtml(row.likes || 0),
-                hidden ? `<span class="badge text-bg-secondary">${escapeHtml(t('badges.hidden'))}</span>` : `<span class="badge text-bg-success">${escapeHtml(t('badges.visible'))}</span>`,
+                `<span class="font-mono">${escapeHtml(row.type || '-')} #${escapeHtml(row.movieId || '-')}</span>`,
+                `<span class="font-mono">${escapeHtml(row.likes || 0)}</span>`,
+                hidden ? `<span class="badge bg-secondary">${escapeHtml(t('badges.hidden'))}</span>` : `<span class="badge bg-success bg-opacity-25 text-success">${escapeHtml(t('badges.visible'))}</span>`,
                 actionButtons(id, hidden ? ['restore', 'delete'] : ['hide', 'delete']),
             ];
         }
         if (state.collection === 'watchprogresses') {
             return [
-                shortId(id),
-                `<strong>${escapeHtml(row.title || row.contentId)}</strong><div class="text-muted small">${escapeHtml(row.contentId)}</div>`,
-                row.isTVShow ? `${t('types.tv')} S${row.season || '-'} E${row.episode || '-'}` : t('types.movie'),
-                `${Math.round(row.currentTime || 0)}s / ${Math.round(row.duration || 0)}s`,
-                fmtDate(row.lastWatched),
+                `<span class="font-mono">${shortId(id)}</span>`,
+                `<strong>${escapeHtml(row.title || row.contentId)}</strong><div class="text-muted small font-mono">ID: ${escapeHtml(row.contentId)}</div>`,
+                row.isTVShow ? `${t('types.tv')} S${row.season || '-'}E${row.episode || '-'}` : t('types.movie'),
+                `<span class="font-mono">${Math.round(row.currentTime || 0)}s / ${Math.round(row.duration || 0)}s</span>`,
+                `<span class="font-mono small">${fmtDate(row.lastWatched)}</span>`,
+                actionButtons(id, ['delete']),
+            ];
+        }
+        if (state.collection === 'streamhistories') {
+            return [
+                `<span class="font-mono">${shortId(id)}</span>`,
+                `<strong>${escapeHtml(row.movieTitle || row.movieId)}</strong>`,
+                `<span class="badge badge-soft">${escapeHtml(row.mediaType || 'movie')}</span>`,
+                escapeHtml(row.hostName || shortId(row.hostId)),
+                `<span class="font-mono small">${fmtDate(row.streamedAt)}</span>`,
                 actionButtons(id, ['delete']),
             ];
         }
         if (state.collection === 'searchhistories') {
             const history = row.history || [];
+            const queries = history.length
+                ? history.slice(-5).reverse().map(item => item.query || item)
+                : (row.queries || []).slice(0, 5);
             return [
-                shortId(id),
-                shortId(row.user_id),
-                t('table.queryCount', { count: history.length }),
-                `<div class="line-clamp">${escapeHtml(history.slice(0, 4).map(item => item.query).join(', '))}</div>`,
-                fmtDate(row.updated_at),
+                `<span class="font-mono">${shortId(id)}</span>`,
+                `<span class="font-mono">${shortId(row.user_id || row.userId)}</span>`,
+                `<span class="font-mono">${t('table.queryCount', { count: history.length || (row.queries || []).length })}</span>`,
+                `<div class="line-clamp">${escapeHtml(queries.join(', '))}</div>`,
+                `<span class="font-mono small">${fmtDate(row.updated_at || row.updatedAt)}</span>`,
                 actionButtons(id, ['delete']),
             ];
         }
         if (state.collection === 'notifications') {
             return [
-                shortId(id),
-                escapeHtml(row.type || '-'),
-                shortId(row.recipient),
-                row.read ? `<span class="badge text-bg-success">${escapeHtml(t('badges.read'))}</span>` : `<span class="badge text-bg-warning">${escapeHtml(t('badges.unread'))}</span>`,
-                fmtDate(row.createdAt),
+                `<span class="font-mono">${shortId(id)}</span>`,
+                `<span class="badge badge-soft font-mono">${escapeHtml(row.type || '-')}</span>`,
+                `<span class="font-mono">${shortId(row.recipient)}</span>`,
+                row.read ? `<span class="badge bg-success bg-opacity-25 text-success">${escapeHtml(t('badges.read'))}</span>` : `<span class="badge bg-warning bg-opacity-25 text-warning">${escapeHtml(t('badges.unread'))}</span>`,
+                `<span class="font-mono small">${fmtDate(row.createdAt)}</span>`,
                 actionButtons(id, row.read ? ['unread', 'delete'] : ['read', 'delete']),
             ];
         }
         return [
-            shortId(id),
-            fmtDate(row.createdAt || row.expiresAt),
-            `<div class="line-clamp">${escapeHtml(JSON.stringify(row))}</div>`,
+            `<span class="font-mono">${shortId(id)}</span>`,
+            `<span class="font-mono small">${fmtDate(row.createdAt || row.expiresAt)}</span>`,
+            `<div class="line-clamp font-mono small">${escapeHtml(JSON.stringify(row))}</div>`,
             '',
             '',
             actionButtons(id, ['delete']),
@@ -873,37 +1198,45 @@
     }
 
     function actionButtons(id, actions) {
-        return actions.map(action => {
+        const html = actions.map(action => {
             const styles = { delete: 'danger', hide: 'warning', restore: 'success', read: 'success', unread: 'secondary' };
-            return `<button class="btn btn-outline-${styles[action] || 'secondary'} btn-sm me-1" data-action="${action}" data-id="${id}">${escapeHtml(t(`actions.${action}`))}</button>`;
+            return `<button class="btn btn-outline-${styles[action] || 'secondary'} btn-sm" data-action="${action}" data-id="${id}">${escapeHtml(t(`actions.${action}`))}</button>`;
         }).join('');
+        return `<div class="table-actions">${html}</div>`;
     }
 
     function headers() {
         const map = {
             users: ['headers.id', 'headers.user', 'headers.auth', 'headers.email', 'headers.watchlist', 'headers.action'],
+            sessions: ['headers.id', 'headers.user', 'headers.device', 'headers.ipLocation', 'headers.lastActive', 'headers.action'],
             comments: ['headers.id', 'headers.content', 'headers.target', 'headers.likes', 'headers.state', 'headers.action'],
             watchprogresses: ['headers.id', 'headers.title', 'headers.type', 'headers.progress', 'headers.lastWatched', 'headers.action'],
+            streamhistories: ['headers.id', 'headers.title', 'headers.type', 'headers.host', 'headers.streamedAt', 'headers.action'],
             searchhistories: ['headers.id', 'headers.user', 'headers.count', 'headers.recentQueries', 'headers.updated', 'headers.action'],
             notifications: ['headers.id', 'headers.type', 'headers.recipient', 'headers.state', 'headers.created', 'headers.action'],
         };
-        return (map[state.collection] || ['headers.id', 'headers.created', 'headers.payload', '', '', 'headers.action']).map(key => key ? t(key) : '');
+        return (map[state.collection] || ['headers.id', 'headers.created', 'headers.payload', '', '', 'headers.action']).map(key => key.startsWith('headers.') ? t(key) : key);
     }
 
-    async function loadOverview() {
+    async function loadOverview(force = false) {
         document.getElementById('refreshButton').disabled = true;
         try {
-            const response = await fetch('{% url "admin_dashboard:api_overview" %}');
+            const url = '{% url "admin_dashboard:api_overview" %}' + (force ? '?refresh=1' : '');
+            const response = await fetch(url);
             const data = await response.json();
             state.overview = data;
             setStatus(document.getElementById('serverStatus'), data.server_health?.ok, t('status.server'), data.server_health?.ok ? t('status.online') : t('status.offline'));
             setStatus(document.getElementById('mongoStatus'), data.mongo?.enabled && !data.mongo?.error, t('status.mongo'), data.mongo?.error ? t('status.error') : t('status.online'));
+            setStatus(document.getElementById('arenaStatus'), data.arena_health?.ok, t('status.arena'), data.arena_health?.ok ? t('status.arenaOnline', { status: t('status.online'), count: data.arena_health.roomsCount || 1 }) : t('status.offline'));
             renderMetrics(data);
             renderActivity(data);
             renderRooms(data);
+            renderArena(data);
+            renderWeeklyChart(data);
+            renderTrending(data);
         } catch (error) {
             setStatus(document.getElementById('serverStatus'), false, t('status.server'), t('status.error'));
-            document.getElementById('metricsGrid').innerHTML = `<div class="alert alert-danger grid-column-1">${escapeHtml(t('messages.failedOverview', { message: error.message }))}</div>`;
+            document.getElementById('metricsGrid').innerHTML = `<div class="alert alert-danger" style="grid-column:1/-1">${escapeHtml(t('messages.failedOverview', { message: error.message }))}</div>`;
         } finally {
             document.getElementById('refreshButton').disabled = false;
         }
@@ -928,9 +1261,9 @@
         }
     }
 
-    async function runAction(collection, id, action) {
-        if (action === 'delete') {
-            confirmAction(t('messages.confirmDelete'), t('messages.confirmDelete'), () => runAction(collection, id, action));
+    async function runAction(collection, id, action, confirmed = false) {
+        if (action === 'delete' && !confirmed) {
+            confirmAction(t('actions.delete'), t('messages.confirmDelete'), () => runAction(collection, id, action, true));
             return;
         }
         const response = await fetch(`/dashboard/api/mongo/${collection}/${id}/${action}/`, {
@@ -942,10 +1275,11 @@
             showToast(data.error || t('messages.actionFailed'), 'error');
             return;
         }
-        await Promise.all([loadOverview(), loadCollection()]);
+        showToast(t('messages.updated'), 'success');
+        await Promise.all([loadOverview(true), loadCollection()]);
     }
 
-    document.getElementById('refreshButton').addEventListener('click', () => Promise.all([loadOverview(), loadCollection()]));
+    document.getElementById('refreshButton').addEventListener('click', () => Promise.all([loadOverview(true), loadCollection()]));
     document.getElementById('reloadCollection').addEventListener('click', loadCollection);
     document.getElementById('prevPage').addEventListener('click', () => { if (state.page > 1) { state.page--; loadCollection(); } });
     document.getElementById('nextPage').addEventListener('click', () => { state.page++; loadCollection(); });
@@ -957,31 +1291,25 @@
     document.addEventListener('admin:language-change', () => {
         setupTabs();
         if (state.overview) {
-            renderMetrics(state.overview);
-            renderActivity(state.overview);
-            renderRooms(state.overview);
-            setStatus(document.getElementById('serverStatus'), state.overview.server_health?.ok, t('status.server'), state.overview.server_health?.ok ? t('status.online') : t('status.offline'));
-            setStatus(document.getElementById('mongoStatus'), state.overview.mongo?.enabled && !state.overview.mongo?.error, t('status.mongo'), state.overview.mongo?.error ? t('status.error') : t('status.online'));
+            const data = state.overview;
+            setStatus(document.getElementById('serverStatus'), data.server_health?.ok, t('status.server'), data.server_health?.ok ? t('status.online') : t('status.offline'));
+            setStatus(document.getElementById('mongoStatus'), data.mongo?.enabled && !data.mongo?.error, t('status.mongo'), data.mongo?.error ? t('status.error') : t('status.online'));
+            setStatus(document.getElementById('arenaStatus'), data.arena_health?.ok, t('status.arena'), data.arena_health?.ok ? t('status.arenaOnline', { status: t('status.online'), count: data.arena_health.roomsCount || 1 }) : t('status.offline'));
+            renderMetrics(data);
+            renderActivity(data);
+            renderRooms(data);
+            renderArena(data);
+            renderWeeklyChart(data);
+            renderTrending(data);
         }
         loadCollection();
     });
 
-    // Lazy-load: overview loads immediately, Data Manager loads when scrolled into view
     setupTabs();
-    loadOverview();
-    setInterval(loadOverview, 15000);
-
-    const dataSection = document.querySelector('.ops-panel:has(#collectionTabs)') || document.getElementById('collectionTabs')?.closest('.ops-panel');
-    if (dataSection && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                loadCollection();
-                observer.disconnect();
-            }
-        }, { rootMargin: '200px' });
-        observer.observe(dataSection);
-    } else {
-        loadCollection();
-    }
+    loadOverview(false);
+    loadCollection();
+    setInterval(() => {
+        if (!document.hidden) loadOverview(false);
+    }, 60000);
 </script>
 {% endblock %}

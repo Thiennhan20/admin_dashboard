@@ -11,27 +11,35 @@
 </div>
 
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-flag me-2"></i><span data-i18n="nav.reports">Reports</span> ({{ total }})</h6>
-        <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?status='+this.value">
-            <option value="" data-i18n="rep.all_status">All Status</option>
-            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %} data-i18n="rep.status_pending">Pending</option>
-            <option value="reviewing" {% if status_filter == 'reviewing' %}selected{% endif %} data-i18n="rep.status_reviewing">Reviewing</option>
-            <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %} data-i18n="rep.status_resolved">Resolved</option>
-            <option value="dismissed" {% if status_filter == 'dismissed' %}selected{% endif %} data-i18n="rep.status_dismissed">Dismissed</option>
-        </select>
+        <div class="card-toolbar">
+            <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?status='+this.value">
+                <option value="" data-i18n="rep.all_status">All Status</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %} data-i18n="rep.status_pending">Pending</option>
+                <option value="reviewing" {% if status_filter == 'reviewing' %}selected{% endif %} data-i18n="rep.status_reviewing">Reviewing</option>
+                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %} data-i18n="rep.status_resolved">Resolved</option>
+                <option value="dismissed" {% if status_filter == 'dismissed' %}selected{% endif %} data-i18n="rep.status_dismissed">Dismissed</option>
+            </select>
+        </div>
     </div>
     <div class="card-body p-0">
         {% if reports %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="rep.col_reporter">Reporter</th><th data-i18n="rep.col_target">Target</th><th data-i18n="rep.col_reason">Reason</th><th data-i18n="rep.col_status">Status</th><th data-i18n="rep.col_date">Date</th><th data-i18n="rep.col_actions">Actions</th></tr></thead>
+            <thead><tr><th data-i18n="rep.col_reporter">Reporter</th><th data-i18n="rep.col_target">Target</th><th data-i18n="rep.col_reason">Reason</th><th data-i18n="rep.col_status">Status</th><th data-i18n="rep.col_date">Date</th><th class="text-end" data-i18n="rep.col_actions">Actions</th></tr></thead>
             <tbody>{% for r in reports %}<tr>
                 <td><small>{{ r.reporter_name|default:r.reporter_id|truncatechars:15 }}</small></td>
-                <td><span class="badge bg-secondary">{{ r.target_type }}</span> <code class="small">{{ r.target_id|truncatechars:12 }}</code></td>
+                <td><span class="badge bg-secondary" data-i18n="rep.target_{{ r.target_type }}">{{ r.target_type }}</span> <code class="small">{{ r.target_id|truncatechars:12 }}</code></td>
                 <td><small>{{ r.reason|truncatechars:50 }}</small></td>
-                <td><span class="badge bg-{% if r.status == 'pending' %}warning{% elif r.status == 'reviewing' %}info{% elif r.status == 'resolved' %}success{% else %}secondary{% endif %}">{{ r.status }}</span></td>
-                <td><small class="text-muted">{{ r.created_at|timesince }} ago</small></td>
-                <td>{% if r.status == 'pending' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="reviewing"><button class="btn btn-sm btn-outline-info" title="Start Review"><i class="fas fa-eye"></i></button></form>{% endif %}{% if r.status != 'resolved' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="resolved"><button class="btn btn-sm btn-outline-success" title="Resolve"><i class="fas fa-check"></i></button></form>{% endif %}{% if r.status != 'dismissed' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="dismissed"><button class="btn btn-sm btn-outline-secondary" title="Dismiss"><i class="fas fa-times"></i></button></form>{% endif %}</td>
+                <td><span class="badge bg-{% if r.status == 'pending' %}warning text-dark{% elif r.status == 'reviewing' %}info text-dark{% elif r.status == 'resolved' %}success{% else %}secondary{% endif %}" data-i18n="rep.status_{{ r.status }}">{{ r.status }}</span></td>
+                <td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ r.created_at|timesince }}" data-with-ago="1">{{ r.created_at|timesince }} ago</span></small></td>
+                <td class="text-end">
+                    <div class="table-actions">
+                        {% if r.status == 'pending' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="reviewing"><button class="btn btn-sm btn-outline-info btn-action-icon" title="Start Review" data-i18n-title="rep.btn_review"><i class="fas fa-eye"></i></button></form>{% endif %}
+                        {% if r.status != 'resolved' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="resolved"><button class="btn btn-sm btn-outline-success btn-action-icon" title="Resolve" data-i18n-title="rep.btn_resolve"><i class="fas fa-check"></i></button></form>{% endif %}
+                        {% if r.status != 'dismissed' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="dismissed"><button class="btn btn-sm btn-outline-secondary btn-action-icon" title="Dismiss" data-i18n-title="rep.btn_dismiss"><i class="fas fa-times"></i></button></form>{% endif %}
+                    </div>
+                </td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-flag fa-3x mb-3 d-block opacity-25"></i><span data-i18n="rep.no_reports">No reports.</span></div>{% endif %}
@@ -55,7 +63,16 @@ window.AdminUI.addTranslations({
         'rep.col_status': 'Status',
         'rep.col_date': 'Date',
         'rep.col_actions': 'Actions',
-        'rep.no_reports': 'No reports.'
+        'rep.no_reports': 'No reports.',
+        'rep.btn_review': 'Start Review',
+        'rep.btn_resolve': 'Resolve',
+        'rep.btn_dismiss': 'Dismiss',
+        'rep.target_comment': 'Comment',
+        'rep.target_user': 'User',
+        'rep.target_room': 'Watch Room',
+        'rep.target_movie': 'Movie',
+        'rep.target_tv': 'TV Show',
+        'rep.target_tvshow': 'TV Show'
     },
     vi: {
         'rep.status_pending': 'Đang chờ duyệt',
@@ -69,7 +86,16 @@ window.AdminUI.addTranslations({
         'rep.col_status': 'Trạng thái',
         'rep.col_date': 'Thời gian',
         'rep.col_actions': 'Thao tác',
-        'rep.no_reports': 'Chưa có báo cáo vi phạm nào.'
+        'rep.no_reports': 'Chưa có báo cáo vi phạm nào.',
+        'rep.btn_review': 'Bắt đầu xử lý',
+        'rep.btn_resolve': 'Đánh dấu đã giải quyết',
+        'rep.btn_dismiss': 'Bỏ qua',
+        'rep.target_comment': 'Bình luận',
+        'rep.target_user': 'Người dùng',
+        'rep.target_room': 'Phòng xem',
+        'rep.target_movie': 'Phim lẻ',
+        'rep.target_tv': 'Phim bộ',
+        'rep.target_tvshow': 'Phim bộ'
     }
 });
 </script>

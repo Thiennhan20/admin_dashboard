@@ -9,13 +9,13 @@
 <div class="row g-3 mb-4">
     <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-danger">{{ stats.error|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_error">Errors</small></div></div></div>
     <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-warning">{{ stats.warning|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_warning">Warnings</small></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1" style="color:var(--red);" data-i18n="err.level_critical">Critical</h3><small class="text-muted">Critical</small></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1" style="color:var(--red);">{{ stats.critical|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_critical">Critical</small></div></div></div>
 </div>
 
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-bug me-2"></i><span data-i18n="nav.errorLogs">Error Logs</span> ({{ total }})</h6>
-        <div class="d-flex gap-2">
+        <div class="card-toolbar">
             <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?level='+this.value}">
                 <option value="" data-i18n="err.all_levels">All Levels</option>
                 <option value="error" {% if level == 'error' %}selected{% endif %} data-i18n="err.level_error">Error</option>
@@ -32,12 +32,12 @@
             <tbody>
                 {% for log in logs %}
                 <tr style="cursor:pointer;" onclick="this.nextElementSibling?.classList.toggle('d-none')">
-                    <td><span class="badge bg-{% if log.level == 'critical' %}danger{% elif log.level == 'warning' %}warning{% else %}secondary{% endif %}">{{ log.level }}</span></td>
+                    <td><span class="badge bg-{% if log.level == 'critical' %}danger{% elif log.level == 'warning' %}warning text-dark{% else %}secondary{% endif %}" data-i18n="err.level_{{ log.level }}">{{ log.level }}</span></td>
                     <td><small>{{ log.message|truncatechars:80 }}</small></td>
                     <td><code class="small">{{ log.request_method }} {{ log.request_path|truncatechars:30 }}</code></td>
-                    <td><small class="text-muted">{{ log.timestamp|timesince }} ago</small></td>
+                    <td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ log.timestamp|timesince }}" data-with-ago="1">{{ log.timestamp|timesince }} ago</span></small></td>
                 </tr>
-                <tr class="d-none"><td colspan="4"><pre class="mb-0 small p-2 rounded" style="background:var(--control-hover);color:var(--ink);max-height:200px;overflow:auto;white-space:pre-wrap;">{{ log.traceback_text|default:"No traceback" }}</pre></td></tr>
+                <tr class="d-none"><td colspan="4"><pre class="mb-0 small p-2 rounded" style="background:var(--control-hover);color:var(--ink);max-height:200px;overflow:auto;white-space:pre-wrap;">{{ log.traceback_text|default:"—" }}</pre></td></tr>
                 {% endfor %}
             </tbody>
         </table></div>

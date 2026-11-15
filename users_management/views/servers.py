@@ -1,14 +1,19 @@
+import os
 import re
+import sys
 import time
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import requests
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
-from users_management.services import mongo_admin
+from users_management.decorators import require_permission
+from users_management.services import mongo_admin, parallel_run, cached_swr
+from users_management.views_legacy import check_admin_access
 
 # Default VidSrc settings state
 DEFAULT_VIDSRC_SETTINGS = {
@@ -149,8 +154,16 @@ def fetch_and_scan_vidsrc_domains():
                 'latency': latency
             }
 
-    active_results = [check_health(d) for d in group_active]
-    old_results = [check_health(d) for d in group_old]
+    # Probe active and historical candidates concurrently instead of sequentially
+    candidates = list(group_active) + list(group_old)
+    if candidates:
+        with ThreadPoolExecutor(max_workers=min(8, len(candidates))) as pool:
+            probed = list(pool.map(check_health, candidates))
+    else:
+        probed = []
+    split_at = len(group_active)
+    active_results = probed[:split_at]
+    old_results = probed[split_at:]
     dead_results = [{'url': d, 'ok': False, 'status': 'Dead', 'error': 'Reported dead by vidsrc.domains', 'latency': 0} for d in group_dead]
 
     # Find best active domain and backup domains sorted by latency
@@ -172,34 +185,183 @@ def fetch_and_scan_vidsrc_domains():
     return {'ok': True, 'data': scraped_data}
 
 
+def _probe_single_clusters():
+    """Probe KKPhim, VidSrc, and NguonC streaming clusters concurrently."""
+    ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36'
+
+    def _probe_s1():
+        t0 = time.time()
+        try:
+            r1 = requests.get('https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=1', headers={'User-Agent': ua}, timeout=4)
+            lat1 = int((time.time() - t0) * 1000)
+            items1 = len((r1.json() or {}).get('items', [])) if r1.ok else 0
+            return {
+                'name': 'KKPhim / PhimAPI',
+                'endpoint': 'https://phimapi.com',
+                'protocol': 'HLS Stream (M3U8)',
+                'quality': 'Full HD 1080p • Vietsub/Thuyết Minh',
+                'ok': r1.ok,
+                'status': r1.status_code,
+                'latency': lat1,
+                'items_sample': items1,
+            }
+        except Exception as exc:
+            return {
+                'name': 'KKPhim / PhimAPI',
+                'endpoint': 'https://phimapi.com',
+                'protocol': 'HLS Stream (M3U8)',
+                'quality': 'Full HD 1080p',
+                'ok': False,
+                'status': 'ERR',
+                'latency': int((time.time() - t0) * 1000),
+                'error': str(exc),
+            }
+
+    def _probe_s2():
+        vidsrc_cfg = get_vidsrc_settings()
+        active_dom = (vidsrc_cfg.get('active_domain') or 'https://vidsrc.xyz').rstrip('/')
+        t1 = time.time()
+        try:
+            r2 = requests.get(active_dom, headers={'User-Agent': ua}, timeout=4)
+            lat2 = int((time.time() - t1) * 1000)
+            return {
+                'name': 'VidSrc Global CDN',
+                'endpoint': active_dom,
+                'protocol': 'HLS / Auto-Domain Failover',
+                'quality': '1080p Multi-Audio / Subtitles',
+                'ok': r2.status_code < 500,
+                'status': r2.status_code,
+                'latency': lat2,
+                'backup_count': len(vidsrc_cfg.get('backup_domains', [])),
+            }
+        except Exception as exc:
+            return {
+                'name': 'VidSrc Global CDN',
+                'endpoint': active_dom,
+                'protocol': 'HLS / Auto-Domain Failover',
+                'quality': '1080p Multi-Audio',
+                'ok': False,
+                'status': 'ERR',
+                'latency': int((time.time() - t1) * 1000),
+                'error': str(exc),
+            }
+
+    def _probe_s3():
+        t2 = time.time()
+        try:
+            r3 = requests.get('https://ophim17.cc/v1/api/home', headers={'User-Agent': ua}, timeout=4)
+            lat3 = int((time.time() - t2) * 1000)
+            return {
+                'name': 'NguonC / OPhim Backup',
+                'endpoint': 'https://ophim17.cc',
+                'protocol': 'HLS / Embed Hybrid',
+                'quality': 'HD 720p / 1080p',
+                'ok': r3.ok,
+                'status': r3.status_code,
+                'latency': lat3,
+            }
+        except Exception as exc:
+            return {
+                'name': 'NguonC / OPhim Backup',
+                'endpoint': 'https://ophim17.cc',
+                'protocol': 'HLS / Embed Hybrid',
+                'quality': 'HD 720p / 1080p',
+                'ok': False,
+                'status': 'ERR',
+                'latency': int((time.time() - t2) * 1000),
+                'error': str(exc),
+            }
+
+    return parallel_run({
+        'server1': _probe_s1,
+        'server2': _probe_s2,
+        'server3': _probe_s3,
+    }, max_workers=3)
+
+
+def probe_streaming_clusters(force=False):
+    """Live health & latency probe for Server 1 (KKPhim), Server 2 (VidSrc), and Server 3 (NguonC/OPhim)."""
+    return cached_swr(
+        'streaming_clusters_probe_v1',
+        fresh_ttl=45,
+        stale_ttl=300,
+        fetcher=_probe_single_clusters,
+        force=force,
+    )
+
+
+_vidsrc_bg_lock = threading.Lock()
+
+
+def _run_and_persist_vidsrc_scan():
+    """Run VidSrc domain scan and save settings while holding _vidsrc_bg_lock."""
+    if not _vidsrc_bg_lock.acquire(blocking=False):
+        return None
+    try:
+        config = get_vidsrc_settings()
+        scan_res = fetch_and_scan_vidsrc_domains()
+        if scan_res.get('ok'):
+            data = scan_res['data']
+            if config.get('auto_update', True) and data.get('best_domain'):
+                config['active_domain'] = data['best_domain']
+                config['backup_domains'] = data.get('backup_domains', [])
+            config['last_scraped'] = data['scraped_at']
+            config['scraped_domains'] = data
+            save_vidsrc_settings(config)
+        return scan_res
+    finally:
+        _vidsrc_bg_lock.release()
+
+
+def _trigger_vidsrc_scan_async():
+    """Kick off a non-blocking VidSrc domain scan in a daemon thread if one isn't running."""
+    if _vidsrc_bg_lock.locked():
+        return
+
+    def _run():
+        try:
+            _run_and_persist_vidsrc_scan()
+        except Exception:
+            pass
+
+    threading.Thread(target=_run, daemon=True, name='VidSrcOnDemandScan').start()
+
+
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('servers.view')
 def server_management(request):
     vidsrc_config = get_vidsrc_settings()
     scraped_data = vidsrc_config.get('scraped_domains', {})
     scraped_ts = scraped_data.get('scraped_timestamp', 0) if isinstance(scraped_data, dict) else 0
     SCAN_INTERVAL = 20 * 60  # 20 minutes
 
-    # Auto-scan if no data or if 20 minutes passed since last scan
+    # Trigger background refresh if stale instead of blocking page load
     if not scraped_data or (time.time() - scraped_ts > SCAN_INTERVAL):
-        scan_res = fetch_and_scan_vidsrc_domains()
-        if scan_res.get('ok'):
-            data = scan_res['data']
-            if vidsrc_config.get('auto_update', True):
-                vidsrc_config['active_domain'] = data['best_domain']
-                vidsrc_config['backup_domains'] = data.get('backup_domains', [])
-            vidsrc_config['last_scraped'] = data['scraped_at']
-            vidsrc_config['scraped_domains'] = data
-            save_vidsrc_settings(vidsrc_config)
+        _trigger_vidsrc_scan_async()
 
+    clusters = probe_streaming_clusters(force=request.GET.get('refresh') == '1')
     context = {
         'vidsrc_config': vidsrc_config,
         'vidsrc_config_json': json.dumps(vidsrc_config.get('scraped_domains', {})),
+        'clusters': clusters,
         'active_tab': 'servers'
     }
     return render(request, 'admin_dashboard/servers/servers.html', context)
 
 
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('servers.view')
+@require_GET
+def api_servers_probe(request):
+    """API endpoint to live-ping all 3 streaming servers (KKPhim, VidSrc, NguonC)."""
+    return JsonResponse({'ok': True, 'clusters': probe_streaming_clusters(force=True), 'probed_at': time.strftime('%H:%M:%S')})
+
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('servers.edit')
 @require_GET
 def api_vidsrc_scan(request):
     res = fetch_and_scan_vidsrc_domains()
@@ -222,6 +384,8 @@ def api_vidsrc_scan(request):
 
 
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('servers.edit')
 @require_POST
 def api_vidsrc_select(request):
     domain = request.POST.get('domain')
@@ -235,6 +399,8 @@ def api_vidsrc_select(request):
 
 
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('servers.edit')
 @require_POST
 def api_vidsrc_toggle_auto(request):
     auto = request.POST.get('auto') == 'true'
@@ -261,15 +427,7 @@ def start_vidsrc_cron_thread():
             scraped_data = config.get('scraped_domains', {})
             scraped_ts = scraped_data.get('scraped_timestamp', 0) if isinstance(scraped_data, dict) else 0
             if not scraped_data or (time.time() - scraped_ts > SCAN_INTERVAL):
-                res = fetch_and_scan_vidsrc_domains()
-                if res.get('ok'):
-                    data = res['data']
-                    if config.get('auto_update', True):
-                        config['active_domain'] = data['best_domain']
-                        config['backup_domains'] = data.get('backup_domains', [])
-                    config['last_scraped'] = data['scraped_at']
-                    config['scraped_domains'] = data
-                    save_vidsrc_settings(config)
+                _run_and_persist_vidsrc_scan()
         except Exception as e:
             print("VidSrc initial cron scan error:", e)
 
@@ -277,20 +435,13 @@ def start_vidsrc_cron_thread():
         while True:
             time.sleep(SCAN_INTERVAL)
             try:
-                config = get_vidsrc_settings()
-                res = fetch_and_scan_vidsrc_domains()
-                if res.get('ok'):
-                    data = res['data']
-                    if config.get('auto_update', True):
-                        config['active_domain'] = data['best_domain']
-                        config['backup_domains'] = data.get('backup_domains', [])
-                    config['last_scraped'] = data['scraped_at']
-                    config['scraped_domains'] = data
-                    save_vidsrc_settings(config)
+                _run_and_persist_vidsrc_scan()
             except Exception as e:
                 print("VidSrc recurring cron scan error:", e)
 
     t = threading.Thread(target=loop, daemon=True, name="VidSrcCronThread")
     t.start()
 
-start_vidsrc_cron_thread()
+# Only start background cron in active server processes, not management commands like migrate/check
+if not any(cmd in sys.argv for cmd in ('migrate', 'makemigrations', 'collectstatic', 'check', 'test', 'shell')):
+    start_vidsrc_cron_thread()

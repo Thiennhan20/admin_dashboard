@@ -1,0 +1,454 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static admin_tags %}
+
+{% block title %}Push Devices - Admin Panel{% endblock %}
+{% block page_title %}Push Devices{% endblock %}
+{% block page_i18n_key %}nav.push_devices{% endblock %}
+
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+{% has_perm 'push_devices.edit' as can_edit_push %}
+{% has_perm 'push_devices.delete' as can_delete_push %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h5 class="mb-1"><i class="fas fa-mobile-screen-button text-success me-2"></i><span data-i18n="pd.title">Expo Push Devices</span></h5>
+        <p class="text-muted small mb-0" data-i18n="pd.subtitle">Manage registered Expo Push tokens (db.users.pushTokens), run test pushes, and auto-prune invalid tokens.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'admin_dashboard:notifications' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-bell me-1"></i><span data-i18n="pd.backNotifs">Broadcasts</span>
+        </a>
+        {% if can_delete_push and stats.malformed_count > 0 %}
+        <button type="button" class="btn btn-outline-warning btn-sm" onclick="removeMalformedTokens()">
+            <i class="fas fa-broom me-1"></i><span data-i18n="pd.pruneMalformed">Clean Malformed</span> ({{ stats.malformed_count }})
+        </button>
+        {% endif %}
+        {% if can_edit_push %}
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openTestPushModalSelected()" id="btnTestSelected" disabled>
+            <i class="fas fa-paper-plane me-1"></i><span data-i18n="pd.testSelected">Test Selected</span>
+        </button>
+        {% endif %}
+        {% if can_delete_push %}
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSelectedDevices()" id="btnRemoveSelected" disabled>
+            <i class="fas fa-trash me-1"></i><span data-i18n="pd.removeSelected">Remove Selected</span>
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger mb-4"><i class="fas fa-triangle-exclamation me-2"></i>{{ error }}</div>
+{% endif %}
+
+<!-- KPI Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="pd.statUsers">Users With Push</div>
+                <div class="fs-3 fw-bold text-primary mt-1">{{ stats.users_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="pd.statTokens">Total Push Tokens</div>
+                <div class="fs-3 fw-bold text-success mt-1">{{ stats.tokens_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="pd.statMalformed">Malformed Tokens</div>
+                <div class="fs-3 fw-bold {% if stats.malformed_count %}text-warning{% else %}text-muted{% endif %} mt-1">{{ stats.malformed_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="pd.statLockedUsers">Locked Users</div>
+                <div class="fs-3 fw-bold text-danger mt-1">{{ stats.locked_users|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="filter-stack">
+            <div class="filter-search-row">
+                <div class="filter-field">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" name="search" value="{{ search }}"
+                               placeholder="Search user name, email, or ExponentPushToken..."
+                               data-i18n-placeholder="pd.searchPlaceholder">
+                    </div>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary filter-action-btn">
+                        <i class="fas fa-search"></i><span data-i18n="common.btn_search">Search</span>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-controls-row">
+                <div class="filter-dropdowns filter-dropdowns--2">
+                    <div class="filter-field">
+                        <select class="form-select" name="format">
+                            <option value="" {% if not format_filter %}selected{% endif %} data-i18n="pd.formatAll">All Token Formats</option>
+                            <option value="valid" {% if format_filter == 'valid' %}selected{% endif %} data-i18n="pd.formatValid">Valid Expo Format</option>
+                            <option value="invalid" {% if format_filter == 'invalid' %}selected{% endif %} data-i18n="pd.formatInvalid">Malformed / Unknown</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <select class="form-select" name="user_status">
+                            <option value="" {% if not user_status %}selected{% endif %} data-i18n="pd.userAll">All User Statuses</option>
+                            <option value="active" {% if user_status == 'active' %}selected{% endif %} data-i18n="pd.userActive">Active Users</option>
+                            <option value="locked" {% if user_status == 'locked' %}selected{% endif %} data-i18n="pd.userLocked">Locked Users</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <a href="{% url 'admin_dashboard:push_devices' %}" class="btn btn-outline-secondary filter-action-btn">
+                        <i class="fas fa-rotate-left"></i><span data-i18n="common.btn_clear">Clear</span>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-list me-2"></i><span data-i18n="pd.listTitle">Registered Devices</span> ({{ total }})</h6>
+        <small class="text-muted"><span data-i18n="pd.pageLabel">Page</span> {{ page }} / {{ total_pages }}</small>
+    </div>
+    <div class="card-body p-0">
+        {% if devices %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"><input type="checkbox" class="form-check-input" id="selectAllDevices"></th>
+                        <th data-i18n="pd.colUser">User</th>
+                        <th data-i18n="pd.colToken">Expo Push Token</th>
+                        <th data-i18n="pd.colFormat">Format</th>
+                        <th data-i18n="pd.colUpdated">User Updated</th>
+                        <th class="text-end" data-i18n="pd.colActions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in devices %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input device-checkbox"
+                                   data-user-id="{{ d.user_id }}"
+                                   data-token="{{ d.token }}">
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ d.user_name }}</div>
+                            <small class="text-muted">{{ d.user_email }}</small>
+                            {% if d.is_locked %}<span class="badge bg-danger ms-1" data-i18n="pd.badgeLocked">Locked</span>{% endif %}
+                        </td>
+                        <td>
+                            <code class="small user-select-all">{{ d.token|truncatechars:46 }}</code>
+                        </td>
+                        <td>
+                            {% if d.is_valid_format %}
+                                <span class="badge bg-success-subtle text-success"><i class="fas fa-check me-1"></i><span data-i18n="pd.badgeValid">Valid Expo</span></span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning"><i class="fas fa-triangle-exclamation me-1"></i><span data-i18n="pd.badgeMalformed">Malformed</span></span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ d.updatedAt|default:"-" }}</small></td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                {% if can_edit_push %}
+                                <button type="button" class="btn btn-outline-primary" title="Send Test Push" data-i18n-title="pd.btnSendTest"
+                                        onclick="openTestPushModal('{{ d.token|escapejs }}')">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                                {% endif %}
+                                {% if can_delete_push %}
+                                <button type="button" class="btn btn-outline-danger" title="Remove Token" data-i18n-title="pd.btnRemoveToken"
+                                        onclick="removeSingleDevice('{{ d.user_id|escapejs }}', '{{ d.token|escapejs }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-mobile-screen-button fa-3x mb-3 opacity-50"></i>
+            <p class="mb-0" data-i18n="pd.empty">No Expo Push tokens match your filters.</p>
+        </div>
+        {% endif %}
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer">
+        {% include 'admin_dashboard/includes/pagination.html' %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Test Push Modal -->
+<div class="modal fade" id="testPushModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-paper-plane me-2 text-primary"></i><span data-i18n="pd.modalTitle">Send Test Expo Push</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" data-i18n="pd.modalTokensLabel">Target Tokens</label>
+                    <textarea class="form-control form-control-sm font-monospace" id="testPushTokens" rows="2" readonly></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" data-i18n="pd.modalTitleLabel">Title</label>
+                    <input type="text" class="form-control" id="testPushTitle" value="ENTN Admin Test Push">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" data-i18n="pd.modalBodyLabel">Message</label>
+                    <textarea class="form-control" id="testPushBody" rows="3">Test push notification from Admin Panel.</textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="pd.btnClose">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitTestPush()"><i class="fas fa-paper-plane me-1"></i><span data-i18n="pd.btnSubmitTest">Send Test</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'pd.title': 'Expo Push Devices',
+        'pd.subtitle': 'Manage registered Expo Push tokens, run test pushes, and prune invalid tokens.',
+        'pd.backNotifs': 'Broadcasts',
+        'pd.pruneMalformed': 'Clean Malformed',
+        'pd.testSelected': 'Test Selected',
+        'pd.removeSelected': 'Remove Selected',
+        'pd.statUsers': 'Users With Push',
+        'pd.statTokens': 'Total Push Tokens',
+        'pd.statMalformed': 'Malformed Tokens',
+        'pd.statLockedUsers': 'Locked Users',
+        'pd.searchPlaceholder': 'Search user name, email, or Expo push token...',
+        'pd.formatAll': 'All Token Formats',
+        'pd.formatValid': 'Valid Expo Format',
+        'pd.formatInvalid': 'Malformed / Unknown',
+        'pd.userAll': 'All User Statuses',
+        'pd.userActive': 'Active Users',
+        'pd.userLocked': 'Locked Users',
+        'pd.listTitle': 'Registered Devices',
+        'pd.pageLabel': 'Page',
+        'pd.colUser': 'User',
+        'pd.colToken': 'Expo Push Token',
+        'pd.colFormat': 'Format',
+        'pd.colUpdated': 'User Updated',
+        'pd.colActions': 'Actions',
+        'pd.badgeLocked': 'Locked',
+        'pd.badgeValid': 'Valid Expo',
+        'pd.badgeMalformed': 'Malformed',
+        'pd.btnSendTest': 'Send Test Push',
+        'pd.btnRemoveToken': 'Remove Token',
+        'pd.empty': 'No Expo Push tokens match your filters.',
+        'pd.modalTitle': 'Send Test Expo Push',
+        'pd.modalTokensLabel': 'Target Tokens',
+        'pd.modalTitleLabel': 'Title',
+        'pd.modalBodyLabel': 'Message',
+        'pd.btnClose': 'Close',
+        'pd.btnSubmitTest': 'Send Test',
+        'pd.defaultTestTitle': 'ENTN Test Push',
+        'pd.defaultTestBody': 'Test push notification from Admin Panel.',
+        'pd.testResult': 'Sent: {sent}/{attempted}. Pruned invalid tokens: {pruned}.',
+        'pd.testNote': 'Note: {error}',
+        'pd.testFailed': 'Failed to send test push',
+        'pd.confirmRemoveOneTitle': 'Remove Device Token',
+        'pd.confirmRemoveOneBody': 'Remove this Expo push token from the user?',
+        'pd.confirmRemoveSelectedTitle': 'Remove Selected Tokens',
+        'pd.confirmRemoveSelectedBody': 'Remove {count} selected push token(s)?',
+        'pd.confirmRemoveMalformedTitle': 'Prune Malformed Tokens',
+        'pd.confirmRemoveMalformedBody': 'Remove all malformed push tokens across all users?',
+        'pd.errorRemove': 'Error removing token'
+    },
+    vi: {
+        'pd.title': 'Thiết bị nhận thông báo Expo',
+        'pd.subtitle': 'Quản lý mã đẩy Expo đã đăng ký, gửi thử nghiệm và dọn dẹp các mã không hợp lệ.',
+        'pd.backNotifs': 'Phát thông báo',
+        'pd.pruneMalformed': 'Dọn mã lỗi định dạng',
+        'pd.testSelected': 'Gửi thử đã chọn',
+        'pd.removeSelected': 'Xóa đã chọn',
+        'pd.statUsers': 'Người dùng có thiết bị',
+        'pd.statTokens': 'Tổng mã thiết bị',
+        'pd.statMalformed': 'Mã sai định dạng',
+        'pd.statLockedUsers': 'Người dùng bị khóa',
+        'pd.searchPlaceholder': 'Tìm theo tên, email hoặc mã đẩy Expo...',
+        'pd.formatAll': 'Tất cả định dạng mã',
+        'pd.formatValid': 'Định dạng Expo hợp lệ',
+        'pd.formatInvalid': 'Sai định dạng / Lỗi',
+        'pd.userAll': 'Tất cả trạng thái người dùng',
+        'pd.userActive': 'Đang hoạt động',
+        'pd.userLocked': 'Đã bị khóa',
+        'pd.listTitle': 'Danh sách thiết bị',
+        'pd.pageLabel': 'Trang',
+        'pd.colUser': 'Người dùng',
+        'pd.colToken': 'Mã đẩy Expo',
+        'pd.colFormat': 'Định dạng',
+        'pd.colUpdated': 'Cập nhật cuối',
+        'pd.colActions': 'Thao tác',
+        'pd.badgeLocked': 'Đã khóa',
+        'pd.badgeValid': 'Expo hợp lệ',
+        'pd.badgeMalformed': 'Sai định dạng',
+        'pd.btnSendTest': 'Gửi thử thông báo đẩy',
+        'pd.btnRemoveToken': 'Xóa mã thiết bị',
+        'pd.empty': 'Không có thiết bị nhận thông báo nào khớp bộ lọc.',
+        'pd.modalTitle': 'Gửi thử thông báo Expo',
+        'pd.modalTokensLabel': 'Mã thiết bị đích',
+        'pd.modalTitleLabel': 'Tiêu đề',
+        'pd.modalBodyLabel': 'Nội dung',
+        'pd.btnClose': 'Đóng',
+        'pd.btnSubmitTest': 'Gửi thử',
+        'pd.defaultTestTitle': 'Thông báo thử từ ENTN',
+        'pd.defaultTestBody': 'Đây là thông báo đẩy thử nghiệm từ trang quản trị.',
+        'pd.testResult': 'Đã gửi: {sent}/{attempted}. Tự động dọn mã hỏng: {pruned}.',
+        'pd.testNote': 'Ghi chú: {error}',
+        'pd.testFailed': 'Gửi thử thông báo thất bại',
+        'pd.confirmRemoveOneTitle': 'Xóa mã thiết bị',
+        'pd.confirmRemoveOneBody': 'Gỡ mã đẩy Expo này khỏi tài khoản người dùng?',
+        'pd.confirmRemoveSelectedTitle': 'Xóa các mã đã chọn',
+        'pd.confirmRemoveSelectedBody': 'Xóa {count} mã đẩy đã chọn?',
+        'pd.confirmRemoveMalformedTitle': 'Dọn mã sai định dạng',
+        'pd.confirmRemoveMalformedBody': 'Xóa toàn bộ mã đẩy không đúng định dạng Expo khỏi tất cả người dùng?',
+        'pd.errorRemove': 'Lỗi khi xóa mã thiết bị'
+    }
+});
+
+function syncTestPushDefaults() {
+    var titleEl = document.getElementById('testPushTitle');
+    var bodyEl = document.getElementById('testPushBody');
+    if (titleEl && !titleEl.dataset.edited) titleEl.value = t('pd.defaultTestTitle');
+    if (bodyEl && !bodyEl.dataset.edited) bodyEl.value = t('pd.defaultTestBody');
+}
+
+function getSelectedDevices() {
+    return Array.from(document.querySelectorAll('.device-checkbox:checked')).map(function(cb) {
+        return { user_id: cb.dataset.userId, token: cb.dataset.token };
+    });
+}
+
+function updateDeviceBulkButtons() {
+    var count = getSelectedDevices().length;
+    var btnTest = document.getElementById('btnTestSelected');
+    var btnRem = document.getElementById('btnRemoveSelected');
+    if (btnTest) btnTest.disabled = count === 0;
+    if (btnRem) btnRem.disabled = count === 0;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    syncTestPushDefaults();
+    ['testPushTitle', 'testPushBody'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() { el.dataset.edited = '1'; });
+    });
+    var selectAll = document.getElementById('selectAllDevices');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.device-checkbox').forEach(function(cb) { cb.checked = selectAll.checked; });
+            updateDeviceBulkButtons();
+        });
+    }
+    document.querySelectorAll('.device-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', updateDeviceBulkButtons);
+    });
+});
+window.addEventListener('admin:language-change', syncTestPushDefaults);
+
+function openTestPushModal(token) {
+    syncTestPushDefaults();
+    document.getElementById('testPushTokens').value = token;
+    new bootstrap.Modal(document.getElementById('testPushModal')).show();
+}
+
+function openTestPushModalSelected() {
+    var tokens = getSelectedDevices().map(function(d) { return d.token; });
+    if (!tokens.length) return;
+    syncTestPushDefaults();
+    document.getElementById('testPushTokens').value = tokens.join(', ');
+    new bootstrap.Modal(document.getElementById('testPushModal')).show();
+}
+
+async function submitTestPush() {
+    var tokens = document.getElementById('testPushTokens').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    var title = document.getElementById('testPushTitle').value;
+    var body = document.getElementById('testPushBody').value;
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var res = await fetch('{% url "admin_dashboard:api_push_devices_test" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ tokens: tokens, title: title, body: body })
+    });
+    var data = await res.json();
+    if (data.success || data.ok) {
+        var msg = t('pd.testResult', { sent: data.sent, attempted: data.attempted, pruned: data.pruned || 0 });
+        if (data.error) msg += ' ' + t('pd.testNote', { error: data.error });
+        showToast(msg, 'success');
+        if (data.pruned > 0) setTimeout(function() { window.location.reload(); }, 900);
+    } else {
+        showToast(data.error || t('pd.testFailed'), 'error');
+    }
+}
+
+function removeSingleDevice(userId, token) {
+    confirmAction(t('pd.confirmRemoveOneTitle'), t('pd.confirmRemoveOneBody'), function() {
+        return removeDevicesRequest({ user_id: userId, token: token });
+    });
+}
+
+function removeSelectedDevices() {
+    var items = getSelectedDevices();
+    if (!items.length) return;
+    confirmAction(t('pd.confirmRemoveSelectedTitle'), t('pd.confirmRemoveSelectedBody', { count: items.length }), function() {
+        return removeDevicesRequest({ items: items });
+    });
+}
+
+function removeMalformedTokens() {
+    confirmAction(t('pd.confirmRemoveMalformedTitle'), t('pd.confirmRemoveMalformedBody'), function() {
+        return removeDevicesRequest({ remove_malformed: true });
+    });
+}
+
+async function removeDevicesRequest(payload) {
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var res = await fetch('{% url "admin_dashboard:api_push_devices_remove" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(payload)
+    });
+    var data = await res.json();
+    if (data.success || data.ok) {
+        window.location.reload();
+    } else {
+        showToast(data.error || t('pd.errorRemove'), 'error');
+    }
+}
+</script>
+{% endblock %}

@@ -1,1072 +1,38 @@
-{% load static %}
 <!DOCTYPE html>
-<html lang="vi" data-theme="light">
+{% load static admin_tags %}
+<html lang="vi" data-theme="dark" data-bs-theme="dark">
 <head>
     <script>
         (function() {
-            const savedTheme = localStorage.getItem('admin-theme') || 'light';
+            const savedTheme = localStorage.getItem('admin-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            if (window.innerWidth > 1024 && localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed-init');
+            }
         })();
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Admin Dashboard{% endblock %}</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+    <title>{% block title %}ENTN Admin{% endblock %}</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'admin_dashboard/css/admin_theme.css' %}?v=20261116">
     <style>
-        :root {
-            --bg: #f5f7fb;
-            --panel: #ffffff;
-            --ink: #16202a;
-            --muted: #667085;
-            --line: #d8dee8;
-            --nav: #111827;
-            --nav-soft: #2563eb;
-            --topbar: rgba(255, 255, 255, 0.92);
-            --control: #ffffff;
-            --control-hover: #f3f6fb;
-            --table-hover: #f8fafc;
-            --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
-            --blue: #2563eb;
-            --green: #15803d;
-            --amber: #b45309;
-            --red: #b91c1c;
-            --teal: #0f766e;
-            --sidebar: clamp(232px, 16vw, 304px);
-            --radius: 10px;
-            --radius-sm: 8px;
-            --radius-lg: 16px;
-            --topbar-shadow: 0 4px 24px -12px rgba(15, 23, 42, 0.18);
-            --primary-color: var(--blue);
-            --primary-rgb: 37, 99, 235;
-            --accent-color: var(--teal);
-            --secondary-color: var(--muted);
-            --dark-color: var(--ink);
-            --light-color: var(--control-hover);
-            --border-color: var(--line);
-            --text-dark: var(--ink);
-            --text-muted: var(--muted);
-            --bs-body-bg: var(--bg);
-            --bs-body-color: var(--ink);
-            --bs-secondary-color: var(--muted);
-            --bs-tertiary-color: var(--muted);
-            --bs-emphasis-color: var(--ink);
-            --bs-heading-color: var(--ink);
-            --bs-border-color: var(--line);
-            --bs-card-bg: var(--panel);
-            --bs-card-color: var(--ink);
-            --bs-card-border-color: var(--line);
-            --bs-link-color: var(--blue);
-            --bs-link-hover-color: var(--teal);
-        }
-
-        html[data-theme="dark"] {
-            --bg: #0f172a;
-            --panel: #111827;
-            --ink: #e5e7eb;
-            --muted: #9ca3af;
-            --line: #263244;
-            --nav: #07111f;
-            --nav-soft: #3b82f6;
-            --topbar: rgba(17, 24, 39, 0.9);
-            --control: #182235;
-            --control-hover: #233047;
-            --table-hover: #172033;
-            --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-            --blue: #60a5fa;
-            --green: #4ade80;
-            --amber: #fbbf24;
-            --red: #f87171;
-            --teal: #2dd4bf;
-            --primary-color: var(--blue);
-            --primary-rgb: 96, 165, 250;
-            --accent-color: var(--teal);
-            --secondary-color: var(--muted);
-            --dark-color: var(--ink);
-            --light-color: var(--control-hover);
-            --border-color: var(--line);
-            --text-dark: var(--ink);
-            --text-muted: var(--muted);
-            color-scheme: dark;
-            --radius-sm: 8px;
-            --radius-lg: 16px;
-            --topbar-shadow: 0 4px 24px -12px rgba(0, 0, 0, 0.55);
-        }
-
-        * { box-sizing: border-box; }
-        html { min-height: 100%; }
-        body {
-            min-height: 100%;
-            margin: 0;
-            background-color: var(--bg);
-            background-image: radial-gradient(1100px 520px at 85% -10%, rgba(37, 99, 235, 0.05), transparent 60%);
-            background-attachment: fixed;
-            color: var(--ink);
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            letter-spacing: 0;
-            -webkit-font-smoothing: antialiased;
-            text-rendering: optimizeLegibility;
-        }
-
-        html[data-theme="dark"] body {
-            background-image: radial-gradient(1100px 520px at 85% -10%, rgba(96, 165, 250, 0.06), transparent 60%);
-        }
-
-        ::selection {
-            background: rgba(37, 99, 235, 0.18);
-        }
-        html[data-theme="dark"] ::selection {
-            background: rgba(96, 165, 250, 0.28);
-        }
-
-        :focus-visible {
-            outline: 2px solid var(--blue);
-            outline-offset: 2px;
-        }
-
-        /* Slim scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 99px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.45); }
-        html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.18); }
-        html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.35); }
-        * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.25) transparent; }
-
-        a { color: inherit; }
-        label,
-        .form-label,
-        .form-check-label,
-        .card-title,
-        .card-text {
-            color: var(--ink);
-        }
-
-        .text-muted,
-        .text-secondary,
-        small.text-muted,
-        label.text-muted {
-            color: var(--muted) !important;
-        }
-
-        .text-dark,
-        .text-black {
-            color: var(--ink) !important;
-        }
-
-        .bg-light,
-        .bg-white {
-            background-color: var(--control-hover) !important;
-            color: var(--ink) !important;
-        }
-
-        .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); transition: grid-template-columns .25s ease; }
-        .app-shell.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
-        .sidebar {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            background: var(--nav);
-            color: #fff;
-            border-right: 1px solid #0b1220;
-            transition: width .25s ease, opacity .2s ease;
-        }
-        .app-shell.sidebar-collapsed .sidebar { width: 0; opacity: 0; pointer-events: none; }
-
-        .sidebar-menu {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 0 14px 18px;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-height: 64px;
-            padding: 0 24px;
-            text-decoration: none;
-            font-weight: 800;
-            font-size: clamp(18px, 1.25vw, 26px);
-            border-bottom: 1px solid rgba(255,255,255,.08);
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .brand-mark {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, #0f766e, #0d9488);
-            flex-shrink: 0;
-        }
-
-        .nav-section {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            width: 100%;
-            border: 0;
-            background: none;
-            color: #98a2b3;
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-            margin: 0 0 4px;
-            padding: 10px 10px 8px;
-            white-space: nowrap;
-            cursor: pointer;
-            border-radius: var(--radius);
-            text-align: left;
-            transition: background .15s, color .15s;
-        }
-
-        .nav-section:hover {
-            background: rgba(255, 255, 255, 0.06);
-            color: #cbd5e1;
-        }
-
-        .nav-section .nav-caret {
-            font-size: 10px;
-            opacity: .55;
-            transition: transform .2s ease;
-        }
-
-        .nav-group:not(.collapsed) .nav-section .nav-caret {
-            transform: rotate(180deg);
-        }
-
-        .nav-group-body {
-            overflow: hidden;
-            max-height: 0;
-            opacity: 0;
-            transition: max-height .22s ease, opacity .18s ease;
-        }
-
-        .nav-group:not(.collapsed) .nav-group-body {
-            max-height: 900px;
-            opacity: 1;
-        }
-
-        .sidebar-pinned {
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: grid;
-            gap: 2px;
-        }
-
-        .side-link {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: var(--radius);
-            color: #d1d5db;
-            text-decoration: none;
-            font-weight: 650;
-            min-height: 42px;
-            white-space: nowrap;
-            transition: background .15s ease, color .15s ease;
-        }
-
-        .side-link:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
-        }
-
-        .side-link.active {
-            background: rgba(96, 165, 250, 0.16);
-            color: #fff;
-            font-weight: 700;
-        }
-
-        .side-link.active::before {
-            content: "";
-            position: absolute;
-            left: -14px;
-            top: 8px;
-            bottom: 8px;
-            width: 3px;
-            border-radius: 0 3px 3px 0;
-            background: linear-gradient(180deg, #60a5fa, #2563eb);
-        }
-
-        .side-link.active i {
-            color: #60a5fa;
-        }
-
-        .side-link i { width: 18px; text-align: center; flex-shrink: 0; }
-        .side-badge {
-            margin-left: auto;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2px 7px;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1.2;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.12);
-            color: #e5e7eb;
-            letter-spacing: 0.2px;
-            flex-shrink: 0;
-            transition: all .15s ease;
-        }
-        .side-link:hover .side-badge {
-            background: rgba(255, 255, 255, 0.22);
-            color: #ffffff;
-        }
-        .side-link.active .side-badge {
-            background: rgba(96, 165, 250, 0.25);
-            color: #93c5fd;
-        }
-        .side-badge.live {
-            background: rgba(34, 197, 94, 0.2);
-            color: #86efac;
-            border: 1px solid rgba(34, 197, 94, 0.45);
-            gap: 5px;
-            padding: 2px 7px;
-        }
-        .side-badge.live .pulse-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-            animation: pulseLive 1.6s infinite;
-        }
-        @keyframes pulseLive {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
-        .side-badge.danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.4);
-        }
-        .main { min-width: 0; }
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            min-height: 64px;
-            background: var(--topbar);
-            -webkit-backdrop-filter: blur(12px) saturate(1.4);
-            backdrop-filter: blur(12px) saturate(1.4);
-            border-bottom: 1px solid var(--line);
-            box-shadow: var(--topbar-shadow);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px clamp(14px, 2.4vw, 32px);
-        }
-
-        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-            .topbar { background: var(--panel); }
-        }
-
-        .menu-button {
-            display: grid;
-            place-items: center;
-            width: 40px;
-            height: 40px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            background: var(--control);
-            color: var(--ink);
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-
-        .page-title {
-            font-size: clamp(18px, 1.25vw, 26px);
-            font-weight: 800;
-            letter-spacing: -0.01em;
-            margin: 0;
-        }
-
-        .card-title {
-            letter-spacing: -0.01em;
-        }
-
-        .tabular-nums {
-            font-variant-numeric: tabular-nums;
-        }
-
-        .user-chip {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid var(--line);
-            background: var(--control);
-            border-radius: 999px;
-            padding: 6px 10px 6px 6px;
-            color: var(--muted);
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .avatar-dot {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: #2563eb;
-            color: #fff;
-            display: grid;
-            place-items: center;
-            font-size: 13px;
-        }
-
-        .content {
-            width: min(100%, 1840px);
-            margin: 0 auto;
-            padding: clamp(14px, 2.2vw, 32px);
-        }
-
-        .card,
-        .modal-content,
-        .dropdown-menu,
-        .alert,
-        .form-control,
-        .form-select,
-        .btn {
-            border-radius: var(--radius);
-        }
-
-        .card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow);
-            color: var(--ink);
-            --bs-card-bg: var(--panel);
-            --bs-card-color: var(--ink);
-            --bs-card-border-color: var(--line);
-            --bs-card-cap-bg: var(--panel);
-            --bs-card-cap-color: var(--ink);
-            transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
-        }
-
-        .card:hover {
-            box-shadow: 0 8px 28px -10px rgba(16, 24, 40, 0.14);
-            transform: translateY(-1px);
-        }
-
-        html[data-theme="dark"] .card:hover {
-            box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6);
-        }
-
-        .card-header {
-            background: var(--panel);
-            border-bottom: 1px solid var(--line);
-            color: var(--ink);
-            font-weight: 800;
-        }
-
-        .card-body,
-        .card-footer,
-        .modal-content,
-        .dropdown-menu,
-        .list-group-item {
-            background-color: var(--panel);
-            border-color: var(--line);
-            color: var(--ink);
-        }
-
-        /* ── Global Tables Grid & Button Spacing Upgrade ── */
-        .table {
-            border: 1px solid var(--line) !important;
-            border-collapse: collapse !important;
-        }
-        .table th,
-        .table td {
-            border-left: 1px solid var(--line) !important;
-            border-right: 1px solid var(--line) !important;
-            border-bottom: 1px solid var(--line) !important;
-            border-top: 1px solid var(--line) !important;
-            vertical-align: middle;
-        }
-        .table td .btn-group,
-        .table td .btn-group[role="group"],
-        .btn-group[role="group"] {
-            display: inline-flex !important;
-            gap: 8px !important;
-        }
-        .table td .btn-group .btn,
-        .table td .btn-group[role="group"] .btn,
-        .btn-group[role="group"] .btn {
-            border-radius: var(--radius) !important;
-            margin: 0 !important;
-        }
-
-        /* ── Sticky Table Header ── */
-        .table-responsive {
-            max-height: 650px;
-            overflow-y: auto;
-        }
-        .table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 5;
-            background: var(--panel) !important;
-            box-shadow: inset 0 -1px 0 var(--line);
-        }
-
-        /* ── Pulsating Green Dot ── */
-        .status-pulse {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #22c55e;
-            margin-right: 6px;
-            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-            animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
-            vertical-align: middle;
-        }
-        @keyframes pulse-ring {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        /* Critical FOUC prevention for collapsed desktop sidebar */
+        @media (min-width: 1025px) {
+            html.sidebar-collapsed-init .app-shell,
+            .app-shell.sidebar-collapsed {
+                grid-template-columns: 72px minmax(0, 1fr);
             }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            html.sidebar-collapsed-init .brand-text,
+            .app-shell.sidebar-collapsed .brand-text {
+                display: none;
             }
         }
-
-        /* ── Skeleton Loader ── */
-        .skeleton-line {
-            display: inline-block;
-            height: 14px;
-            width: 100%;
-            background: linear-gradient(90deg, var(--control-hover) 25%, var(--line) 50%, var(--control-hover) 75%);
-            background-size: 200% 100%;
-            animation: shimmer-load 1.6s infinite linear;
-            border-radius: 4px;
-        }
-        @keyframes shimmer-load {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .btn {
-            font-weight: 650;
-        }
-
-        .table {
-            --bs-table-bg: transparent;
-            --bs-table-color: var(--ink);
-            --bs-table-hover-bg: var(--table-hover);
-            --bs-table-hover-color: var(--ink);
-            --bs-border-color: var(--line);
-            --bs-table-border-color: var(--line);
-            --bs-table-striped-color: var(--ink);
-            --bs-table-striped-bg: var(--control-hover);
-            color: var(--ink);
-            margin: 0;
-        }
-
-        .table th {
-            color: var(--muted);
-            font-size: 12px;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .table td { vertical-align: middle; }
-        .table-light {
-            --bs-table-bg: var(--control-hover);
-            --bs-table-color: var(--ink);
-            --bs-table-border-color: var(--line);
-            background-color: var(--control-hover) !important;
-            color: var(--ink) !important;
-        }
-
-        .badge-soft {
-            border: 1px solid var(--line);
-            background: var(--control-hover);
-            color: var(--ink);
-        }
-
-        .form-control,
-        .form-select,
-        .dropdown-menu {
-            background-color: var(--control);
-            border-color: var(--line);
-            color: var(--ink);
-        }
-
-        .form-control,
-        .form-select,
-        textarea,
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="search"],
-        input[type="number"],
-        input[type="tel"],
-        input[type="url"] {
-            -webkit-text-fill-color: var(--ink);
-            caret-color: var(--ink);
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-            background-color: var(--control);
-            color: var(--ink);
-            border-color: var(--blue);
-            box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15);
-        }
-
-        .form-control::placeholder {
-            color: var(--muted);
-            opacity: .75;
-        }
-
-        .form-control:disabled,
-        .form-control[readonly],
-        .form-select:disabled,
-        .input-group-text {
-            background-color: var(--control-hover);
-            border-color: var(--line);
-            color: var(--ink);
-        }
-
-        .dropdown-item {
-            color: var(--ink);
-        }
-
-        .dropdown-item:hover,
-        .dropdown-item:focus {
-            background-color: var(--control-hover);
-            color: var(--ink);
-        }
-
-        .breadcrumb {
-            --bs-breadcrumb-divider-color: var(--muted);
-            --bs-breadcrumb-item-active-color: var(--muted);
-        }
-
-        .breadcrumb-item,
-        .breadcrumb-item.active,
-        .breadcrumb-item + .breadcrumb-item::before {
-            color: var(--muted);
-        }
-
-        .breadcrumb-item a {
-            color: var(--blue);
-        }
-
-        code {
-            color: #db2777;
-        }
-
-        html[data-theme="dark"] code {
-            color: #f9a8d4;
-        }
-
-        .btn-outline-secondary,
-        .btn-outline-primary,
-        .btn-outline-info,
-        .btn-outline-warning,
-        .btn-outline-danger,
-        .btn-outline-success {
-            background: var(--control);
-        }
-
-        .page-link {
-            background-color: var(--control) !important;
-            border-color: var(--line) !important;
-            color: var(--ink) !important;
-        }
-        .page-link:hover {
-            background-color: var(--control-hover) !important;
-            color: var(--blue) !important;
-        }
-        .page-item.active .page-link {
-            background-color: var(--blue) !important;
-            border-color: var(--blue) !important;
-            color: #fff !important;
-        }
-        .page-item.disabled .page-link {
-            background-color: var(--control-hover) !important;
-            border-color: var(--line) !important;
-            color: var(--muted) !important;
-            opacity: 0.6;
-        }
-
-        html[data-theme="dark"] .card,
-        html[data-theme="dark"] .card-body,
-        html[data-theme="dark"] .card-header,
-        html[data-theme="dark"] .card-footer,
-        html[data-theme="dark"] .filter-section,
-        html[data-theme="dark"] .form-card,
-        html[data-theme="dark"] .admin-preview,
-        html[data-theme="dark"] .info-card,
-        html[data-theme="dark"] .info-card-body,
-        html[data-theme="dark"] .action-buttons {
-            background: var(--panel) !important;
-            background-color: var(--panel) !important;
-            border-color: var(--line) !important;
-            color: var(--ink) !important;
-        }
-
-        html[data-theme="dark"] .info-card-header,
-        html[data-theme="dark"] .timeline-content,
-        html[data-theme="dark"] .permission-item,
-        html[data-theme="dark"] .role-info,
-        html[data-theme="dark"] .password-section,
-        html[data-theme="dark"] .password-strength {
-            background: var(--control-hover) !important;
-            background-color: var(--control-hover) !important;
-            border-color: var(--line) !important;
-            color: var(--ink) !important;
-        }
-
-        html[data-theme="dark"] .form-header,
-        html[data-theme="dark"] .profile-header,
-        html[data-theme="dark"] .stats-card {
-            color: #fff !important;
-        }
-
-        html[data-theme="dark"] .form-header h1,
-        html[data-theme="dark"] .form-header h2,
-        html[data-theme="dark"] .form-header h3,
-        html[data-theme="dark"] .form-header h4,
-        html[data-theme="dark"] .form-header h5,
-        html[data-theme="dark"] .form-header h6,
-        html[data-theme="dark"] .profile-header h1,
-        html[data-theme="dark"] .profile-header h2,
-        html[data-theme="dark"] .profile-header h3,
-        html[data-theme="dark"] .profile-header h4,
-        html[data-theme="dark"] .profile-header h5,
-        html[data-theme="dark"] .profile-header h6,
-        html[data-theme="dark"] .stats-card h1,
-        html[data-theme="dark"] .stats-card h2,
-        html[data-theme="dark"] .stats-card h3,
-        html[data-theme="dark"] .stats-card h4,
-        html[data-theme="dark"] .stats-card h5,
-        html[data-theme="dark"] .stats-card h6 {
-            color: #fff !important;
-        }
-
-        html[data-theme="dark"] .form-control,
-        html[data-theme="dark"] .form-select,
-        html[data-theme="dark"] .input-group-text {
-            background-color: var(--control) !important;
-            border-color: var(--line) !important;
-            color: var(--ink) !important;
-        }
-
-        html[data-theme="dark"] .form-control:focus,
-        html[data-theme="dark"] .form-select:focus {
-            background-color: var(--control) !important;
-            color: var(--ink) !important;
-            border-color: var(--blue) !important;
-            box-shadow: 0 0 0 .2rem rgba(96, 165, 250, .16) !important;
-        }
-
-        html[data-theme="dark"] .form-text,
-        html[data-theme="dark"] .password-requirements,
-        html[data-theme="dark"] .role-description,
-        html[data-theme="dark"] .info-value {
-            color: var(--muted) !important;
-        }
-
-        html[data-theme="dark"] .text-gray-800 {
-            color: var(--ink) !important;
-        }
-
-        html[data-theme="dark"] .info-label,
-        html[data-theme="dark"] .timeline-content h6,
-        html[data-theme="dark"] .permission-item strong,
-        html[data-theme="dark"] .admin-preview h6 {
-            color: var(--ink) !important;
-        }
-
-        html[data-theme="dark"] .table,
-        html[data-theme="dark"] .table td,
-        html[data-theme="dark"] .table tbody tr {
-            color: var(--ink) !important;
-            border-color: var(--line) !important;
-        }
-
-        html[data-theme="dark"] .table th,
-        html[data-theme="dark"] .table-light th {
-            background-color: var(--control-hover) !important;
-            color: var(--muted) !important;
-            border-color: var(--line) !important;
-        }
-
-        html[data-theme="dark"] .btn-outline-secondary,
-        html[data-theme="dark"] .btn-outline-primary,
-        html[data-theme="dark"] .btn-outline-info,
-        html[data-theme="dark"] .btn-outline-warning,
-        html[data-theme="dark"] .btn-outline-danger,
-        html[data-theme="dark"] .btn-outline-success {
-            background: var(--control) !important;
-        }
-
-        .topbar-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #globalSearch {
-            height: 38px !important;
-            background: var(--control) !important;
-            border: 1px solid var(--line) !important;
-            color: var(--ink) !important;
-            border-radius: 10px !important;
-            font-size: 16px !important;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-        #globalSearch:focus {
-            border-color: var(--blue) !important;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
-            outline: 0;
-        }
-
-        .icon-button,
-        .lang-button {
-            height: 38px;
-            border: 1px solid var(--line);
-            background: var(--control);
-            color: var(--ink);
-            border-radius: 10px;
-            font-weight: 800;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 0 10px;
-        }
-
-        .icon-button {
-            width: 38px;
-            padding: 0;
-        }
-
-        .icon-button:hover,
-        .lang-button:hover,
-        .menu-button:hover,
-        .user-chip:hover {
-            background: var(--control-hover);
-        }
-
-        .sidebar-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 39;
-            background: rgba(15, 23, 42, 0.4);
-        }
-
-        @media (max-width: 980px) {
-            .app-shell { display: block; grid-template-columns: none !important; }
-            .app-shell.sidebar-collapsed .sidebar { width: min(88vw, 320px); padding: 0 14px 18px; opacity: 1; pointer-events: auto; }
-            .sidebar {
-                position: fixed;
-                z-index: 40;
-                transform: translateX(-100%);
-                transition: transform .18s ease;
-                width: min(88vw, 320px);
-                height: 100vh;
-            }
-            .sidebar.open { transform: translateX(0); }
-            .sidebar-backdrop.show { display: block; }
-            .topbar { gap: 10px; }
-        }
-
-        @media (max-width: 560px) {
-            .topbar { align-items: center; }
-            .user-chip > span:not(.avatar-dot) { display: none; }
-            .user-chip > i { display: none; }
-            .content { padding: 12px; }
-            .topbar-actions { gap: 6px; }
-            .lang-button span { display: none; }
-        }
-
-        /* ── Prevent iOS Safari auto-zoom when focusing inputs (font < 16px) ── */
-        @media (max-width: 1024px) and (pointer: coarse) {
-            input[type="text"],
-            input[type="email"],
-            input[type="password"],
-            input[type="search"],
-            input[type="number"],
-            input[type="tel"],
-            input[type="url"],
-            input[type="date"],
-            select,
-            textarea {
-                font-size: 16px !important;
-            }
-        }
-
-        /* ── iOS autofill dark-mode consistency ── */
-        html[data-theme="dark"] input:-webkit-autofill,
-        html[data-theme="dark"] input:-webkit-autofill:hover,
-        html[data-theme="dark"] input:-webkit-autofill:focus {
-            -webkit-text-fill-color: var(--ink);
-            -webkit-box-shadow: 0 0 0 1000px var(--control) inset;
-            transition: background-color 9999s ease-in-out 0s;
-            caret-color: var(--ink);
-        }
-
-        html[data-theme="dark"] .form-control::placeholder,
-        html[data-theme="dark"] .form-select::placeholder,
-        html[data-theme="dark"] textarea::placeholder,
-        html[data-theme="dark"] input::placeholder {
-            -webkit-text-fill-color: var(--muted);
-        }
-
-        html[data-theme="dark"] .btn-close {
-            filter: invert(1) grayscale(1);
-        }
-
-        /* ── Rich Alert / Flash Message styling ── */
-        .alert {
-            position: relative;
-            border: 1px solid transparent;
-            border-left-width: 4px;
-            border-radius: var(--radius);
-            font-size: 14px;
-            font-weight: 600;
-            padding: 13px 48px 13px 16px;
-            box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
-        }
-
-        .alert-dismissible {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
-
-        .alert-dismissible .btn-close {
-            position: absolute;
-            top: 50%;
-            right: 12px;
-            transform: translateY(-50%);
-            padding: 6px;
-            opacity: .65;
-        }
-
-        .alert-dismissible .btn-close:hover {
-            opacity: 1;
-        }
-
-        .alert-danger,
-        .alert-error {
-            border-color: #fecaca;
-            border-left-color: #dc2626;
-            background: #fef2f2;
-            color: #b91c1c;
-        }
-
-        .alert-success {
-            border-color: #a7f3d0;
-            border-left-color: #10b981;
-            background: #ecfdf5;
-            color: #065f46;
-        }
-
-        .alert-info {
-            border-color: #bfdbfe;
-            border-left-color: #3b82f6;
-            background: #eff6ff;
-            color: #1d4ed8;
-        }
-
-        .alert-warning {
-            border-color: #fde68a;
-            border-left-color: #f59e0b;
-            background: #fffbeb;
-            color: #92400e;
-        }
-
-        html[data-theme="dark"] .alert-danger,
-        html[data-theme="dark"] .alert-error {
-            border-color: #7f1d1d;
-            border-left-color: #ef4444;
-            background: #2a1215;
-            color: #fecaca;
-        }
-
-        html[data-theme="dark"] .alert-success {
-            border-color: #14532d;
-            border-left-color: #10b981;
-            background: #0f2b1d;
-            color: #a7f3d0;
-        }
-
-        html[data-theme="dark"] .alert-info {
-            border-color: #1e3a5f;
-            border-left-color: #3b82f6;
-            background: #0f2033;
-            color: #bfdbfe;
-        }
-
-        html[data-theme="dark"] .alert-warning {
-            border-color: #57420f;
-            border-left-color: #f59e0b;
-            background: #2b2310;
-            color: #fde68a;
-        }
-
-        /* Global Page Loader */
-        #globalLoader {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            display: none; /* hidden by default */
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        #globalLoader.active {
-            display: flex;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 5px solid rgba(255,255,255,.2);
-            border-bottom-color: var(--blue);
-            border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -1079,234 +45,350 @@
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <a class="brand" href="{% url 'admin_dashboard:dashboard' %}">
-                <span class="brand-mark"><i class="fas fa-film"></i></span>
-                <span>Movie Admin</span>
+                <span class="brand-mark"><i class="fas fa-icons"></i></span>
+                <span class="brand-text">
+                    <span class="brand-title">ENTN</span>
+                </span>
             </a>
-
 
             <div class="sidebar-menu">
-            <div class="nav-group" data-group="operate">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.operate">Operate</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
-                <i class="fas fa-gauge-high"></i><span data-i18n="nav.dashboard">Dashboard</span>
-            </a>
-            <a class="side-link {% if request.resolver_match.url_name == 'servers' %}active{% endif %}" href="{% url 'admin_dashboard:servers' %}">
-                <i class="fas fa-server"></i><span data-i18n="nav.servers">Server</span>
-            </a>
-            <a class="side-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" href="{% url 'admin_dashboard:analytics' %}">
-                <i class="fas fa-chart-line"></i><span data-i18n="nav.analytics">Analytics</span>
-            </a>
-            <a class="side-link {% if 'users' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:users_list' %}">
-                <i class="fas fa-users"></i><span data-i18n="nav.users">Users</span>
-                {% if sidebar_counts.users %}<span class="side-badge" title="Total users">{{ sidebar_counts.users }}</span>{% endif %}
-            </a>
-            <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
-                <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlist</span>
-            </a>
-            </div>
-            </div>
+                {% has_perm 'dashboard.view' as p_dashboard %}
+                {% has_perm 'analytics.view' as p_analytics %}
+                {% has_perm 'servers.view' as p_servers %}
+                {% has_perm 'rooms.view' as p_rooms %}
+                {% has_perm 'movies.view' as p_movies %}
+                {% has_perm 'tv_shows.view' as p_tv_shows %}
+                {% has_perm 'content.view' as p_content %}
+                {% has_perm 'comments.view' as p_comments %}
+                {% has_perm 'games.view' as p_games %}
+                {% has_perm 'daily_challenge.view' as p_daily_challenge %}
+                {% has_perm 'users.view' as p_users %}
+                {% has_perm 'watchlist.view' as p_watchlist %}
+                {% has_perm 'watch_progress.view' as p_watch_progress %}
+                {% has_perm 'search_history.view' as p_search_history %}
+                {% has_perm 'stream_history.view' as p_stream_history %}
+                {% has_perm 'reports.view' as p_reports %}
+                {% has_perm 'sessions.view' as p_sessions %}
+                {% has_perm 'tokens.view' as p_tokens %}
+                {% has_perm 'notifications.view' as p_notifications %}
+                {% has_perm 'push_devices.view' as p_push_devices %}
+                {% has_perm 'cache.view' as p_cache %}
+                {% has_perm 'monitoring.view' as p_monitoring %}
+                {% has_perm 'audit_logs.view' as p_audit_logs %}
+                {% has_perm 'error_logs.view' as p_error_logs %}
+                {% has_perm 'changelog.view' as p_changelog %}
+                {% has_perm 'email.view' as p_email %}
+                {% has_perm 'scheduled_tasks.view' as p_scheduled_tasks %}
+                {% has_perm 'webhooks.view' as p_webhooks %}
+                {% has_perm 'admins.view' as p_admins %}
+                {% has_perm 'settings.view' as p_settings %}
+                {% has_perm 'backup.view' as p_backup %}
+                {% is_super_admin as is_super_admin_flag %}
 
-            <div class="nav-group" data-group="data">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.sectionData">Data</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if 'watch_progress' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watch_progress' %}">
-                <i class="fas fa-history"></i><span data-i18n="nav.watchProgress">Watch Progress</span>
-                {% if sidebar_counts.watch_progress %}<span class="side-badge">{{ sidebar_counts.watch_progress }}</span>{% endif %}
-            </a>
-            <a class="side-link {% if 'search_history' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:search_history' %}">
-                <i class="fas fa-clock-rotate-left"></i><span data-i18n="nav.searchHistory">Search History</span>
-            </a>
-            <a class="side-link {% if 'password_resets' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:password_resets' %}">
-                <i class="fas fa-key"></i><span data-i18n="nav.passwordTokens">Password Tokens</span>
-            </a>
-            <a class="side-link {% if 'blacklisted_tokens' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:blacklisted_tokens' %}">
-                <i class="fas fa-ban"></i><span data-i18n="nav.blacklistedTokens">Blacklisted Tokens</span>
-            </a>
-            </div>
-            </div>
-
-            <div class="nav-group" data-group="media">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.media">Media & Content</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if 'movies' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:movies' %}">
-                <i class="fas fa-film"></i><span data-i18n="nav.movies">Movies</span>
-            </a>
-            <a class="side-link {% if 'tv_shows' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:tv_shows' %}">
-                <i class="fas fa-tv"></i><span data-i18n="nav.tvShows">TV Shows</span>
-            </a>
-            <a class="side-link {% if 'comments' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:comments' %}">
-                <i class="fas fa-comments"></i><span data-i18n="nav.comments">Comments</span>
-                {% if sidebar_counts.comments %}<span class="side-badge" title="Total comments">{{ sidebar_counts.comments }}</span>{% endif %}
-            </a>
-            <a class="side-link {% if 'rooms' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:rooms' %}">
-                <i class="fas fa-video"></i><span data-i18n="nav.rooms">Watch Rooms</span>
-                {% if sidebar_counts.rooms > 0 %}
-                <span class="side-badge live" title="Live Watch Rooms"><span class="pulse-dot"></span>LIVE {{ sidebar_counts.rooms }}</span>
-                {% else %}
-                <span class="side-badge" style="opacity: 0.5;">0</span>
+                <!-- 1. COMMAND CENTER -->
+                {% if p_dashboard or p_analytics or p_servers %}
+                <div class="nav-group" data-group="operate">
+                    <button class="nav-section" type="button" aria-expanded="true">
+                        <span data-i18n="nav.operate">Command Center</span><i class="fas fa-chevron-down nav-caret"></i>
+                    </button>
+                    <div class="nav-group-body"><div class="nav-group-inner">
+                        {% if p_dashboard %}
+                        <a class="side-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard:dashboard' %}">
+                            <i class="fas fa-satellite-dish"></i><span data-i18n="nav.dashboard">Telemetry Deck</span>
+                        </a>
+                        {% endif %}
+                        {% if p_analytics %}
+                        <a class="side-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" href="{% url 'admin_dashboard:analytics' %}">
+                            <i class="fas fa-chart-line"></i><span data-i18n="nav.analytics">Analytics & Insights</span>
+                        </a>
+                        {% endif %}
+                        {% if p_servers %}
+                        <a class="side-link {% if request.resolver_match.url_name == 'servers' %}active{% endif %}" href="{% url 'admin_dashboard:servers' %}">
+                            <i class="fas fa-network-wired"></i><span data-i18n="nav.servers">Stream Clusters</span>
+                        </a>
+                        {% endif %}
+                    </div></div>
+                </div>
                 {% endif %}
-            </a>
-            <a class="side-link {% if 'notifications' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:notifications' %}">
-                <i class="fas fa-bell"></i><span data-i18n="nav.notifications">Notifications</span>
-            </a>
-            <a class="side-link {% if 'content_management' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:content_management' %}">
-                <i class="fas fa-star"></i><span data-i18n="nav.featuredContent">Featured Content</span>
-            </a>
-            </div>
-            </div>
 
-            <div class="nav-group" data-group="game">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.sectionGame">GAME</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if 'game_profiles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_profiles' %}">
-                <i class="fas fa-gamepad"></i><span data-i18n="nav.gameProfiles">Game Profiles</span>
-                {% if sidebar_counts.game_profiles %}<span class="side-badge">{{ sidebar_counts.game_profiles }}</span>{% endif %}
-            </a>
-            <a class="side-link {% if 'game_histories' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_histories' %}">
-                <i class="fas fa-trophy"></i><span data-i18n="nav.gameHistories">Game Histories</span>
-            </a>
-            </div>
-            </div>
-
-            <div class="nav-group" data-group="system">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.system">System</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if 'cache' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:cache' %}">
-                <i class="fas fa-database"></i><span data-i18n="nav.cache">Cache</span>
-            </a>
-            <a class="side-link {% if 'monitoring' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:monitoring' %}">
-                <i class="fas fa-heartbeat"></i><span data-i18n="nav.monitoring">Monitoring</span>
-            </a>
-            <a class="side-link {% if 'audit_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:audit_logs' %}">
-                <i class="fas fa-scroll"></i><span data-i18n="nav.auditLogs">Audit Logs</span>
-            </a>
-            <a class="side-link {% if 'error_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:error_logs' %}">
-                <i class="fas fa-bug"></i><span data-i18n="nav.errorLogs">Error Logs</span>
-                {% if sidebar_counts.error_logs > 0 %}
-                <span class="side-badge danger" title="Errors">{{ sidebar_counts.error_logs }}</span>
+                <!-- 2. CINEMA & WATCH PARTY -->
+                {% if p_rooms or p_movies or p_tv_shows or p_content or p_comments %}
+                <div class="nav-group" data-group="media">
+                    <button class="nav-section" type="button" aria-expanded="true">
+                        <span data-i18n="nav.media">Cinema & Watch Party</span><i class="fas fa-chevron-down nav-caret"></i>
+                    </button>
+                    <div class="nav-group-body"><div class="nav-group-inner">
+                        {% if p_rooms %}
+                        <a class="side-link {% if 'rooms' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:rooms' %}">
+                            <i class="fas fa-tower-broadcast"></i><span data-i18n="nav.rooms">Watch Rooms</span>
+                            {% if sidebar_counts.rooms > 0 %}
+                            <span class="side-badge live" title="Phòng xem đang phát trực tiếp" data-i18n-title="rooms.liveBadgeTitle"><span class="pulse-dot"></span><span data-i18n="rooms.liveBadgePrefix">TRỰC TIẾP</span><span>{{ sidebar_counts.rooms }}</span></span>
+                            {% else %}
+                            <span class="side-badge">0</span>
+                            {% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_movies %}
+                        <a class="side-link {% if 'movies' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:movies' %}">
+                            <i class="fas fa-film"></i><span data-i18n="nav.movies">Movies Catalog</span>
+                        </a>
+                        {% endif %}
+                        {% if p_tv_shows %}
+                        <a class="side-link {% if 'tv_shows' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:tv_shows' %}">
+                            <i class="fas fa-tv"></i><span data-i18n="nav.tvShows">TV Series</span>
+                        </a>
+                        {% endif %}
+                        {% if p_content %}
+                        <a class="side-link {% if 'content_management' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:content_management' %}">
+                            <i class="fas fa-wand-magic-sparkles"></i><span data-i18n="nav.featuredContent">Featured & Banners</span>
+                        </a>
+                        {% endif %}
+                        {% if p_comments %}
+                        <a class="side-link {% if 'comments' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:comments' %}">
+                            <i class="fas fa-comments"></i><span data-i18n="nav.comments">Comments</span>
+                            {% if sidebar_counts.comments %}<span class="side-badge">{{ sidebar_counts.comments }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                    </div></div>
+                </div>
                 {% endif %}
-            </a>
-            <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
-                <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin Accounts</span>
-            </a>
-            </div>
-            </div>
 
-            <div class="nav-group" data-group="extensions">
-            <button class="nav-section" type="button" aria-expanded="true">
-                <span data-i18n="nav.sectionExtensions">Extensions</span><i class="fas fa-chevron-down nav-caret"></i>
-            </button>
-            <div class="nav-group-body">
-            <a class="side-link {% if 'reports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:reports' %}">
-                <i class="fas fa-flag"></i><span data-i18n="nav.reports">Reports</span>
-            </a>
-            <a class="side-link {% if 'changelog' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:changelog' %}">
-                <i class="fas fa-list-check"></i><span data-i18n="nav.changelog">Changelog</span>
-            </a>
-            <a class="side-link {% if 'email' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:email' %}">
-                <i class="fas fa-envelope"></i><span data-i18n="nav.email">Email</span>
-            </a>
-            <a class="side-link {% if 'scheduled_tasks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:scheduled_tasks' %}">
-                <i class="fas fa-clock"></i><span data-i18n="nav.scheduledTasks">Scheduled Tasks</span>
-            </a>
-            <a class="side-link {% if 'webhooks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:webhooks' %}">
-                <i class="fas fa-link"></i><span data-i18n="nav.webhooks">Webhooks</span>
-            </a>
-            {% if request.user.is_superuser %}
-            <a class="side-link {% if 'system_settings' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:system_settings' %}">
-                <i class="fas fa-cog"></i><span data-i18n="nav.settings">Settings</span>
-            </a>
-            <a class="side-link {% if 'backup' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:backup' %}">
-                <i class="fas fa-shield-halved"></i><span data-i18n="nav.backup">Backup</span>
-            </a>
-            {% endif %}
-            </div>
-            </div>
+                <!-- 3. 3D ARENA (FEAST BRAWL) -->
+                {% if p_games or p_daily_challenge %}
+                <div class="nav-group" data-group="game">
+                    <button class="nav-section" type="button" aria-expanded="true">
+                        <span data-i18n="nav.sectionGame">3D Arena • Feast Brawl</span><i class="fas fa-chevron-down nav-caret"></i>
+                    </button>
+                    <div class="nav-group-body"><div class="nav-group-inner">
+                        {% if p_games %}
+                        <a class="side-link {% if 'game_profiles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_profiles' %}">
+                            <i class="fas fa-cubes"></i><span data-i18n="nav.gameProfiles">Arena Rooms & Fighters</span>
+                            {% if sidebar_counts.game_profiles %}<span class="side-badge">{{ sidebar_counts.game_profiles }}</span>{% endif %}
+                        </a>
+                        <a class="side-link {% if 'game_histories' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:game_histories' %}">
+                            <i class="fas fa-trophy"></i><span data-i18n="nav.gameHistories">Match Logs & Ranks</span>
+                        </a>
+                        {% endif %}
+                        {% if p_daily_challenge %}
+                        <a class="side-link {% if 'daily_challenge' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:daily_challenge' %}">
+                            <i class="fas fa-calendar-check"></i><span data-i18n="nav.dailyChallenge">Daily Challenge</span>
+                            {% if sidebar_counts.daily_challenges %}<span class="side-badge">{{ sidebar_counts.daily_challenges }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                    </div></div>
+                </div>
+                {% endif %}
 
-            <div class="sidebar-pinned">
-            <a class="side-link" href="{% url 'admin:index' %}">
-                <i class="fas fa-screwdriver-wrench"></i><span data-i18n="nav.djangoAdmin">Django Admin</span>
-            </a>
-            <a class="side-link" href="{% url 'admin_dashboard:logout' %}">
-                <i class="fas fa-right-from-bracket"></i><span data-i18n="nav.logout">Logout</span>
-            </a>
-            </div>
+                <!-- 4. USERS & AUDIENCE DATA -->
+                {% if p_users or p_watchlist or p_watch_progress or p_search_history or p_stream_history or p_reports %}
+                <div class="nav-group" data-group="data">
+                    <button class="nav-section" type="button" aria-expanded="true">
+                        <span data-i18n="nav.sectionData">Users & Engagement</span><i class="fas fa-chevron-down nav-caret"></i>
+                    </button>
+                    <div class="nav-group-body"><div class="nav-group-inner">
+                        {% if p_users %}
+                        <a class="side-link {% if 'users' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:users_list' %}">
+                            <i class="fas fa-user-astronaut"></i><span data-i18n="nav.users">Users Directory</span>
+                            {% if sidebar_counts.users %}<span class="side-badge">{{ sidebar_counts.users }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_watchlist %}
+                        <a class="side-link {% if 'watchlist' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watchlist_list' %}">
+                            <i class="fas fa-bookmark"></i><span data-i18n="nav.watchlist">Watchlists</span>
+                        </a>
+                        {% endif %}
+                        {% if p_watch_progress %}
+                        <a class="side-link {% if 'watch_progress' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:watch_progress' %}">
+                            <i class="fas fa-bars-progress"></i><span data-i18n="nav.watchProgress">Watch Progress</span>
+                            {% if sidebar_counts.watch_progress %}<span class="side-badge">{{ sidebar_counts.watch_progress }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_search_history %}
+                        <a class="side-link {% if 'search_history' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:search_history' %}">
+                            <i class="fas fa-magnifying-glass-chart"></i><span data-i18n="nav.searchHistory">Search Queries</span>
+                        </a>
+                        {% endif %}
+                        {% if p_stream_history %}
+                        <a class="side-link {% if 'stream_history' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:stream_history' %}">
+                            <i class="fas fa-link"></i><span data-i18n="nav.streamHistory">Stream History</span>
+                            {% if sidebar_counts.stream_history %}<span class="side-badge">{{ sidebar_counts.stream_history }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_reports %}
+                        <a class="side-link {% if 'reports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:reports' %}">
+                            <i class="fas fa-flag"></i><span data-i18n="nav.reports">Moderation Reports</span>
+                        </a>
+                        {% endif %}
+                    </div></div>
+                </div>
+                {% endif %}
+
+                <!-- 5. SECURITY & SYSTEM OPS -->
+                {% if p_sessions or p_tokens or p_notifications or p_push_devices or p_cache or p_monitoring or p_audit_logs or p_error_logs or p_changelog or p_email or p_scheduled_tasks or p_webhooks or p_admins or p_settings or p_backup %}
+                <div class="nav-group" data-group="system">
+                    <button class="nav-section" type="button" aria-expanded="true">
+                        <span data-i18n="nav.system">Security & Infrastructure</span><i class="fas fa-chevron-down nav-caret"></i>
+                    </button>
+                    <div class="nav-group-body"><div class="nav-group-inner">
+                        {% if p_sessions %}
+                        <a class="side-link {% if 'sessions' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:sessions_list' %}">
+                            <i class="fas fa-laptop-code"></i><span data-i18n="nav.sessions">Active Sessions</span>
+                            {% if sidebar_counts.sessions %}<span class="side-badge">{{ sidebar_counts.sessions }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_tokens %}
+                        <a class="side-link {% if 'password_resets' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:password_resets' %}">
+                            <i class="fas fa-key"></i><span data-i18n="nav.passwordTokens">Password Reset Tokens</span>
+                        </a>
+                        <a class="side-link {% if 'blacklisted_tokens' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:blacklisted_tokens' %}">
+                            <i class="fas fa-ban"></i><span data-i18n="nav.blacklistedTokens">Revoked JWTs</span>
+                        </a>
+                        {% endif %}
+                        {% if p_notifications %}
+                        <a class="side-link {% if 'notifications' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:notifications' %}">
+                            <i class="fas fa-bullhorn"></i><span data-i18n="nav.notifications">Push & Broadcasts</span>
+                        </a>
+                        {% endif %}
+                        {% if p_push_devices %}
+                        <a class="side-link {% if 'push_devices' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:push_devices' %}">
+                            <i class="fas fa-mobile-screen-button"></i><span data-i18n="nav.pushDevices">Push Devices</span>
+                            {% if sidebar_counts.push_devices %}<span class="side-badge">{{ sidebar_counts.push_devices }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_cache %}
+                        <a class="side-link {% if 'cache' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:cache' %}">
+                            <i class="fas fa-bolt"></i><span data-i18n="nav.cache">Upstash Redis Cache</span>
+                        </a>
+                        {% endif %}
+                        {% if p_monitoring %}
+                        <a class="side-link {% if 'monitoring' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:monitoring' %}">
+                            <i class="fas fa-heart-pulse"></i><span data-i18n="nav.monitoring">System Health</span>
+                        </a>
+                        {% endif %}
+                        {% if p_audit_logs %}
+                        <a class="side-link {% if 'audit_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:audit_logs' %}">
+                            <i class="fas fa-fingerprint"></i><span data-i18n="nav.auditLogs">Audit Trail</span>
+                        </a>
+                        {% endif %}
+                        {% if p_error_logs %}
+                        <a class="side-link {% if 'error_logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:error_logs' %}">
+                            <i class="fas fa-bug"></i><span data-i18n="nav.errorLogs">Error Telemetry</span>
+                            {% if sidebar_counts.error_logs > 0 %}
+                            <span class="side-badge danger">{{ sidebar_counts.error_logs }}</span>
+                            {% endif %}
+                        </a>
+                        {% endif %}
+                        {% if p_changelog %}
+                        <a class="side-link {% if 'changelog' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:changelog' %}">
+                            <i class="fas fa-code-branch"></i><span data-i18n="nav.changelog">Release Notes</span>
+                        </a>
+                        {% endif %}
+                        {% if p_email %}
+                        <a class="side-link {% if 'email' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:email' %}">
+                            <i class="fas fa-paper-plane"></i><span data-i18n="nav.email">Email Dispatch</span>
+                        </a>
+                        {% endif %}
+                        {% if p_scheduled_tasks %}
+                        <a class="side-link {% if 'scheduled_tasks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:scheduled_tasks' %}">
+                            <i class="fas fa-clock"></i><span data-i18n="nav.scheduledTasks">Cron & Tasks</span>
+                        </a>
+                        {% endif %}
+                        {% if p_webhooks %}
+                        <a class="side-link {% if 'webhooks' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:webhooks' %}">
+                            <i class="fas fa-link"></i><span data-i18n="nav.webhooks">Webhooks</span>
+                        </a>
+                        {% endif %}
+                        {% if p_admins %}
+                        <a class="side-link {% if 'admin_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:admin_list' %}">
+                            <i class="fas fa-user-shield"></i><span data-i18n="nav.adminAccounts">Admin RBAC</span>
+                        </a>
+                        {% endif %}
+                        {% if p_settings %}
+                        <a class="side-link {% if 'system_settings' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:system_settings' %}">
+                            <i class="fas fa-sliders"></i><span data-i18n="nav.settings">Platform Settings</span>
+                        </a>
+                        {% endif %}
+                        {% if p_backup %}
+                        <a class="side-link {% if 'backup' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:backup' %}">
+                            <i class="fas fa-database"></i><span data-i18n="nav.backup">Snapshots & Backup</span>
+                        </a>
+                        {% endif %}
+                    </div></div>
+                </div>
+                {% endif %}
+
+                <div class="sidebar-pinned">
+                    {% if is_super_admin_flag %}
+                    <a class="side-link" href="{% url 'admin:index' %}">
+                        <i class="fas fa-terminal"></i><span data-i18n="nav.djangoAdmin">Django Core</span>
+                    </a>
+                    {% endif %}
+                    <a class="side-link text-danger" href="{% url 'admin_dashboard:logout' %}">
+                        <i class="fas fa-right-from-bracket text-danger"></i><span data-i18n="nav.logout">Sign Out</span>
+                    </a>
+                </div>
             </div>
         </aside>
 
         <section class="main">
             <header class="topbar">
-                <div class="d-flex align-items-center gap-3">
-                    <button class="menu-button" id="menuButton" type="button" aria-label="Open menu">
-                        <i class="fas fa-bars"></i>
+                <div class="topbar-left">
+                    <button class="menu-button" id="menuButton" type="button" aria-label="Thu gọn hoặc mở thanh điều hướng" data-i18n-aria-label="sidebar.toggleLabel">
+                        <i class="fas fa-bars-staggered"></i>
                     </button>
-                    <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}Admin Dashboard{% endblock %}</h1>
+                    <div class="topbar-title-wrap">
+                        <h1 class="page-title" data-i18n="{% block page_i18n_key %}nav.dashboard{% endblock %}">{% block page_title %}ENTN Admin{% endblock %}</h1>
+                    </div>
                 </div>
                 <div class="topbar-actions">
-                    <!-- Mobile Search Toggle -->
-                    <button class="icon-button d-md-none" id="mobileSearchBtn" type="button" title="Search">
+                    <button class="icon-button d-md-none" id="mobileSearchBtn" type="button" title="Tìm kiếm" data-i18n-title="search.titleAttr" aria-label="Tìm kiếm" data-i18n-aria-label="search.titleAttr">
                         <i class="fas fa-search"></i>
                     </button>
-                    <!-- Global Search -->
-                    <div class="position-relative d-none d-md-block" style="min-width:280px;">
-                        <input type="text" class="form-control form-control-sm" id="globalSearch" placeholder="Search users, movies, comments..." data-i18n-placeholder="search.globalPlaceholder" style="padding-left:36px;">
-                        <i class="fas fa-search position-absolute text-muted" style="left:12px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;"></i>
-                        <div class="dropdown-menu shadow p-0" id="searchResults" style="width:100%;max-height:400px;overflow-y:auto;display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--panel);border-color:var(--line);"></div>
+                    <!-- Command Palette Global Search -->
+                    <div class="search-shell d-none d-md-block">
+                        <input type="text" class="form-control form-control-sm" id="globalSearch" placeholder="Tìm người dùng, phim lẻ, bình luận..." data-i18n-placeholder="search.globalPlaceholder">
+                        <i class="fas fa-search position-absolute text-muted" style="left:13px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;"></i>
+                        <span class="kbd-hint">⌘K</span>
+                        <div class="dropdown-menu shadow p-0" id="searchResults" style="width:100%;max-height:420px;overflow-y:auto;display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;"></div>
                     </div>
                     <!-- Notification Bell -->
                     <div class="dropdown">
-                        <button class="icon-button position-relative" type="button" data-bs-toggle="dropdown" id="notifBell" title="Notifications">
+                        <button class="icon-button position-relative" type="button" data-bs-toggle="dropdown" id="notifBell" title="Thông báo" data-i18n-title="notif.titleAttr" aria-label="Thông báo" data-i18n-aria-label="notif.titleAttr">
                             <i class="fas fa-bell"></i>
-                            {% if admin_notif_count %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px;" id="notifBadge">{{ admin_notif_count }}</span>{% else %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:10px;" id="notifBadge">0</span>{% endif %}
+                            {% if admin_notif_count %}<span class="position-absolute badge rounded-pill bg-danger" style="font-size:9.5px;top:-4px;right:-4px;padding:2.5px 5px;" id="notifBadge">{{ admin_notif_count }}</span>{% else %}<span class="position-absolute badge rounded-pill bg-danger d-none" style="font-size:9.5px;top:-4px;right:-4px;padding:2.5px 5px;" id="notifBadge">0</span>{% endif %}
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow p-0" style="width:320px;max-height:400px;overflow-y:auto;background:var(--panel);border-color:var(--line);">
-                            <li class="px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><strong class="small">Recent Events (24h)</strong></li>
-                            <li id="notifList"><div class="text-center py-3 text-muted small">Loading...</div></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow p-0" style="width:min(340px, calc(100vw - 24px));max-height:420px;overflow-y:auto;">
+                            <li class="px-3 py-2 border-bottom"><strong class="small" data-i18n="notif.liveEvents">Sự kiện hệ thống (24 giờ)</strong></li>
+                            <li id="notifList"><div class="text-center py-3 text-muted small" data-i18n="common.loading">Đang tải...</div></li>
                         </ul>
                     </div>
                     <!-- User Menu -->
                     <div class="dropdown">
-                        <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background:transparent; border:none; padding:0; gap:8px;">
+                        <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
                             <span>{{ request.user.username }}</span>
-                            <i class="fas fa-chevron-down ms-1 text-muted" style="font-size: 12px;"></i>
+                            <i class="fas fa-chevron-down text-muted" style="font-size: 11px;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-1 mt-2" style="min-width: 220px; border-radius: var(--radius); border-color: var(--line); background: var(--panel);">
+                        <ul class="dropdown-menu dropdown-menu-end shadow mt-2 user-dropdown-menu">
                             <li>
-                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin_dashboard:admin_profile' %}" style="color: var(--ink);">
-                                    <i class="fas fa-user fa-fw text-muted"></i> <span>My Profile</span>
+                                <a class="dropdown-item" href="{% url 'admin_dashboard:admin_profile' %}">
+                                    <i class="fas fa-id-badge fa-fw text-muted"></i> <span data-i18n="page.profile">My Profile</span>
                                 </a>
                             </li>
                             <li>
-                                <button class="dropdown-item d-flex align-items-center gap-3 py-2" id="themeToggle" type="button" style="color: var(--ink);">
-                                    <i class="fas fa-moon fa-fw text-muted"></i> <span data-i18n="theme.toggle">Dark/Light Mode</span>
+                                <button class="dropdown-item" id="themeToggle" type="button">
+                                    <i class="fas fa-moon fa-fw text-muted"></i> <span data-i18n="theme.toggle">Switch Theme (Dark/Light)</span>
                                 </button>
                             </li>
                             <li>
-                                <button class="dropdown-item d-flex align-items-center gap-3 py-2" id="langToggle" type="button" style="color: var(--ink);">
+                                <button class="dropdown-item" id="langToggle" type="button">
                                     <i class="fas fa-language fa-fw text-muted"></i> <span data-i18n="language.toggle">Switch Language</span>
                                 </button>
                             </li>
-                            <li><hr class="dropdown-divider" style="border-color: var(--line);"></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item d-flex align-items-center gap-3 py-2" href="{% url 'admin_dashboard:admin_profile' %}" style="color: var(--ink);">
-                                    <i class="fas fa-key fa-fw text-muted"></i> <span data-i18n="nav.changePassword">Change Password</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center gap-3 py-2 text-danger" href="{% url 'admin_dashboard:logout' %}">
-                                    <i class="fas fa-right-from-bracket fa-fw text-danger"></i> <span data-i18n="nav.logout">Logout</span>
+                                <a class="dropdown-item dropdown-item-danger" href="{% url 'admin_dashboard:logout' %}">
+                                    <i class="fas fa-right-from-bracket fa-fw"></i> <span data-i18n="nav.logout">Logout</span>
                                 </a>
                             </li>
                         </ul>
@@ -1314,34 +396,36 @@
                 </div>
             </header>
 
-            <div class="d-md-none px-3 pb-3" id="mobileSearchWrap" style="display:none;">
+            <div class="d-md-none px-3 pb-3 pt-2 mobile-search-drawer" id="mobileSearchWrap" style="display:none;">
                 <div class="position-relative">
-                    <input type="text" class="form-control form-control-sm" id="mobileSearch" placeholder="Search users, movies, comments..." style="padding-left:36px;">
+                    <input type="text" class="form-control form-control-sm" id="mobileSearch" placeholder="Tìm người dùng, phim lẻ, bình luận..." data-i18n-placeholder="search.globalPlaceholder" style="padding-left:36px;">
                     <i class="fas fa-search position-absolute text-muted" style="left:12px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;"></i>
                 </div>
-                <div class="card mt-1" id="mobileSearchResults" style="display:none;max-height:300px;overflow-y:auto;background:var(--panel);border-color:var(--line);"></div>
+                <div class="card mt-1" id="mobileSearchResults" style="display:none;max-height:300px;overflow-y:auto;"></div>
             </div>
 
-            <main class="content">
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {% if 'error' in message.tags or 'danger' in message.tags %}
-                            <i class="fas fa-circle-xmark"></i>
-                            {% elif 'success' in message.tags %}
-                            <i class="fas fa-circle-check"></i>
-                            {% elif 'warning' in message.tags %}
-                            <i class="fas fa-triangle-exclamation"></i>
-                            {% else %}
-                            <i class="fas fa-circle-info"></i>
-                            {% endif %}
-                            <span>{{ message }}</span>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-                {% block content %}{% endblock %}
-            </main>
+            <div class="content-scroll" id="contentScroll">
+                <main class="content">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert">
+                                {% if 'error' in message.tags or 'danger' in message.tags %}
+                                <i class="fas fa-circle-xmark text-danger"></i>
+                                {% elif 'success' in message.tags %}
+                                <i class="fas fa-circle-check text-success"></i>
+                                {% elif 'warning' in message.tags %}
+                                <i class="fas fa-triangle-exclamation text-warning"></i>
+                                {% else %}
+                                <i class="fas fa-circle-info text-primary"></i>
+                                {% endif %}
+                                <span class="flash-message-text">{{ message }}</span>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng" data-i18n-aria-label="common.close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    {% block content %}{% endblock %}
+                </main>
+            </div>
         </section>
     </div>
 
@@ -1350,6 +434,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'admin_dashboard/js/admin_i18n.js' %}"></script>
     <script src="{% static 'admin_dashboard/js/admin_ui.js' %}"></script>
+    <script>
+        // Support ⌘K / Ctrl+K shortcut to focus global command search
+        document.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                const input = document.getElementById('globalSearch');
+                if (input) {
+                    e.preventDefault();
+                    input.focus();
+                    input.select();
+                }
+            }
+        });
+    </script>
 
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>

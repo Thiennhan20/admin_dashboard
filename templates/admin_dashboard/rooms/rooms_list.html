@@ -68,7 +68,7 @@
                     <i class="fas fa-hourglass-half text-info fa-lg"></i>
                 </div>
                 <div>
-                    <h4 class="mb-1 text-info">6 Hours</h4>
+                    <h4 class="mb-1 text-info" data-i18n="rooms.maxTtlValue">6 Hours</h4>
                     <p class="text-muted mb-0" data-i18n="rooms.statMaxTtl">Max Session TTL</p>
                 </div>
             </div>
@@ -112,7 +112,7 @@
                             <td>
                                 <div class="d-flex align-items-center">
                                     {% if room.host_avatar %}
-                                        <img src="{{ room.host_avatar }}" alt="{{ room.host_name }}" 
+                                        <img src="{{ room.host_avatar }}" alt="{{ room.host_name }}" loading="lazy" decoding="async"
                                              class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;">
                                     {% else %}
                                         <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" 
@@ -134,9 +134,9 @@
                             </td>
                             <td>
                                 <div>
-                                    <span class="badge bg-info bg-opacity-10 text-info text-capitalize">{{ room.content_type }}</span>
+                                    <span class="badge bg-info bg-opacity-10 text-info" data-i18n="rooms.type_{{ room.content_type }}">{{ room.content_type }}</span>
                                     {% if room.content_type == 'tvshow' %}
-                                        <span class="badge bg-teal bg-opacity-10 text-teal ms-1">
+                                        <span class="badge bg-success bg-opacity-10 text-success ms-1">
                                             S{{ room.season|default:"1" }} E{{ room.current_episode|default:"1" }}
                                         </span>
                                     {% endif %}
@@ -176,7 +176,7 @@
         {% else %}
             <div class="text-center py-5 text-muted">
                 <div class="mb-4">
-                    <i class="fas fa-door-closed fa-4x text-light-subtle"></i>
+                    <i class="fas fa-door-closed fa-4x text-muted opacity-50"></i>
                 </div>
                 <h5 data-i18n="rooms.emptyTitle">No Active Watch Parties</h5>
                 <p class="small mb-0" data-i18n="rooms.emptyDesc">Users are not currently streaming in any rooms.</p>
@@ -220,15 +220,18 @@
             'rooms.statTotalRooms': 'Total Active Rooms',
             'rooms.statViewers': 'Total Active Viewers',
             'rooms.calculating': 'Calculating...',
-            'rooms.statMaxTtl': 'Max Session TTL',
+            'rooms.maxTtlValue': '6 Hours',
+            'rooms.statMaxTtl': 'Max Session Duration',
             'rooms.listTitle': 'Room Listing',
             'rooms.colRoomId': 'Room ID',
             'rooms.colHost': 'Host',
             'rooms.colTitle': 'Streaming Title',
             'rooms.colInfo': 'Info',
             'rooms.colViewers': 'Viewers',
-            'rooms.colTtl': 'TTL',
+            'rooms.colTtl': 'Remaining',
             'rooms.colActions': 'Actions',
+            'rooms.type_movie': 'Movie',
+            'rooms.type_tvshow': 'TV Show',
             'rooms.badgeLive': 'LIVE',
             'rooms.badgeWaiting': 'WAITING',
             'rooms.expired': 'Expired',
@@ -240,20 +243,23 @@
         },
         vi: {
             'rooms.title': 'Phòng xem đang hoạt động',
-            'rooms.subtitle': 'Theo dõi và quản lý các phiên phòng xem Watch Party đang hoạt động do người dùng tổ chức.',
+            'rooms.subtitle': 'Theo dõi và quản lý các phiên phòng xem chung đang hoạt động do người dùng tạo.',
             'rooms.refreshBtn': 'Làm mới phòng',
             'rooms.statTotalRooms': 'Tổng phòng đang hoạt động',
             'rooms.statViewers': 'Tổng người xem đang hoạt động',
             'rooms.calculating': 'Đang tính toán...',
-            'rooms.statMaxTtl': 'Thời gian phiên tối đa (TTL)',
+            'rooms.maxTtlValue': '6 giờ',
+            'rooms.statMaxTtl': 'Thời lượng phiên tối đa',
             'rooms.listTitle': 'Danh sách phòng',
             'rooms.colRoomId': 'Mã phòng',
             'rooms.colHost': 'Người chủ phòng',
             'rooms.colTitle': 'Tên nội dung phát',
             'rooms.colInfo': 'Thông tin',
             'rooms.colViewers': 'Người xem',
-            'rooms.colTtl': 'TTL',
+            'rooms.colTtl': 'Thời gian còn lại',
             'rooms.colActions': 'Thao tác',
+            'rooms.type_movie': 'Phim lẻ',
+            'rooms.type_tvshow': 'Phim bộ',
             'rooms.badgeLive': 'Trực tiếp',
             'rooms.badgeWaiting': 'Đang chờ',
             'rooms.expired': 'Hết hạn',
@@ -282,6 +288,7 @@
             document.querySelectorAll('.ttl-countdown').forEach(el => {
                 let seconds = parseInt(el.dataset.seconds);
                 if (isNaN(seconds) || seconds <= 0) {
+                    el.dataset.expired = '1';
                     el.textContent = t('rooms.expired') || 'Expired';
                     return;
                 }
@@ -302,6 +309,11 @@
         
         updateCounters();
         setInterval(updateCounters, 1000);
+        window.addEventListener('admin:language-change', function() {
+            document.querySelectorAll('.ttl-countdown[data-expired="1"]').forEach(el => {
+                el.textContent = t('rooms.expired') || 'Expired';
+            });
+        });
     });
 </script>
 {% endblock %}

@@ -19,7 +19,7 @@
                     <div class="col-md-3"><label class="form-label" data-i18n="con.form_tmdb">TMDB ID</label><input type="text" class="form-control" name="tmdb_id" required></div>
                     <div class="col-md-3"><label class="form-label" data-i18n="con.form_title">Title</label><input type="text" class="form-control" name="title" required></div>
                     <div class="col-md-3"><label class="form-label" data-i18n="con.form_position">Position</label><input type="number" class="form-control" name="position" value="0"></div>
-                    <div class="col-md-6"><label class="form-label" data-i18n="con.form_poster">Poster Path</label><input type="text" class="form-control" name="poster_path" placeholder="/path/to/poster.jpg"></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="con.form_poster">Poster Path</label><input type="text" class="form-control" name="poster_path" placeholder="/path/to/poster.jpg" data-i18n-placeholder="con.poster_placeholder"></div>
                     <div class="col-md-6"><label class="form-label" data-i18n="con.form_backdrop">Backdrop Path</label><input type="text" class="form-control" name="backdrop_path"></div>
                     <div class="col-12"><label class="form-label" data-i18n="con.form_desc">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
                     <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="feat_active" checked><label class="form-check-label" for="feat_active" data-i18n="con.form_active">Active</label></div></div>
@@ -31,10 +31,10 @@
     <div class="card-body p-0">
         {% if featured %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_type">Type</th><th data-i18n="con.col_tmdb">TMDB ID</th><th data-i18n="con.col_position">Position</th><th data-i18n="con.col_status">Status</th><th data-i18n="con.col_actions">Actions</th></tr></thead>
+            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_type">Type</th><th data-i18n="con.col_tmdb">TMDB ID</th><th data-i18n="con.col_position">Position</th><th data-i18n="con.col_status">Status</th><th class="text-end" data-i18n="con.col_actions">Actions</th></tr></thead>
             <tbody>{% for f in featured %}<tr>
                 <td><strong>{{ f.title }}</strong></td>
-                <td><span class="badge bg-{% if f.content_type == 'movie' %}success{% else %}info{% endif %}" data-i18n="{% if f.content_type == 'movie' %}con.type_movie{% else %}con.type_tv{% endif %}">{{ f.content_type }}</span></td>
+                <td><span class="badge bg-{% if f.content_type == 'movie' %}success{% else %}info text-dark{% endif %}" data-i18n="{% if f.content_type == 'movie' %}con.type_movie{% else %}con.type_tv{% endif %}">{{ f.content_type }}</span></td>
                 <td><code>{{ f.tmdb_id }}</code></td><td>{{ f.position }}</td>
                 <td>
                     {% if f.is_active %}
@@ -43,7 +43,12 @@
                     <span class="badge bg-secondary" data-i18n="con.status_inactive">Inactive</span>
                     {% endif %}
                 </td>
-                <td><form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if f.is_active %}on{% else %}off{% endif %}"></i></button></form> <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form></td>
+                <td class="text-end">
+                    <div class="table-actions">
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="con.btn_toggle"><i class="fas fa-toggle-{% if f.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
+                    </div>
+                </td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-4 text-muted" data-i18n="con.no_featured">No featured content. Add some above!</div>{% endif %}
@@ -71,7 +76,7 @@
     <div class="card-body p-0">
         {% if notices %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_status">Status</th><th data-i18n="con.col_created">Created</th><th data-i18n="con.col_actions">Actions</th></tr></thead>
+            <thead><tr><th data-i18n="con.col_title">Title</th><th data-i18n="con.col_status">Status</th><th data-i18n="con.col_created">Created</th><th class="text-end" data-i18n="con.col_actions">Actions</th></tr></thead>
             <tbody>{% for n in notices %}<tr>
                 <td><strong>{{ n.title }}</strong><br><small class="text-muted">{{ n.message|truncatechars:60 }}</small></td>
                 <td>
@@ -81,8 +86,13 @@
                     <span class="badge bg-secondary" data-i18n="con.status_inactive">Inactive</span>
                     {% endif %}
                 </td>
-                <td><small>{{ n.created_at|date:"M d, Y" }}</small></td>
-                <td><form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if n.is_active %}on{% else %}off{% endif %}"></i></button></form> <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form></td>
+                <td><small>{{ n.created_at|date:"Y-m-d" }}</small></td>
+                <td class="text-end">
+                    <div class="table-actions">
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="con.btn_toggle"><i class="fas fa-toggle-{% if n.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
+                    </div>
+                </td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-4 text-muted" data-i18n="con.no_notices">No maintenance notices.</div>{% endif %}
@@ -121,7 +131,10 @@ window.AdminUI.addTranslations({
         'con.form_active_now': 'Active immediately',
         'con.btn_create_notice': 'Create Notice',
         'con.col_created': 'Created',
-        'con.no_notices': 'No maintenance notices.'
+        'con.no_notices': 'No maintenance notices.',
+        'con.poster_placeholder': '/path/to/poster.jpg',
+        'con.btn_toggle': 'Toggle Status',
+        'con.btn_delete': 'Delete'
     },
     vi: {
         'con.feat_title': 'Nội dung nổi bật',
@@ -132,7 +145,7 @@ window.AdminUI.addTranslations({
         'con.form_tmdb': 'Mã TMDB',
         'con.form_title': 'Tiêu đề',
         'con.form_position': 'Vị trí',
-        'con.form_poster': 'Đường dẫn Poster',
+        'con.form_poster': 'Đường dẫn áp phích',
         'con.form_backdrop': 'Đường dẫn ảnh nền',
         'con.form_desc': 'Mô tả',
         'con.form_active': 'Hoạt động',
@@ -151,7 +164,10 @@ window.AdminUI.addTranslations({
         'con.form_active_now': 'Kích hoạt ngay lập tức',
         'con.btn_create_notice': 'Tạo thông báo',
         'con.col_created': 'Ngày tạo',
-        'con.no_notices': 'Không có thông báo bảo trì nào.'
+        'con.no_notices': 'Không có thông báo bảo trì nào.',
+        'con.poster_placeholder': '/duong-dan/anh-bia.jpg',
+        'con.btn_toggle': 'Bật / Tắt',
+        'con.btn_delete': 'Xóa'
     }
 });
 </script>

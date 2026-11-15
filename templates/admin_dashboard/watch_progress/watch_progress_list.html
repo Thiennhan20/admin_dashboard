@@ -34,27 +34,41 @@
 <div class="card mb-4">
     <div class="card-header"><h6 class="mb-0"><i class="fas fa-search me-2"></i><span data-i18n="wp.search_filter">Search & Filter</span></h6></div>
     <div class="card-body">
-        <form method="GET"><div class="row g-3">
-            <div class="col-md-5"><input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search by title or content ID..." data-i18n-placeholder="wp.placeholder_search"></div>
-            <div class="col-md-4"><select class="form-select" name="type"><option value="" data-i18n="wp.all_types">All Types</option><option value="movie" {% if content_type == 'movie' %}selected{% endif %} data-i18n="wp.movies">Movies</option><option value="tv" {% if content_type == 'tv' %}selected{% endif %} data-i18n="wp.tv_shows">TV Shows</option></select></div>
-            <div class="col-md-3"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i><span data-i18n="wp.btn_filter">Filter</span></button></div>
-        </div></form>
+        <form method="GET" class="filter-inline-grid">
+            <div class="filter-field">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search by title or content ID..." data-i18n-placeholder="wp.placeholder_search">
+                </div>
+            </div>
+            <div class="filter-field">
+                <select class="form-select" name="type">
+                    <option value="" data-i18n="wp.all_types">All Types</option>
+                    <option value="movie" {% if content_type == 'movie' %}selected{% endif %} data-i18n="wp.movies">Movies</option>
+                    <option value="tv" {% if content_type == 'tv' %}selected{% endif %} data-i18n="wp.tv_shows">TV Shows</option>
+                </select>
+            </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn btn-primary filter-action-btn"><i class="fas fa-filter"></i><span data-i18n="wp.btn_filter">Filter</span></button>
+                <a href="{% url 'admin_dashboard:watch_progress' %}" class="btn btn-outline-secondary filter-action-btn"><i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear</span></a>
+            </div>
+        </form>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="nav.watchProgress">Watch Progress</span> ({{ total }})</h6>
-        <div>
+        <div class="card-toolbar">
             <button class="btn btn-sm btn-outline-danger d-none" id="bulkDeleteBtn" onclick="bulkDelete()"><i class="fas fa-trash me-1"></i><span data-i18n="wp.btn_delete_selected">Delete Selected</span></button>
             <div class="dropdown d-inline-block">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-download me-1"></i><span data-i18n="common.btn_export">Export Data</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--panel); border-color: var(--line);">
-                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=csv"><i class="fas fa-file-csv me-2 text-primary"></i>CSV</a></li>
-                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=excel"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xls)</a></li>
-                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF / In</a></li>
+                <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu shadow" aria-labelledby="exportDropdown">
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=csv"><i class="fas fa-file-csv fa-fw text-primary"></i><span data-i18n="common.csv">CSV</span></a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=excel"><i class="fas fa-file-excel fa-fw text-success"></i><span data-i18n="common.excel">Excel (.xls)</span></a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'watchprogresses' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf fa-fw text-danger"></i><span data-i18n="common.pdf">PDF / Print</span></a></li>
                 </ul>
             </div>
         </div>
@@ -62,14 +76,14 @@
     <div class="card-body p-0">
         {% if items %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th><input type="checkbox" id="selectAll"></th><th data-i18n="wp.col_user">User</th><th data-i18n="wp.col_content">Content</th><th data-i18n="wp.col_type">Type</th><th data-i18n="wp.col_progress">Progress</th><th data-i18n="wp.col_last_watched">Last Watched</th></tr></thead>
+            <thead><tr><th><input type="checkbox" class="form-check-input" id="selectAll"></th><th data-i18n="wp.col_user">User</th><th data-i18n="wp.col_content">Content</th><th data-i18n="wp.col_type">Type</th><th data-i18n="wp.col_progress">Progress</th><th data-i18n="wp.col_last_watched">Last Watched</th></tr></thead>
             <tbody>
                 {% for item in items %}
                 <tr>
-                    <td><input type="checkbox" class="row-check" value="{{ item.id }}"></td>
-                    <td>{{ item.user.name|default:"Unknown" }}<br><small class="text-muted">{{ item.user.email|default:"" }}</small></td>
+                    <td><input type="checkbox" class="form-check-input row-check" value="{{ item.id }}"></td>
+                    <td>{% if item.user.name %}{{ item.user.name }}{% else %}<span data-i18n="wp.unknownUser">Unknown</span>{% endif %}<br><small class="text-muted">{{ item.user.email|default:"" }}</small></td>
                     <td><strong>{{ item.title|default:item.contentId }}</strong><br><small class="text-muted">ID: {{ item.contentId }}</small></td>
-                    <td>{% if item.isTVShow %}<span class="badge bg-info">TV</span>{% else %}<span class="badge bg-success">Movie</span>{% endif %}</td>
+                    <td>{% if item.isTVShow %}<span class="badge bg-info text-dark" data-i18n="wp.badge_tv">TV</span>{% else %}<span class="badge bg-success" data-i18n="wp.badge_movie">Movie</span>{% endif %}</td>
                     <td>{{ item.progress|default:"—" }}</td>
                     <td><small>{{ item.lastWatched|default:"—" }}</small></td>
                 </tr>
@@ -116,7 +130,10 @@ window.AdminUI.addTranslations({
         'wp.col_last_watched': 'Last Watched',
         'wp.no_records': 'No watch progress records found.',
         'wp.confirm_delete_title': 'Delete Watch Progress',
-        'wp.confirm_delete_body': 'Delete {count} record(s)?'
+        'wp.confirm_delete_body': 'Delete {count} record(s)?',
+        'wp.unknownUser': 'Unknown',
+        'wp.badge_tv': 'TV Show',
+        'wp.badge_movie': 'Movie'
     },
     vi: {
         'wp.total_records': 'Tổng số bản ghi',
@@ -137,7 +154,10 @@ window.AdminUI.addTranslations({
         'wp.col_last_watched': 'Xem cuối cùng',
         'wp.no_records': 'Không tìm thấy bản ghi tiến trình xem nào.',
         'wp.confirm_delete_title': 'Xóa lịch sử xem',
-        'wp.confirm_delete_body': 'Bạn có chắc chắn muốn xóa {count} bản ghi đã chọn?'
+        'wp.confirm_delete_body': 'Bạn có chắc chắn muốn xóa {count} bản ghi đã chọn?',
+        'wp.unknownUser': 'Không rõ',
+        'wp.badge_tv': 'Phim bộ',
+        'wp.badge_movie': 'Phim lẻ'
     }
 });
 
@@ -154,6 +174,7 @@ function toggleBulk() {
         btn.querySelector('span').textContent = checked > 0 ? t('wp.btn_delete_selected') + ' (' + checked + ')' : t('wp.btn_delete_selected');
     }
 }
+window.addEventListener('admin:language-change', toggleBulk);
 function bulkDelete() {
     const ids = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
     confirmAction(t('wp.confirm_delete_title'), t('wp.confirm_delete_body', {count: ids.length}), () => {

@@ -1,476 +1,110 @@
-<!DOCTYPE html>
-{% load static %}
-<html lang="vi" data-theme="light">
-<head>
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('admin-theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        })();
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Admin Login</title>
+{% extends "admin_dashboard/auth/base_auth.html" %}
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% block title %}ENTN — Login{% endblock %}
 
-    <style>
-        :root {
-            --bg: #eef3f8;
-            --panel: #ffffff;
-            --ink: #111827;
-            --muted: #64748b;
-            --line: #d6dee9;
-            --teal: #0f766e;
-            --teal-dim: rgba(15, 118, 110, 0.08);
-            --amber: #d97706;
-            --red: #dc2626;
-            --radius: 14px;
-            --control: #f8fafc;
-            --control-hover: #e9eef5;
-        }
+{% block card_header %}
+<div class="brand-header">
+    <div class="brand-lockup">
+        <div class="brand-icon"><i class="fas fa-icons"></i></div>
+        <div class="brand-title">ENTN</div>
+    </div>
+    <div class="brand-sub" data-i18n="login.subtitle">Đăng nhập vào bảng điều khiển quản trị</div>
+</div>
+{% endblock %}
 
-        html[data-theme="dark"] {
-            --bg: #0f172a;
-            --panel: #111827;
-            --ink: #e5e7eb;
-            --muted: #9ca3af;
-            --line: #263244;
-            --teal: #2dd4bf;
-            --teal-dim: rgba(45, 212, 191, 0.1);
-            --amber: #fbbf24;
-            --red: #f87171;
-            --control: #182235;
-            --control-hover: #233047;
-            color-scheme: dark;
-        }
+{% block card_body %}
+<form method="POST" id="loginForm" novalidate>
+    {% csrf_token %}
+    {% if next %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% endif %}
 
-        html[data-theme="dark"] body {
-            background:
-                linear-gradient(120deg, rgba(45, 212, 191, .05), transparent 38%),
-                linear-gradient(240deg, rgba(59, 130, 246, .07), transparent 32%),
-                var(--bg);
-        }
-
-        html[data-theme="dark"] .auth-card {
-            border-color: var(--line);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
-        }
-
-        html[data-theme="dark"] .btn-close {
-            filter: invert(1) grayscale(1);
-        }
-
-        html[data-theme="dark"] .form-control::placeholder {
-            color: #64748b;
-        }
-
-        html[data-theme="dark"] .theme-fab {
-            box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
-        }
-
-        html[data-theme="dark"] .btn-auth {
-            background: #ffffff;
-            color: #111827;
-        }
-
-        html[data-theme="dark"] .btn-auth:hover {
-            background: #e5e7eb;
-        }
-
-        html[data-theme="dark"] input:-webkit-autofill,
-        html[data-theme="dark"] input:-webkit-autofill:hover,
-        html[data-theme="dark"] input:-webkit-autofill:focus {
-            -webkit-text-fill-color: var(--ink);
-            -webkit-box-shadow: 0 0 0 1000px var(--control) inset;
-            transition: background-color 9999s ease-in-out 0s;
-            caret-color: var(--ink);
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        html, body {
-            min-height: 100vh;
-            min-height: 100dvh;
-        }
-
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background:
-                linear-gradient(120deg, rgba(15, 118, 110, .10), transparent 36%),
-                linear-gradient(240deg, rgba(37, 99, 235, .08), transparent 34%),
-                var(--bg);
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: var(--ink);
-        }
-
-        .auth-wrapper {
-            width: min(100%, 420px);
-            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-        }
-
-        .auth-card {
-            background: var(--panel);
-            border: 1px solid rgba(148, 163, 184, .35);
-            border-radius: 20px;
-            padding: clamp(28px, 5vw, 40px);
-            box-shadow: 0 22px 70px rgba(15, 23, 42, .12);
-        }
-
-        .alert {
-            position: relative;
-            border: 1px solid transparent;
-            border-left-width: 4px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 13px 48px 13px 16px;
-            box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
-        }
-
-        .alert-dismissible {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
-
-        .alert-dismissible .btn-close {
-            position: absolute;
-            top: 50%;
-            right: 12px;
-            transform: translateY(-50%);
-            padding: 6px;
-            opacity: .65;
-        }
-
-        .alert-dismissible .btn-close:hover {
-            opacity: 1;
-        }
-
-        .alert-danger,
-        .alert-error {
-            border-color: #fecaca;
-            border-left-color: #dc2626;
-            background: #fef2f2;
-            color: #b91c1c;
-        }
-
-        .alert-success {
-            border-color: #a7f3d0;
-            border-left-color: #10b981;
-            background: #ecfdf5;
-            color: #065f46;
-        }
-
-        .alert-info {
-            border-color: #bfdbfe;
-            border-left-color: #3b82f6;
-            background: #eff6ff;
-            color: #1d4ed8;
-        }
-
-        .alert-warning {
-            border-color: #fde68a;
-            border-left-color: #f59e0b;
-            background: #fffbeb;
-            color: #92400e;
-        }
-
-        html[data-theme="dark"] .alert-danger,
-        html[data-theme="dark"] .alert-error {
-            border-color: #7f1d1d;
-            border-left-color: #ef4444;
-            background: #2a1215;
-            color: #fecaca;
-        }
-
-        html[data-theme="dark"] .alert-success {
-            border-color: #14532d;
-            border-left-color: #10b981;
-            background: #0f2b1d;
-            color: #a7f3d0;
-        }
-
-        html[data-theme="dark"] .alert-info {
-            border-color: #1e3a5f;
-            border-left-color: #3b82f6;
-            background: #0f2033;
-            color: #bfdbfe;
-        }
-
-        html[data-theme="dark"] .alert-warning {
-            border-color: #57420f;
-            border-left-color: #f59e0b;
-            background: #2b2310;
-            color: #fde68a;
-        }
-
-        .field {
-            margin-bottom: 18px;
-        }
-
-        .field label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            color: var(--ink);
-            font-size: 14px;
-            font-weight: 750;
-        }
-
-        .field label i {
-            color: var(--teal);
-            font-size: 13px;
-        }
-
-        .input-shell {
-            position: relative;
-        }
-
-        .form-control {
-            width: 100%;
-            min-height: 50px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            background: var(--control);
-            color: var(--ink);
-            -webkit-text-fill-color: var(--ink);
-            caret-color: var(--ink);
-            font-size: 16px;
-            padding: 13px 14px;
-            transition: border-color .2s, box-shadow .2s, background .2s;
-        }
-
-        .form-control.password-input {
-            padding-right: 48px;
-        }
-
-        .form-control::placeholder {
-            color: #94a3b8;
-            opacity: 1;
-        }
-
-        .form-control:focus {
-            outline: none;
-            background: var(--control);
-            border-color: var(--teal);
-            box-shadow: 0 0 0 3px var(--teal-dim);
-        }
-
-        .password-toggle {
-            position: absolute;
-            top: 50%;
-            right: 8px;
-            width: 36px;
-            height: 36px;
-            display: grid;
-            place-items: center;
-            transform: translateY(-50%);
-            border: 0;
-            border-radius: 10px;
-            background: transparent;
-            color: var(--muted);
-            cursor: pointer;
-            transition: background .15s, color .15s;
-        }
-
-        .password-toggle:hover {
-            background: var(--control-hover);
-            color: var(--teal);
-        }
-
-        .btn-auth {
-            width: 100%;
-            min-height: 50px;
-            border: 0;
-            border-radius: 12px;
-            background: #0b1220;
-            color: #fff;
-            font-weight: 800;
-            font-size: 15px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 9px;
-            cursor: pointer;
-            transition: background .15s;
-        }
-
-        .btn-auth:hover {
-            background: #111c31;
-        }
-
-        .auth-links {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 22px;
-        }
-
-        .auth-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 9px 16px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            color: var(--ink);
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 13px;
-            background: var(--panel);
-            transition: border-color .15s, color .15s, background .15s;
-        }
-
-        .auth-link:hover {
-            border-color: var(--teal);
-            color: var(--teal);
-            background: var(--teal-dim);
-        }
-
-        .theme-fab {
-            position: fixed;
-            top: 18px;
-            right: 18px;
-            z-index: 50;
-            width: 42px;
-            height: 42px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            background: var(--panel);
-            color: var(--ink);
-            display: grid;
-            place-items: center;
-            cursor: pointer;
-            box-shadow: 0 6px 24px rgba(15, 23, 42, .08);
-            transition: background .15s, border-color .15s, color .15s;
-        }
-
-        .theme-fab:hover {
-            background: var(--control-hover);
-            color: var(--teal);
-        }
-
-        @media (max-width: 480px) {
-            .auth-wrapper { padding: 16px; }
-            .auth-card { padding: 24px 20px; }
-            .auth-links { flex-direction: column; }
-        }
-    </style>
-</head>
-<body>
-    <button class="theme-fab" id="themeToggle" type="button" title="Giao diện Sáng/Tối" data-i18n-title="theme.toggle">
-        <i class="fas fa-moon"></i>
-    </button>
-    <button class="theme-fab" id="langToggle" type="button" style="top:70px;right:18px;" title="Đổi ngôn ngữ" data-i18n-title="language.next"><span style="font-weight:800;font-size:13px;">VI</span></button>
-    <div class="auth-wrapper">
-        <div class="auth-card">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert">
-                        {% if 'error' in message.tags or 'danger' in message.tags %}
-                        <i class="fas fa-circle-xmark"></i>
-                        {% elif 'success' in message.tags %}
-                        <i class="fas fa-circle-check"></i>
-                        {% elif 'warning' in message.tags %}
-                        <i class="fas fa-triangle-exclamation"></i>
-                        {% else %}
-                        <i class="fas fa-circle-info"></i>
-                        {% endif %}
-                        <span>{{ message }}</span>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-
-            <form method="POST" id="loginForm" novalidate>
-                {% csrf_token %}
-
-                <div class="field">
-                    <label for="username"><i class="fas fa-user"></i><span data-i18n="login.username">Tên đăng nhập</span></label>
-                    <input type="text" class="form-control" id="username" name="username" placeholder="Nhập username" data-i18n-placeholder="login.username_placeholder" required autocomplete="username" autocapitalize="none" spellcheck="false">
-                </div>
-
-                <div class="field">
-                    <label for="password"><i class="fas fa-key"></i><span data-i18n="login.password">Mật khẩu</span></label>
-                    <div class="input-shell">
-                        <input type="password" class="form-control password-input" id="password" name="password" placeholder="Nhập password" data-i18n-placeholder="login.password_placeholder" required autocomplete="current-password">
-                        <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Hiện mật khẩu">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-auth" id="loginBtn">
-                    <i class="fas fa-arrow-right-to-bracket"></i>
-                    <span data-i18n="login.submit">Đăng nhập</span>
-                </button>
-            </form>
-
-            <div class="auth-links">
-                <a class="auth-link" href="{% url 'admin_dashboard:register' %}">
-                    <i class="fas fa-user-plus"></i><span data-i18n="login.register_link">Tạo tài khoản</span>
-                </a>
-                <a class="auth-link" href="{% url 'admin:index' %}">
-                    <i class="fas fa-screwdriver-wrench"></i><span data-i18n="login.django_admin">Django Admin</span>
-                </a>
-            </div>
+    <div class="field">
+        <label for="username" data-i18n="login.username">Tên đăng nhập</label>
+        <div class="input-shell has-icon">
+            <i class="fas fa-user fa-fw input-icon" aria-hidden="true"></i>
+            <input type="text" class="form-control" id="username" name="username" value="{{ username|default:'' }}" placeholder="Nhập tên đăng nhập" data-i18n-placeholder="login.username_placeholder" required autocomplete="username" autocapitalize="none" spellcheck="false">
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'admin_dashboard/js/admin_i18n.js' %}"></script>
-    <script src="{% static 'admin_dashboard/js/admin_ui.js' %}"></script>
-    <script>
-        window.AdminUI.addTranslations({
-            en: {
-                'login.username': 'Username',
-                'login.username_placeholder': 'Enter username',
-                'login.password': 'Password',
-                'login.password_placeholder': 'Enter password',
-                'login.submit': 'Log In',
-                'login.register_link': 'Create Account',
-                'login.django_admin': 'Django Admin',
-                'login.password_show': 'Show password',
-                'login.password_hide': 'Hide password',
-                'login.processing': 'Processing...'
-            },
-            vi: {
-                'login.username': 'Tên đăng nhập',
-                'login.username_placeholder': 'Nhập username',
-                'login.password': 'Mật khẩu',
-                'login.password_placeholder': 'Nhập password',
-                'login.submit': 'Đăng nhập',
-                'login.register_link': 'Tạo tài khoản',
-                'login.django_admin': 'Django Admin',
-                'login.password_show': 'Hiện mật khẩu',
-                'login.password_hide': 'Ẩn mật khẩu',
-                'login.processing': 'Đang xử lý...'
-            }
-        });
-    </script>
-    <script>
-        document.querySelectorAll('[data-toggle-password]').forEach(button => {
-            button.addEventListener('click', () => {
-                const input = document.getElementById(button.dataset.togglePassword);
-                const icon = button.querySelector('i');
-                const show = input.type === 'password';
-                input.type = show ? 'text' : 'password';
-                icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
-                button.setAttribute('aria-label', show ? (window.AdminUI.t('login.password_hide') || 'Ẩn mật khẩu') : (window.AdminUI.t('login.password_show') || 'Hiện mật khẩu'));
-            });
-        });
+    <div class="field">
+        <label for="password" data-i18n="login.password">Mật khẩu</label>
+        <div class="input-shell has-icon">
+            <i class="fas fa-lock fa-fw input-icon" aria-hidden="true"></i>
+            <input type="password" class="form-control password-input" id="password" name="password" placeholder="Nhập mật khẩu" data-i18n-placeholder="login.password_placeholder" required autocomplete="current-password">
+            <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Hiện mật khẩu" data-i18n-aria-label="login.password_show">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+    </div>
 
-        document.getElementById('loginForm').addEventListener('submit', () => {
-            const button = document.getElementById('loginBtn');
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>' + (window.AdminUI.t('login.processing') || 'Đang xử lý...') + '</span>';
+    <button type="submit" class="btn-auth" id="loginBtn">
+        <i class="fas fa-right-to-bracket"></i>
+        <span data-i18n="login.submit">Đăng nhập</span>
+    </button>
+</form>
+
+{% if allow_bootstrap_register %}
+<div class="auth-divider"><span data-i18n="login.quick_access">Truy cập khác</span></div>
+
+<div class="auth-links">
+    <a class="auth-link" href="{% url 'admin_dashboard:register' %}">
+        <i class="fas fa-user-plus fa-fw"></i><span data-i18n="login.register_link">Tạo Admin</span>
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.AdminUI.addTranslations({
+        en: {
+            'login.subtitle': 'Sign in to the admin command center',
+            'login.username': 'Username',
+            'login.username_placeholder': 'Enter username',
+            'login.password': 'Password',
+            'login.password_placeholder': 'Enter password',
+            'login.submit': 'Sign In',
+            'login.quick_access': 'Quick Access',
+            'login.register_link': 'Create Admin',
+            'login.processing': 'Signing in...',
+            'login.password_show': 'Show password',
+            'login.password_hide': 'Hide password'
+        },
+        vi: {
+            'login.subtitle': 'Đăng nhập vào bảng điều khiển quản trị',
+            'login.username': 'Tên đăng nhập',
+            'login.username_placeholder': 'Nhập tên đăng nhập',
+            'login.password': 'Mật khẩu',
+            'login.password_placeholder': 'Nhập mật khẩu',
+            'login.submit': 'Đăng nhập',
+            'login.quick_access': 'Truy cập khác',
+            'login.register_link': 'Tạo Admin',
+            'login.processing': 'Đang đăng nhập...',
+            'login.password_show': 'Hiện mật khẩu',
+            'login.password_hide': 'Ẩn mật khẩu'
+        }
+    });
+
+    document.querySelectorAll('[data-toggle-password]').forEach(button => {
+        button.addEventListener('click', () => {
+            const input = document.getElementById(button.dataset.togglePassword);
+            const icon = button.querySelector('i');
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+            button.dataset.i18nAriaLabel = show ? 'login.password_hide' : 'login.password_show';
+            button.setAttribute(
+                'aria-label',
+                show ? (window.AdminUI.t('login.password_hide') || 'Ẩn mật khẩu') : (window.AdminUI.t('login.password_show') || 'Hiện mật khẩu')
+            );
         });
-    </script>
-</body>
-</html>
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', () => {
+        const button = document.getElementById('loginBtn');
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>' + (window.AdminUI.t('login.processing') || 'Đang đăng nhập...') + '</span>';
+    });
+</script>
+{% endblock %}

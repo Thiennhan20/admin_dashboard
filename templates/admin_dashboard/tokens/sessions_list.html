@@ -1,0 +1,365 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static admin_tags %}
+
+{% block title %}Active Sessions — ENTN Admin{% endblock %}
+{% block page_title %}Active Sessions{% endblock %}
+{% block page_i18n_key %}nav.sessions{% endblock %}
+
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+{% has_perm 'sessions.delete' as can_revoke_sessions %}
+{% has_perm 'sessions.export' as can_export_sessions %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h5 class="mb-1"><i class="fas fa-laptop-code text-info me-2"></i><span data-i18n="sess.title">Active Login Sessions</span></h5>
+        <p class="text-muted small mb-0" data-i18n="sess.subtitle">Live refresh-token sessions in db.sessions. Revoking logs out that device immediately.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if can_export_sessions %}
+        <a href="?q={{ q|urlencode }}&status={{ status_filter }}&sort={{ sort_by }}&export=csv" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-file-csv me-1"></i><span data-i18n="sess.exportCsv">Export CSV</span>
+        </a>
+        {% endif %}
+        {% if can_revoke_sessions %}
+        <button class="btn btn-sm btn-outline-warning" onclick="cleanupExpiredSessions()">
+            <i class="fas fa-broom me-1"></i><span data-i18n="sess.cleanupExpired">Cleanup Expired</span>
+        </button>
+        <button class="btn btn-sm btn-outline-danger d-none" id="bulkRevokeBtn" onclick="bulkRevokeSessions()">
+            <i class="fas fa-sign-out-alt me-1"></i><span data-i18n="sess.revokeSelected">Revoke Selected</span>
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger mb-4"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>
+{% endif %}
+
+<!-- KPI Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="sess.statTotal">Total Sessions</div>
+                <div class="fs-3 fw-bold text-primary mt-1">{{ stats.total_all|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="sess.statActive">Valid / Active</div>
+                <div class="fs-3 fw-bold text-success mt-1">{{ stats.active_all|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="sess.statExpired">Expired</div>
+                <div class="fs-3 fw-bold {% if stats.expired_all %}text-warning{% else %}text-muted{% endif %} mt-1">{{ stats.expired_all|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="sess.statUsers">Unique Users</div>
+                <div class="fs-3 fw-bold text-info mt-1">{{ stats.unique_users|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="filter-stack">
+            <div class="filter-search-row">
+                <div class="filter-field">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="q" class="form-control" value="{{ q }}"
+                               placeholder="Search user, email, IP, location, device..."
+                               data-i18n-placeholder="sess.searchPlaceholder">
+                    </div>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary filter-action-btn">
+                        <i class="fas fa-search"></i><span data-i18n="common.btn_search">Search</span>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-controls-row">
+                <div class="filter-dropdowns filter-dropdowns--2">
+                    <div class="filter-field">
+                        <select class="form-select" name="status">
+                            <option value="" {% if not status_filter %}selected{% endif %} data-i18n="sess.statusAll">All Sessions</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %} data-i18n="sess.statusActive">Active (Not Expired)</option>
+                            <option value="expired" {% if status_filter == 'expired' %}selected{% endif %} data-i18n="sess.statusExpired">Expired</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <select class="form-select" name="sort">
+                            <option value="lastActive_desc" {% if sort_by == 'lastActive_desc' %}selected{% endif %} data-i18n="sess.sortRecent">Most Recently Active</option>
+                            <option value="createdAt_desc" {% if sort_by == 'createdAt_desc' %}selected{% endif %} data-i18n="sess.sortCreated">Newest Created</option>
+                            <option value="expiresAt_asc" {% if sort_by == 'expiresAt_asc' %}selected{% endif %} data-i18n="sess.sortExpires">Expiring Soonest</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <a href="{% url 'admin_dashboard:sessions_list' %}" class="btn btn-outline-secondary filter-action-btn">
+                        <i class="fas fa-rotate-left"></i><span data-i18n="common.btn_clear">Clear</span>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sessions Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-table me-2"></i><span data-i18n="sess.tableTitle">Session Directory</span> ({{ total }})</h6>
+        <small class="text-muted"><span data-i18n="sess.pageLabel">Page</span> {{ page }} / {{ total_pages }}</small>
+    </div>
+    <div class="card-body p-0">
+        {% if sessions %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"><input type="checkbox" class="form-check-input" id="selectAllSessions"></th>
+                        <th data-i18n="tok.col_user">User</th>
+                        <th data-i18n="tok.col_device">Device / OS</th>
+                        <th data-i18n="tok.col_ip">IP & Location</th>
+                        <th data-i18n="tok.col_last_active">Last Active</th>
+                        <th data-i18n="tok.col_expires">Expires At</th>
+                        <th class="text-end" data-i18n="tok.col_action">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sessions %}
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input sess-check" value="{{ s.id }}"></td>
+                        <td>
+                            <div class="fw-semibold">
+                                {% if s.user_id_str %}
+                                <a href="{% url 'admin_dashboard:user_detail' s.user_id_str %}" class="text-decoration-none">{{ s.user_name }}</a>
+                                {% else %}{{ s.user_name }}{% endif %}
+                            </div>
+                            <small class="text-muted font-mono">{% firstof s.user_email s.userId "—" %}</small>
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ s.device_primary }}</span>
+                            {% if s.device_secondary %}<small class="text-muted d-block font-mono">{{ s.device_secondary }}</small>{% endif %}
+                        </td>
+                        <td>
+                            <code class="small">{{ s.ip|default:"0.0.0.0" }}</code>
+                            {% if s.location %}<small class="text-muted d-block">{{ s.location }}</small>{% endif %}
+                        </td>
+                        <td><small class="font-mono text-muted">{% firstof s.lastActive s.createdAt "—" %}</small></td>
+                        <td><small class="font-mono text-muted">{{ s.expiresAt|default:"—" }}</small></td>
+                        <td class="text-end">
+                            {% if can_revoke_sessions %}
+                            <div class="d-inline-flex gap-1">
+                                <button class="btn btn-sm btn-outline-danger" onclick="revokeSingleSession('{{ s.id }}')" title="Revoke this session" data-i18n-title="sess.revokeOneTitle">
+                                    <i class="fas fa-sign-out-alt me-1"></i><span data-i18n="tok.btn_revoke">Revoke</span>
+                                </button>
+                                {% if s.user_id_str %}
+                                <button class="btn btn-sm btn-outline-warning" onclick="revokeAllUserSessions('{{ s.user_id_str }}', '{{ s.user_name|escapejs }}')" title="Revoke ALL sessions for this user" data-i18n-title="sess.revokeAllTitle">
+                                    <i class="fas fa-user-slash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-laptop-code fa-3x mb-3 opacity-25 d-block"></i>
+            <span data-i18n="sess.empty">No login sessions found matching criteria.</span>
+        </div>
+        {% endif %}
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer">
+        {% include 'admin_dashboard/includes/pagination.html' %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const t = window.AdminUI.t;
+
+window.AdminUI.addTranslations({
+    en: {
+        'sess.title': 'Active Login Sessions',
+        'sess.subtitle': 'Manage active login sessions. Revoking logs out that device immediately.',
+        'sess.exportCsv': 'Export CSV',
+        'sess.cleanupExpired': 'Cleanup Expired',
+        'sess.revokeSelected': 'Revoke Selected',
+        'sess.statTotal': 'Total Sessions',
+        'sess.statActive': 'Valid / Active',
+        'sess.statExpired': 'Expired',
+        'sess.statUsers': 'Unique Users',
+        'sess.searchPlaceholder': 'Search user, email, IP, location, device...',
+        'sess.statusAll': 'All Sessions',
+        'sess.statusActive': 'Active (Not Expired)',
+        'sess.statusExpired': 'Expired',
+        'sess.sortRecent': 'Most Recently Active',
+        'sess.sortCreated': 'Newest Created',
+        'sess.sortExpires': 'Expiring Soonest',
+        'sess.tableTitle': 'Session Directory',
+        'sess.pageLabel': 'Page',
+        'sess.empty': 'No login sessions found matching criteria.',
+        'sess.revokeOneTitle': 'Revoke this session',
+        'sess.revokeAllTitle': 'Revoke all sessions for this user',
+        'sess.confirmCleanupTitle': 'Cleanup Expired Sessions',
+        'sess.confirmCleanupBody': 'Delete all expired sessions?',
+        'sess.cleanedUp': 'Cleaned up {count} expired session(s)',
+        'sess.confirmBulkRevokeTitle': 'Revoke Selected Sessions',
+        'sess.confirmBulkRevokeBody': 'Force logout {count} selected session(s)?',
+        'sess.revokedMany': 'Revoked {count} session(s)!',
+        'sess.confirmRevokeOneTitle': 'Revoke Session',
+        'sess.confirmRevokeOneBody': 'Terminate this active login session immediately?',
+        'sess.revokedOne': 'Session revoked!',
+        'sess.confirmRevokeAllTitle': 'Revoke All User Sessions',
+        'sess.confirmRevokeAllBody': 'Force logout all devices for "{user}"?',
+        'tok.col_user': 'User',
+        'tok.col_device': 'Device / OS',
+        'tok.col_ip': 'IP & Location',
+        'tok.col_last_active': 'Last Active',
+        'tok.col_expires': 'Expires At',
+        'tok.col_action': 'Action',
+        'tok.btn_revoke': 'Revoke'
+    },
+    vi: {
+        'sess.title': 'Phiên đăng nhập đang hoạt động',
+        'sess.subtitle': 'Quản lý các phiên đăng nhập đang hoạt động. Thu hồi sẽ đăng xuất thiết bị ngay lập tức.',
+        'sess.exportCsv': 'Xuất CSV',
+        'sess.cleanupExpired': 'Dọn phiên hết hạn',
+        'sess.revokeSelected': 'Thu hồi đã chọn',
+        'sess.statTotal': 'Tổng số phiên',
+        'sess.statActive': 'Còn hiệu lực',
+        'sess.statExpired': 'Đã hết hạn',
+        'sess.statUsers': 'Người dùng',
+        'sess.searchPlaceholder': 'Tìm theo tên, email, IP, vị trí, thiết bị...',
+        'sess.statusAll': 'Tất cả phiên',
+        'sess.statusActive': 'Đang hoạt động',
+        'sess.statusExpired': 'Đã hết hạn',
+        'sess.sortRecent': 'Hoạt động gần nhất',
+        'sess.sortCreated': 'Tạo mới nhất',
+        'sess.sortExpires': 'Sắp hết hạn',
+        'sess.tableTitle': 'Danh sách phiên',
+        'sess.pageLabel': 'Trang',
+        'sess.empty': 'Không tìm thấy phiên đăng nhập nào.',
+        'sess.revokeOneTitle': 'Thu hồi phiên này',
+        'sess.revokeAllTitle': 'Thu hồi toàn bộ phiên của người dùng này',
+        'sess.confirmCleanupTitle': 'Dọn dẹp phiên hết hạn',
+        'sess.confirmCleanupBody': 'Xóa toàn bộ các phiên đăng nhập đã hết hạn?',
+        'sess.cleanedUp': 'Đã dọn dẹp {count} phiên hết hạn',
+        'sess.confirmBulkRevokeTitle': 'Thu hồi các phiên đã chọn',
+        'sess.confirmBulkRevokeBody': 'Buộc đăng xuất {count} phiên đã chọn?',
+        'sess.revokedMany': 'Đã thu hồi {count} phiên!',
+        'sess.confirmRevokeOneTitle': 'Thu hồi phiên đăng nhập',
+        'sess.confirmRevokeOneBody': 'Kết thúc phiên đăng nhập đang hoạt động này ngay lập tức?',
+        'sess.revokedOne': 'Đã thu hồi phiên đăng nhập!',
+        'sess.confirmRevokeAllTitle': 'Thu hồi tất cả phiên của người dùng',
+        'sess.confirmRevokeAllBody': 'Buộc đăng xuất tất cả thiết bị của "{user}"?',
+        'tok.col_user': 'Người dùng',
+        'tok.col_device': 'Thiết bị / HĐH',
+        'tok.col_ip': 'IP & Vị trí',
+        'tok.col_last_active': 'Hoạt động cuối',
+        'tok.col_expires': 'Hết hạn lúc',
+        'tok.col_action': 'Thao tác',
+        'tok.btn_revoke': 'Thu hồi'
+    }
+});
+
+document.getElementById('selectAllSessions')?.addEventListener('change', function(e) {
+    document.querySelectorAll('.sess-check').forEach(function(cb) { cb.checked = e.target.checked; });
+    toggleSessionBulk();
+});
+document.querySelectorAll('.sess-check').forEach(function(cb) {
+    cb.addEventListener('change', toggleSessionBulk);
+});
+
+function toggleSessionBulk() {
+    var checked = document.querySelectorAll('.sess-check:checked').length;
+    var btn = document.getElementById('bulkRevokeBtn');
+    if (btn) {
+        btn.classList.toggle('d-none', checked === 0);
+        var span = btn.querySelector('span');
+        if (span) span.textContent = checked > 0 ? `${t('sess.revokeSelected')} (${checked})` : t('sess.revokeSelected');
+    }
+}
+window.addEventListener('admin:language-change', toggleSessionBulk);
+
+function cleanupExpiredSessions() {
+    confirmAction(t('sess.confirmCleanupTitle'), t('sess.confirmCleanupBody'), function() {
+        fetch('{% url "admin_dashboard:api_tokens_cleanup" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ collection: 'sessions' })
+        }).then(r => r.json()).then(function(d) {
+            showToast(d.success ? t('sess.cleanedUp', { count: d.deleted }) : d.error, d.success ? 'success' : 'error');
+            if (d.success) setTimeout(() => location.reload(), 700);
+        });
+    });
+}
+
+function bulkRevokeSessions() {
+    var ids = [...document.querySelectorAll('.sess-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    confirmAction(t('sess.confirmBulkRevokeTitle'), t('sess.confirmBulkRevokeBody', { count: ids.length }), function() {
+        fetch('{% url "admin_dashboard:api_tokens_delete" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ collection: 'sessions', ids: ids })
+        }).then(r => r.json()).then(function(d) {
+            if (d.success) { showToast(t('sess.revokedMany', { count: d.deleted }), 'success'); setTimeout(() => location.reload(), 700); }
+            else showToast(d.error, 'error');
+        });
+    });
+}
+
+function revokeSingleSession(sessionId) {
+    confirmAction(t('sess.confirmRevokeOneTitle'), t('sess.confirmRevokeOneBody'), function() {
+        fetch('{% url "admin_dashboard:api_tokens_delete" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ collection: 'sessions', ids: [sessionId] })
+        }).then(r => r.json()).then(function(d) {
+            if (d.success) { showToast(t('sess.revokedOne'), 'success'); setTimeout(() => location.reload(), 700); }
+            else showToast(d.error, 'error');
+        });
+    });
+}
+
+function revokeAllUserSessions(userId, userName) {
+    confirmAction(t('sess.confirmRevokeAllTitle'), t('sess.confirmRevokeAllBody', { user: userName }), function() {
+        fetch('{% url "admin_dashboard:api_tokens_delete" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ collection: 'sessions', user_id: userId })
+        }).then(r => r.json()).then(function(d) {
+            if (d.success) { showToast(t('sess.revokedMany', { count: d.deleted }), 'success'); setTimeout(() => location.reload(), 700); }
+            else showToast(d.error, 'error');
+        });
+    });
+}
+</script>
+{% endblock %}
+

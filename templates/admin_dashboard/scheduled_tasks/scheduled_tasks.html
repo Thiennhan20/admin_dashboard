@@ -1,16 +1,58 @@
 {% extends 'admin_dashboard/base.html' %}
+{% load admin_tags %}
 {% block title %}Scheduled Tasks - Admin Panel{% endblock %}
 {% block page_title %}Scheduled Tasks{% endblock %}
 {% block page_i18n_key %}nav.scheduledTasks{% endblock %}
 {% block content %}
 {% include 'admin_dashboard/includes/confirm_modal.html' %}
 {% csrf_token %}
+{% has_perm 'scheduled_tasks.edit' as can_edit_tasks %}
+{% has_perm 'scheduled_tasks.delete' as can_delete_tasks %}
 
+<!-- Auto-Cron Runner Banner -->
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-{% if cron_state.started %}success{% else %}secondary{% endif %}">
+                    <i class="fas fa-robot me-1"></i>
+                    {% if cron_state.started %}
+                        <span data-i18n="st.cron_running">Tự động chạy ngầm</span> ({{ cron_state.poll_seconds }}s)
+                    {% else %}
+                        <span data-i18n="st.cron_standby">Đang ở chế độ chờ</span>
+                    {% endif %}
+                </span>
+                <small class="text-muted">
+                    <span data-i18n="st.last_tick">Nhịp gần nhất:</span>
+                    {% if cron_state.last_tick %}{{ cron_state.last_tick|date:"Y-m-d H:i:s" }}{% else %}<span data-i18n="st.waiting">Đang chờ...</span>{% endif %}
+                </small>
+            </div>
+            <small class="text-muted d-block mt-1">
+                <span data-i18n="st.cli_hint">Lệnh chạy định kỳ ngoài:</span> <code>python manage.py run_scheduled_tasks</code>
+            </small>
+        </div>
+        {% if can_edit_tasks %}
+        <div class="d-flex gap-2">
+            <form method="POST" class="d-inline">{% csrf_token %}
+                <input type="hidden" name="action" value="run_due">
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-bolt me-1"></i><span data-i18n="st.btn_run_due">Run Due Tasks Now</span>
+                </button>
+            </form>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addTask">
+                <i class="fas fa-plus me-1"></i><span data-i18n="st.btn_new_task">New Task</span>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tasks Table -->
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="fas fa-clock me-2"></i><span data-i18n="nav.scheduledTasks">Scheduled Tasks</span></h6>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addTask"><i class="fas fa-plus me-1"></i><span data-i18n="st.btn_new_task">New Task</span></button>
+        <h6 class="mb-0"><i class="fas fa-clock me-2"></i><span data-i18n="nav.scheduledTasks">Scheduled Tasks</span> ({{ tasks|length }})</h6>
     </div>
+    {% if can_edit_tasks %}
     <div class="collapse" id="addTask">
         <div class="card-body" style="border-bottom:1px solid var(--line);">
             <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="create">
@@ -23,11 +65,12 @@
                             <option value="cleanup_blacklist" data-i18n="st.type_cleanup_blacklist">Cleanup Blacklisted Tokens</option>
                             <option value="cleanup_progress" data-i18n="st.type_cleanup_progress">Cleanup Old Watch Progress</option>
                             <option value="backup_db" data-i18n="st.type_backup_db">Backup Database</option>
+                            <option value="weekly_report" data-i18n="st.type_weekly_report">Weekly Operations Report</option>
                             <option value="health_check" data-i18n="st.type_health_check">Health Check All Services</option>
                             <option value="custom" data-i18n="st.type_custom">Custom Task</option>
                         </select>
                     </div>
-                    <div class="col-md-4"><label class="form-label" data-i18n="st.form_interval">Interval (minutes)</label><input type="number" class="form-control" name="interval_minutes" value="1440"></div>
+                    <div class="col-md-4"><label class="form-label" data-i18n="st.form_interval">Interval (minutes)</label><input type="number" class="form-control" name="interval_minutes" value="1440" min="1" required></div>
                     <div class="col-12"><label class="form-label" data-i18n="st.form_desc">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
                     <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="task_active" checked><label class="form-check-label" for="task_active" data-i18n="st.form_active">Active</label></div></div>
                     <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="st.btn_create">Create Task</span></button></div>
@@ -35,28 +78,98 @@
             </form>
         </div>
     </div>
+    {% endif %}
     <div class="card-body p-0">
         {% if tasks %}
-        <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="st.col_name">Name</th><th data-i18n="st.col_type">Type</th><th data-i18n="st.col_interval">Interval</th><th data-i18n="st.col_last_run">Last Run</th><th data-i18n="st.col_status">Status</th><th data-i18n="st.col_active">Active</th><th data-i18n="st.col_actions">Actions</th></tr></thead>
+        <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th data-i18n="st.col_name">Name</th>
+                    <th data-i18n="st.col_type">Type</th>
+                    <th data-i18n="st.col_interval">Interval</th>
+                    <th data-i18n="st.col_last_run">Last Run</th>
+                    <th data-i18n="st.col_next_run">Next Run</th>
+                    <th data-i18n="st.col_status">Status</th>
+                    <th data-i18n="st.col_active">Active</th>
+                    <th class="text-end" data-i18n="st.col_actions">Actions</th>
+                </tr>
+            </thead>
             <tbody>{% for t in tasks %}<tr>
-                <td><strong>{{ t.name }}</strong><br><small class="text-muted">{{ t.description|truncatechars:40 }}</small></td>
-                <td><code class="small">{{ t.task_type }}</code></td>
-                <td><small>{% if t.interval_minutes >= 1440 %}{{ t.interval_minutes|divisibleby:1440 }} day(s){% elif t.interval_minutes >= 60 %}{{ t.interval_minutes|divisibleby:60 }} hour(s){% else %}{{ t.interval_minutes }} min{% endif %}</small></td>
-                <td><small class="text-muted">{{ t.last_run|default:"Never" }}</small></td>
-                <td><span class="badge bg-{% if t.last_status == 'success' %}success{% elif t.last_status == 'failed' %}danger{% else %}secondary{% endif %}">{{ t.last_status|default:"—" }}</span></td>
+                <td>
+                    <strong>{{ t.name }}</strong>
+                    {% if t.description %}<br><small class="text-muted">{{ t.description|truncatechars:45 }}</small>{% endif %}
+                </td>
+                <td><span class="badge bg-secondary-subtle text-body border" data-i18n="st.type_{{ t.task_type }}">{{ t.task_type }}</span></td>
+                <td><small class="fw-semibold interval-label" data-minutes="{{ t.interval_minutes|default:1440 }}">{{ t.human_interval }}</small></td>
+                <td><small class="text-muted">{% if t.last_run %}{{ t.last_run|date:"Y-m-d H:i" }}{% else %}<span data-i18n="st.never">Never</span>{% endif %}</small></td>
+                <td>
+                    <small class="{% if t.next_run_display == 'Due now' %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+                        {% if t.next_run_display == 'Paused' %}
+                            <span data-i18n="st.paused">Paused</span>
+                        {% elif t.next_run_display == 'Due now' %}
+                            <span data-i18n="st.due_now">Due now</span>
+                        {% else %}
+                            {{ t.next_run_display|date:"Y-m-d H:i" }}
+                        {% endif %}
+                    </small>
+                </td>
+                <td>
+                    <span class="badge bg-{% if t.last_status == 'success' %}success{% elif t.last_status == 'failed' %}danger{% else %}secondary{% endif %}" title="{{ t.last_output|default:'' }}"{% if t.last_status %} data-i18n="st.status_{{ t.last_status }}"{% endif %}>
+                        {{ t.last_status|default:"—" }}
+                    </span>
+                </td>
                 <td>{% if t.is_active %}<span class="badge bg-success" data-i18n="st.val_yes">Yes</span>{% else %}<span class="badge bg-secondary" data-i18n="st.val_no">No</span>{% endif %}</td>
-                <td class="d-flex gap-1">
-                    <button class="btn btn-sm btn-outline-primary" onclick="runTask('{{ t.id }}')" title="Run Now"><i class="fas fa-play"></i></button>
-                    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-warning" title="Toggle"><i class="fas fa-toggle-{% if t.is_active %}on{% else %}off{% endif %}"></i></button></form>
-                    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+                <td class="text-end">
+                    <div class="table-actions">
+                        {% if can_edit_tasks %}
+                        <button class="btn btn-sm btn-outline-primary btn-action-icon" onclick="runTask('{{ t.id }}')" title="Run Now" data-i18n-title="st.btn_run_now"><i class="fas fa-play"></i></button>
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="common.toggle"><i class="fas fa-toggle-{% if t.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                        {% endif %}
+                        {% if can_delete_tasks %}
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="common.delete"><i class="fas fa-trash"></i></button></form>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-clock fa-3x mb-3 d-block opacity-25"></i><span data-i18n="st.no_tasks">No scheduled tasks. Create one above!</span></div>{% endif %}
     </div>
 </div>
+
+<!-- Recent Execution History (TaskRunLog) -->
+<div class="card">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="st.run_history">Recent Task Executions</span></h6></div>
+    <div class="card-body p-0">
+        {% if recent_runs %}
+        <div class="table-responsive"><table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th data-i18n="st.col_name">Task</th>
+                    <th data-i18n="st.col_status">Status</th>
+                    <th data-i18n="st.col_started">Started</th>
+                    <th data-i18n="st.col_finished">Finished</th>
+                    <th data-i18n="st.col_output">Output</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recent_runs %}
+                <tr>
+                    <td><strong>{{ r.task.name }}</strong> <span class="badge bg-secondary-subtle text-muted border ms-1" data-i18n="st.type_{{ r.task.task_type }}">{{ r.task.task_type }}</span></td>
+                    <td><span class="badge bg-{% if r.status == 'success' %}success{% elif r.status == 'failed' %}danger{% else %}warning text-dark{% endif %}"{% if r.status %} data-i18n="st.status_{{ r.status }}"{% endif %}>{{ r.status }}</span></td>
+                    <td><small class="text-muted">{{ r.started_at|date:"Y-m-d H:i:s" }}</small></td>
+                    <td><small class="text-muted">{{ r.finished_at|date:"Y-m-d H:i:s"|default:"—" }}</small></td>
+                    <td><small class="font-monospace">{{ r.output|truncatechars:90|default:"—" }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}
+        <div class="text-center py-4 text-muted small" data-i18n="st.no_runs">No task execution logs yet.</div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
+
 {% block extra_js %}
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -65,12 +178,14 @@ const t = window.AdminUI.t;
 window.AdminUI.addTranslations({
     en: {
         'st.btn_new_task': 'New Task',
+        'st.btn_run_due': 'Run Due Tasks Now',
         'st.form_name': 'Name',
         'st.form_type': 'Task Type',
         'st.type_cleanup_tokens': 'Cleanup Expired Tokens',
         'st.type_cleanup_blacklist': 'Cleanup Blacklisted Tokens',
         'st.type_cleanup_progress': 'Cleanup Old Watch Progress',
         'st.type_backup_db': 'Backup Database',
+        'st.type_weekly_report': 'Weekly Operations Report',
         'st.type_health_check': 'Health Check All Services',
         'st.type_custom': 'Custom Task',
         'st.form_interval': 'Interval (minutes)',
@@ -81,25 +196,47 @@ window.AdminUI.addTranslations({
         'st.col_type': 'Type',
         'st.col_interval': 'Interval',
         'st.col_last_run': 'Last Run',
+        'st.col_next_run': 'Next Run',
         'st.col_status': 'Status',
         'st.col_active': 'Active',
         'st.col_actions': 'Actions',
+        'st.col_started': 'Started',
+        'st.col_finished': 'Finished',
+        'st.col_output': 'Output',
+        'st.run_history': 'Recent Task Executions',
+        'st.no_runs': 'No task execution logs yet.',
         'st.val_yes': 'Yes',
         'st.val_no': 'No',
         'st.no_tasks': 'No scheduled tasks. Create one above!',
+        'st.cron_running': 'Auto-Cron Scheduler: Running',
+        'st.cron_standby': 'Auto-Cron Scheduler: Standby',
+        'st.last_tick': 'Last tick:',
+        'st.waiting': 'Waiting...',
+        'st.cli_hint': 'Automatic execution enabled — you can still run',
+        'st.never': 'Never',
+        'st.paused': 'Paused',
+        'st.due_now': 'Due now',
+        'st.btn_run_now': 'Run Now',
+        'st.status_success': 'Success',
+        'st.status_failed': 'Failed',
+        'st.status_running': 'Running',
+        'st.status_pending': 'Pending',
         'st.confirm_run_title': 'Run Task Now',
         'st.confirm_run_body': 'Execute this task immediately?',
         'st.task_completed': 'Task completed: ',
+        'st.task_error': 'Error: ',
         'st.btn_run': 'Run'
     },
     vi: {
         'st.btn_new_task': 'Tác vụ mới',
+        'st.btn_run_due': 'Chạy các tác vụ đến hạn',
         'st.form_name': 'Tên tác vụ',
         'st.form_type': 'Loại tác vụ',
-        'st.type_cleanup_tokens': 'Dọn dẹp token hết hạn',
-        'st.type_cleanup_blacklist': 'Dọn dẹp blacklist token',
+        'st.type_cleanup_tokens': 'Dọn dẹp mã hết hạn',
+        'st.type_cleanup_blacklist': 'Dọn dẹp mã thông báo bị khóa',
         'st.type_cleanup_progress': 'Dọn dẹp lịch sử xem cũ',
         'st.type_backup_db': 'Sao lưu cơ sở dữ liệu',
+        'st.type_weekly_report': 'Báo cáo vận hành hàng tuần',
         'st.type_health_check': 'Kiểm tra sức khỏe dịch vụ',
         'st.type_custom': 'Tác vụ tùy chỉnh',
         'st.form_interval': 'Chu kỳ (phút)',
@@ -110,23 +247,62 @@ window.AdminUI.addTranslations({
         'st.col_type': 'Thể loại',
         'st.col_interval': 'Chu kỳ',
         'st.col_last_run': 'Lần chạy cuối',
+        'st.col_next_run': 'Lần chạy kế tiếp',
         'st.col_status': 'Trạng thái',
         'st.col_active': 'Kích hoạt',
         'st.col_actions': 'Thao tác',
+        'st.col_started': 'Bắt đầu',
+        'st.col_finished': 'Hoàn thành',
+        'st.col_output': 'Kết quả',
+        'st.run_history': 'Lịch sử thực thi gần đây',
+        'st.no_runs': 'Chưa có lịch sử chạy tác vụ.',
         'st.val_yes': 'Có',
         'st.val_no': 'Không',
         'st.no_tasks': 'Không có tác vụ định kỳ nào. Hãy tạo mới bên trên!',
+        'st.cron_running': 'Trình lập lịch tự động: Đang chạy',
+        'st.cron_standby': 'Trình lập lịch tự động: Chờ kích hoạt',
+        'st.last_tick': 'Nhịp gần nhất:',
+        'st.waiting': 'Đang chờ...',
+        'st.cli_hint': 'Đã bật chạy tự động — bạn vẫn có thể chạy thủ công',
+        'st.never': 'Chưa từng chạy',
+        'st.paused': 'Tạm dừng',
+        'st.due_now': 'Đến hạn ngay',
+        'st.btn_run_now': 'Chạy ngay',
+        'st.status_success': 'Thành công',
+        'st.status_failed': 'Thất bại',
+        'st.status_running': 'Đang chạy',
+        'st.status_pending': 'Đang chờ',
         'st.confirm_run_title': 'Chạy tác vụ ngay',
         'st.confirm_run_body': 'Kích hoạt chạy tác vụ này lập tức?',
         'st.task_completed': 'Tác vụ đã hoàn thành: ',
+        'st.task_error': 'Lỗi: ',
         'st.btn_run': 'Chạy'
     }
 });
 
+function formatTaskIntervals() {
+    const lang = window.AdminUI.language();
+    document.querySelectorAll('.interval-label[data-minutes]').forEach((el) => {
+        const mins = Math.max(1, parseInt(el.dataset.minutes, 10) || 1);
+        if (mins < 60) {
+            el.textContent = lang === 'vi' ? `${mins} phút` : `${mins} min`;
+        } else if (mins < 1440) {
+            const h = Math.floor(mins / 60);
+            el.textContent = lang === 'vi' ? `${h} giờ` : `${h} hour${h === 1 ? '' : 's'}`;
+        } else {
+            const d = Math.floor(mins / 1440);
+            el.textContent = lang === 'vi' ? `${d} ngày` : `${d} day${d === 1 ? '' : 's'}`;
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', formatTaskIntervals);
+document.addEventListener('admin:language-change', formatTaskIntervals);
+
 function runTask(id) {
     confirmAction(t('st.confirm_run_title'), t('st.confirm_run_body'), () => {
         fetch(`/dashboard/scheduled-tasks/${id}/run/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
-        .then(r=>r.json()).then(d=>{ showToast(d.success ? t('st.task_completed') + (d.output||'OK') : 'Error: ' + d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
+        .then(r=>r.json()).then(d=>{ showToast(d.success ? t('st.task_completed') + (d.output||'OK') : t('st.task_error') + d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
     }, {btnClass:'primary', btnText:t('st.btn_run')});
 }
 </script>

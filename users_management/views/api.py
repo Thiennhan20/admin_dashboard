@@ -5,11 +5,26 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
+from users_management.decorators import require_permission
 from users_management.models import AuditLog
 from users_management.services import mongo_admin, clean_value
 from users_management.views_legacy import check_admin_access
 
 __all__ = ['api_bulk_action', 'api_user_ban']
+
+_BULK_PERM_MAP = {
+    ('users', 'delete'): 'users.delete',
+    ('users', 'delete_watchlist_items'): 'watchlist.delete',
+    ('sessions', 'delete'): 'sessions.delete',
+    ('comments', 'delete'): 'comments.delete',
+    ('comments', 'hide'): 'comments.edit',
+    ('comments', 'restore'): 'comments.edit',
+    ('notifications', 'delete'): 'notifications.delete',
+    ('notifications', 'read'): 'notifications.edit',
+    ('notifications', 'unread'): 'notifications.edit',
+    ('watchprogresses', 'delete'): 'watch_progress.delete',
+    ('searchhistories', 'delete'): 'search_history.delete',
+}
 
 
 @login_required
@@ -17,7 +32,7 @@ __all__ = ['api_bulk_action', 'api_user_ban']
 @require_http_methods(["POST"])
 def api_bulk_action(request):
     """Generic bulk action endpoint for MongoDB collections."""
-    body = json.loads(request.body)
+    body = json.loads(request.body or '{}')
     collection = body.get('collection', '')
     action = body.get('action', '')
     ids = body.get('ids', [])
@@ -27,6 +42,7 @@ def api_bulk_action(request):
 
     allowed = {
         'users': ['delete', 'delete_watchlist_items'],
+        'sessions': ['delete'],
         'comments': ['delete', 'hide', 'restore'],
         'notifications': ['delete', 'read', 'unread'],
         'watchprogresses': ['delete'],
@@ -35,6 +51,12 @@ def api_bulk_action(request):
 
     if collection not in allowed or action not in allowed[collection]:
         return JsonResponse({'success': False, 'error': 'Invalid collection/action'})
+
+    req_perm = _BULK_PERM_MAP.get((collection, action))
+    if not request.user.is_superuser:
+        profile = getattr(request.user, 'admin_profile', None)
+        if not (profile and req_perm and profile.has_perm(req_perm)):
+            return JsonResponse({'success': False, 'error': f'Permission denied ({req_perm})'}, status=403)
 
     try:
         from bson import ObjectId
@@ -65,10 +87,17 @@ def api_bulk_action(request):
         elif action == 'delete':
             oids = [ObjectId(i) for i in ids]
             if collection == 'users':
-                # Cascading delete of user relations
+                # Complete cascading delete of user relations
+                db.sessions.delete_many({'userId': {'$in': oids}})
                 db.comments.delete_many({'userId': {'$in': oids}})
-                db.searchhistories.delete_many({'userId': {'$in': oids}})
+                db.searchhistories.delete_many({'$or': [{'user_id': {'$in': oids}}, {'userId': {'$in': oids}}]})
                 db.watchprogresses.delete_many({'userId': {'$in': oids}})
+                db.notifications.delete_many({'$or': [{'recipient': {'$in': oids}}, {'sender': {'$in': oids}}]})
+                db.passwordresettokens.delete_many({'user': {'$in': oids}})
+                db.users.update_many(
+                    {},
+                    {'$pull': {'friends': {'$in': oids}, 'friendRequests': {'$in': oids}, 'sentFriendRequests': {'$in': oids}}}
+                )
             elif collection == 'comments':
                 # Also delete notifications related to comments
                 db.notifications.delete_many({
@@ -112,6 +141,7 @@ def api_bulk_action(request):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('users.edit')
 @require_http_methods(["POST"])
 def api_user_ban(request):
     """Ban or unban a user in MongoDB."""
@@ -136,6 +166,8 @@ def api_user_ban(request):
                 'bannedAt': datetime.utcnow(),
                 'bannedBy': request.user.username,
             }
+            # Immediately revoke all active sessions of the banned user
+            db.sessions.delete_many({'userId': oid})
         else:
             update = {
                 'isBanned': False,

@@ -4,3 +4,4 @@ psycopg[binary]
 pymongo
 gunicorn
 whitenoise
+qrcode

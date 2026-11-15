@@ -1,6 +1,6 @@
 {% extends "admin_dashboard/base.html" %}
 
-{% block title %}Game Profiles — Movie Admin{% endblock %}
+{% block title %}Game Profiles — ENTN Admin{% endblock %}
 {% block page_i18n_key %}nav.gameProfiles{% endblock %}
 
 {% block content %}
@@ -14,51 +14,176 @@
 </style>
 
 <div class="container-fluid py-3 px-2 px-sm-3 px-md-4">
-    <!-- Merged Header & Stats Banner -->
-    <div class="card border-0 shadow-sm mb-3 text-white overflow-hidden" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
-        <div class="card-body p-3 p-md-4 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
-            <div class="d-flex align-items-center gap-3">
-                <div class="rounded-3 bg-warning bg-opacity-20 p-2 d-flex align-items-center justify-content-center text-warning fs-4" style="width: 44px; height: 44px; min-width: 44px;">
-                    <i class="fas fa-gamepad"></i>
-                </div>
-                <div>
-                    <h1 class="h5 font-weight-bold mb-0 text-white game-header-title" data-i18n="gameProfiles.title">Hồ sơ Game</h1>
-                    <p class="text-white-50 small mb-0" data-i18n="gameProfiles.subtitle">Theo dõi điểm số Rating, tỷ lệ Thắng/Thua và chỉ số thành tích của người chơi.</p>
+    <!-- Header & Action Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center fs-4" style="width: 44px; height: 44px; min-width: 44px; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b;">
+                <i class="fas fa-gamepad"></i>
+            </div>
+            <div>
+                <h1 class="h4 fw-bold mb-1 game-header-title" style="color: var(--ink);" data-i18n="gameProfiles.title">Hồ sơ Game</h1>
+                <p class="text-muted small mb-0" data-i18n="gameProfiles.subtitle">Theo dõi điểm số Rating, tỷ lệ Thắng/Thua và chỉ số thành tích của người chơi.</p>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button class="btn btn-sm btn-danger d-none fw-bold shadow-sm" id="bulkDeleteBtn" onclick="bulkDelete()">
+                <i class="fas fa-trash me-1"></i><span data-i18n="gameProfiles.bulkDeleteSelected">Xóa các mục đã chọn</span>
+            </button>
+            <button class="btn btn-sm btn-info fw-semibold shadow-sm" onclick="syncArenaSnapshot()">
+                <i class="fas fa-sync-alt me-1"></i><span data-i18n="gp.syncArena">Đồng bộ Đấu trường 3D → CSDL</span>
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-file-export me-1"></i><span data-i18n="common.btn_export">Export Data</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'gameprofiles' %}?format=csv"><i class="fas fa-file-csv fa-fw text-primary"></i><span data-i18n="common.csv">CSV</span></a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'gameprofiles' %}?format=excel"><i class="fas fa-file-excel fa-fw text-success"></i><span data-i18n="common.excel">Excel (.xls)</span></a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balanced KPI Cards -->
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase d-block fw-semibold mb-1" style="font-size: 11px;" data-i18n="gp.arenaStatus">Trạng thái Đấu trường 3D</small>
+                        <div class="h6 fw-bold mb-0 {% if arena.online %}text-success{% else %}text-danger{% endif %}">
+                            {% if arena.online %}🟢 <span data-i18n="gp.online">Trực tuyến</span> ({{ arena.human_players }} <span data-i18n="gp.humanUnit">người</span> / {{ arena.bot_players }} <span data-i18n="gp.botUnit">máy</span>){% else %}🔴 <span data-i18n="gp.offline">Ngoại tuyến</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(16, 185, 129, 0.14); color: #34d399;">
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
                 </div>
             </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase d-block fw-semibold mb-1" style="font-size: 11px;" data-i18n="gameProfiles.totalProfiles">Tổng Hồ Sơ Game</small>
+                        <div class="h4 fw-bold mb-0" style="color: var(--ink);">{{ stats.total|default:0 }}</div>
+                    </div>
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(99, 102, 241, 0.14); color: #818cf8;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase d-block fw-semibold mb-1" style="font-size: 11px;" data-i18n="gameProfiles.maxRating">Điểm xếp hạng cao nhất</small>
+                        <div class="h4 fw-bold mb-0 text-warning">{{ stats.max_rating|default:0 }}</div>
+                    </div>
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(245, 158, 11, 0.14); color: #f59e0b;">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <!-- Compact Inline Stats -->
-            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto ms-lg-0">
-                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-2 text-center">
-                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameProfiles.totalProfiles">Tổng Hồ Sơ Game</small>
-                    <span class="h5 font-weight-bold mb-0 text-white">{{ stats.total|default:0 }}</span>
-                </div>
-                <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-3 px-3 py-2 text-center">
-                    <small class="text-white-50 text-uppercase d-block fw-semibold" style="font-size: 10px;" data-i18n="gameProfiles.maxRating">Rating Cao Nhất</small>
-                    <span class="h5 font-weight-bold mb-0 text-warning"><i class="fas fa-trophy me-1"></i>{{ stats.max_rating|default:0 }}</span>
-                </div>
-                <button class="btn btn-sm btn-danger d-none fw-bold shadow-sm" id="bulkDeleteBtn" onclick="bulkDelete()">
-                    <i class="fas fa-trash me-1"></i><span data-i18n="gameProfiles.bulkDeleteSelected">Xóa các mục đã chọn</span>
+    <!-- Live 3D Voxel Arena (Feast Brawl) Control Deck -->
+    <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h6 class="mb-0 fw-bold"><i class="fas fa-cubes text-warning me-2"></i><span data-i18n="gp.arenaRoomsTitle">Đấu trường Voxel 3D — Phòng đang mở</span> ({{ arena_rooms|length }})</h6>
+                <small class="text-muted"><span data-i18n="gp.wsServer">Máy chủ WebSocket thời gian thực</span> ({{ arena.game_server_url }}) · <span data-i18n="gp.uptime">Thời gian chạy:</span> {{ arena.uptime|default:0 }}s · RAM: {{ arena.memory_mb|default:0 }} MB</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ arena.game_client_url|default:'http://localhost:5173' }}" target="_blank" class="btn btn-sm btn-outline-info">
+                    <i class="fas fa-external-link-alt me-1"></i><span data-i18n="gp.openClient">Mở Đấu trường 3D</span>
+                </a>
+                <button type="button" class="btn btn-sm btn-primary" onclick="createArenaRoomPrompt()">
+                    <i class="fas fa-plus me-1"></i><span data-i18n="gp.btnNewRoom">Tạo phòng 3D mới</span>
                 </button>
             </div>
+        </div>
+        <div class="card-body">
+            {% if arena.online and arena_rooms %}
+            <div class="row g-3">
+                {% for room in arena_rooms %}
+                <div class="col-lg-6">
+                    <div class="p-3 rounded border" style="border-color:var(--line) !important; background:var(--elevated);">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge bg-primary font-mono me-1">{{ room.roomId }}</span>
+                                <strong>{{ room.title }}</strong>
+                                {% if room.persistent %}<span class="badge bg-secondary ms-1" data-i18n="gp.persistent">Cố định</span>{% endif %}
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="badge bg-success">{{ room.humanCount }} <span data-i18n="gp.humansBadge">Người chơi</span></span>
+                                <span class="badge bg-info text-dark">{{ room.botCount }} <span data-i18n="gp.botsBadge">Máy</span></span>
+                                {% if not room.persistent %}
+                                <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteArenaRoom('{{ room.roomId }}')" title="Xóa phòng" data-i18n-title="gp.deleteRoomTitle">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-2 align-items-end mt-2">
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1" data-i18n="gp.botFillLabel">Tự động thêm máy AI</label>
+                                <select class="form-select form-select-sm" id="botsEnabled-{{ room.roomId }}">
+                                    <option value="true" {% if room.botsEnabled %}selected{% endif %} data-i18n="gp.enabled">Bật</option>
+                                    <option value="false" {% if not room.botsEnabled %}selected{% endif %} data-i18n="gp.disabled">Tắt</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1" data-i18n="gp.targetBotsLabel">Số máy AI mục tiêu (0-24)</label>
+                                <input type="number" class="form-control form-control-sm font-mono" id="botPop-{{ room.roomId }}" min="0" max="24" value="{{ room.targetBotPopulation|default:10 }}">
+                            </div>
+                            <div class="col-sm-4 d-flex align-items-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="updateArenaRoom('{{ room.roomId }}')">
+                                    <i class="fas fa-sliders-h me-1"></i><span data-i18n="gp.applyLive">Áp dụng ngay</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if room.leaderboard %}
+                        <div class="mt-3 pt-2 border-top" style="border-color:var(--line) !important;">
+                            <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size:0.68rem;" data-i18n="gp.liveLeaderboard">Bảng xếp hạng trực tiếp</small>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for lb in room.leaderboard|slice:":5" %}
+                                <span class="badge bg-secondary font-mono">
+                                    #{{ forloop.counter }} {{ lb.name }} ({{ lb.mass }} <span data-i18n="gp.massUnit">khối</span> · {{ lb.kills }} <span data-i18n="gp.killsUnit">hạ</span>)
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-3 text-muted small">
+                <i class="fas fa-plug me-1"></i><span data-i18n="gp.arenaOfflineMsg1">Máy chủ Trò chơi 3D thời gian thực</span> ({{ arena.game_server_url }}) <span data-i18n="gp.arenaOfflineMsg2">hiện đang ngoại tuyến hoặc không kết nối được.</span>
+            </div>
+            {% endif %}
         </div>
     </div>
 
     <!-- Filter & Table Card -->
     <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-2">
-            <form method="GET" action="" class="row g-2 align-items-center">
-                <div class="col-12 col-md-8 col-lg-9">
+        <div class="card-header bg-white py-3">
+            <form method="GET" action="" class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2">
+                <div class="flex-grow-1 min-w-0">
                     <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0 py-2"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0 bg-light text-truncate py-2" placeholder="Tìm theo tên người dùng, email hoặc User ID..." data-i18n-placeholder="gameProfiles.searchPlaceholder" value="{{ search }}">
+                        <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control text-truncate" placeholder="Tìm theo tên người dùng, email hoặc User ID..." data-i18n-placeholder="gameProfiles.searchPlaceholder" value="{{ search }}">
                     </div>
                 </div>
-                <div class="col-12 col-md-4 col-lg-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2"><i class="fas fa-filter me-1"></i><span data-i18n="gameProfiles.filterBtn">Lọc Dữ Liệu</span></button>
-                    {% if search %}
-                    <a href="{% url 'admin_dashboard:game_profiles' %}" class="btn btn-outline-secondary fw-bold py-2"><i class="fas fa-times"></i></a>
-                    {% endif %}
+                <div class="filter-inline-actions">
+                    <button type="submit" class="btn btn-primary fw-semibold filter-action-btn"><i class="fas fa-filter"></i><span data-i18n="gameProfiles.filterBtn">Lọc Dữ Liệu</span></button>
+                    <a href="{% url 'admin_dashboard:game_profiles' %}" class="btn btn-outline-secondary fw-semibold filter-action-btn"><i class="fas fa-times"></i><span data-i18n="common.btn_clear">Xóa bộ lọc</span></a>
                 </div>
             </form>
         </div>
@@ -68,25 +193,25 @@
                 <table class="table table-hover align-middle mb-0" style="min-width: 720px;">
                     <thead class="table-light text-uppercase small text-muted">
                         <tr>
-                            <th width="40"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-                            <th data-i18n="gameProfiles.colPlayer">Người Chơi (User)</th>
-                            <th data-i18n="gameProfiles.colRating">Xếp Hạng (Rating)</th>
+                            <th width="40"><input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                            <th data-i18n="gameProfiles.colPlayer">Người chơi</th>
+                            <th data-i18n="gameProfiles.colRating">Điểm xếp hạng</th>
                             <th data-i18n="gameProfiles.colWinLoss">Thắng / Thua</th>
-                            <th data-i18n="gameProfiles.colStreak">Chuỗi Thắng</th>
-                            <th data-i18n="gameProfiles.colXP">Kinh Nghiệm (XP)</th>
-                            <th data-i18n="gameProfiles.colUpdated">Cập Nhật Lần Cuối</th>
-                            <th class="text-end" data-i18n="gameProfiles.colAction">Thao Tác</th>
+                            <th data-i18n="gameProfiles.colStreak">Chuỗi thắng</th>
+                            <th data-i18n="gameProfiles.colXP">Kinh nghiệm</th>
+                            <th data-i18n="gameProfiles.colUpdated">Cập nhật lần cuối</th>
+                            <th class="text-end" data-i18n="gameProfiles.colAction">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% if items %}
                             {% for item in items %}
                             <tr>
-                                <td><input type="checkbox" class="row-checkbox" value="{{ item.id }}" onchange="updateBulkBtn()"></td>
+                                <td><input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}" onchange="updateBulkBtn()"></td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2.5">
                                         {% if item.user_avatar %}
-                                        <img src="{{ item.user_avatar }}" alt="{{ item.display_name }}" class="rounded-circle object-fit-cover shadow-sm game-avatar-box" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.setProperty('display', 'flex', 'important');">
+                                        <img src="{{ item.user_avatar }}" alt="{{ item.display_name }}" loading="lazy" decoding="async" class="rounded-circle object-fit-cover shadow-sm game-avatar-box" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.setProperty('display', 'flex', 'important');">
                                         <div class="rounded-circle bg-primary text-white font-weight-bold align-items-center justify-content-center shadow-sm game-avatar-box" style="display:none !important;">
                                             {{ item.display_name|first|upper }}
                                         </div>
@@ -95,9 +220,12 @@
                                             {{ item.display_name|first|upper }}
                                         </div>
                                         {% endif %}
-                                        <div style="max-width: 220px;" class="text-truncate">
+                                        <div style="max-width: 240px;" class="text-truncate">
                                             <strong class="d-block text-dark text-truncate">{{ item.display_name }}</strong>
                                             <small class="text-muted font-mono text-truncate d-block" style="font-size: 11px;">{{ item.user_email }}</small>
+                                            {% if item.equipped_title_label %}
+                                            <span class="badge bg-purple-subtle text-primary border mt-1" style="font-size: 10px;"><i class="fas fa-award me-1"></i>{{ item.equipped_title_label }}</span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </td>
@@ -110,23 +238,36 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle me-1">W: {{ item.wins|default:0 }}</span>
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">L: {{ item.losses|default:0 }}</span>
+                                    <div>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle me-1"><span data-i18n="gp.winShort">Thắng</span>: {{ item.wins|default:0 }}</span>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><span data-i18n="gp.lossShort">Thua</span>: {{ item.losses|default:0 }}</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1" style="font-size: 11px;">
+                                        🤖 AI: {{ item.ai_wins|default:0 }}<span data-i18n="gp.winCode">T</span>/{{ item.ai_losses|default:0 }}<span data-i18n="gp.lossCode">B</span> · 🏆 {{ item.unlocked_count|default:0 }}
+                                    </small>
                                 </td>
                                 <td>
                                     <span class="fw-bold text-warning"><i class="fas fa-fire me-1"></i>{{ item.currentWinStreak|default:0 }}</span>
                                     <small class="text-muted d-block" style="font-size: 11px;"><span data-i18n="gameProfiles.recordLabel">Kỷ lục:</span> {{ item.bestWinStreak|default:0 }}</small>
                                 </td>
                                 <td>
-                                    <span class="font-mono fw-bold text-info"><i class="fas fa-bolt me-1"></i>{{ item.totalXp|default:0 }} XP</span>
+                                    <span class="font-mono fw-bold text-info"><i class="fas fa-bolt me-1"></i>{{ item.totalXp|default:0 }} <span data-i18n="gp.xpUnit">KN</span></span>
+                                    {% if item.dailyAiXpEarned %}
+                                    <small class="text-muted d-block" style="font-size: 11px;"><span data-i18n="gp.dailyAiXp">KN AI hôm nay:</span> {{ item.dailyAiXpEarned }}</small>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <small class="text-muted font-mono">{{ item.formatted_date|default:"-" }}</small>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-danger fw-bold" title="Xóa hồ sơ này" onclick="deleteSingle('{{ item.id }}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-warning fw-bold" title="Chỉnh sửa hồ sơ" data-i18n-title="gp.editProfileTitle" data-profile="{{ item.edit_json }}" onclick="openEditProfileModal(this)">
+                                            <i class="fas fa-pen"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger fw-bold" title="Xóa hồ sơ này" data-i18n-title="gp.deleteProfileTitle" onclick="deleteSingle('{{ item.id }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -143,26 +284,210 @@
             </div>
         </div>
 
-        {% if total_pages > 1 %}
-        <div class="card-footer bg-white py-3">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <small class="text-muted">Trang {{ page }} / {{ total_pages }} (Tổng {{ total }} mục)</small>
-                <ul class="pagination pagination-sm m-0">
-                    {% if page > 1 %}
-                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&search={{ search }}">Trước</a></li>
-                    {% endif %}
-                    <li class="page-item active"><span class="page-link">{{ page }}</span></li>
-                    {% if page < total_pages %}
-                    <li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&search={{ search }}">Sau</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-        {% endif %}
+        {% include 'admin_dashboard/includes/pagination.html' %}
     </div>
 </div>
 
+<!-- Edit Game Profile Modal -->
+<div class="modal fade" id="editGameProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="fas fa-pen text-warning me-2"></i><span id="editGpTitle" data-i18n="gp.editModalTitle">Chỉnh sửa hồ sơ trò chơi</span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editGpId">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldRating">Điểm xếp hạng</label>
+                        <input type="number" id="editGpRating" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldHighest">Điểm cao nhất</label>
+                        <input type="number" id="editGpHighest" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldXp">Tổng kinh nghiệm</label>
+                        <input type="number" id="editGpXp" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldAiXp">Kinh nghiệm AI hôm nay</label>
+                        <input type="number" id="editGpAiXp" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldWins">Số trận thắng PvP</label>
+                        <input type="number" id="editGpWins" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldLosses">Số trận thua PvP</label>
+                        <input type="number" id="editGpLosses" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldStreak">Chuỗi thắng hiện tại</label>
+                        <input type="number" id="editGpStreak" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldBestStreak">Chuỗi thắng kỷ lục</label>
+                        <input type="number" id="editGpBestStreak" class="form-control form-control-sm" min="0">
+                    </div>
+                    <div class="col-12 mt-2">
+                        <label class="form-label small fw-semibold" data-i18n="gp.fieldTitle">Danh hiệu đang trang bị</label>
+                        <select id="editGpTitleId" class="form-select form-select-sm">
+                            <option value="" data-i18n="gp.noneOption">-- Không chọn --</option>
+                            {% for tid, tlabel in title_choices %}
+                            <option value="{{ tid }}">{{ tlabel }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Hủy</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveGameProfile()" data-i18n="gp.btnSave">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+const gpT = (...a) => (window.AdminUI ? window.AdminUI.t(...a) : a[0]);
+
+window.AdminUI.addTranslations({
+    en: {
+        'gp.syncArena': 'Sync 3D Arena → DB',
+        'gp.arenaStatus': '3D Arena Status',
+        'gp.online': 'ONLINE',
+        'gp.offline': 'OFFLINE',
+        'gp.humanUnit': 'P',
+        'gp.botUnit': 'B',
+        'gp.arenaRoomsTitle': '3D Voxel Arena — Live Rooms',
+        'gp.wsServer': 'Realtime WebSocket server',
+        'gp.uptime': 'Uptime:',
+        'gp.openClient': 'Open 3D Arena Client',
+        'gp.btnNewRoom': 'New 3D Room',
+        'gp.persistent': 'Persistent',
+        'gp.humansBadge': 'Humans',
+        'gp.botsBadge': 'Bots',
+        'gp.deleteRoomTitle': 'Delete Room',
+        'gp.botFillLabel': 'Bot AI Fill',
+        'gp.enabled': 'Enabled',
+        'gp.disabled': 'Disabled',
+        'gp.targetBotsLabel': 'Target Bots (0-24)',
+        'gp.applyLive': 'Apply Live',
+        'gp.liveLeaderboard': 'Live Room Leaderboard',
+        'gp.massUnit': 'mass',
+        'gp.killsUnit': 'K',
+        'gp.arenaOfflineMsg1': '3D Realtime Game Server',
+        'gp.arenaOfflineMsg2': 'is currently offline or unreachable.',
+        'gp.winShort': 'W',
+        'gp.lossShort': 'L',
+        'gp.winCode': 'W',
+        'gp.lossCode': 'L',
+        'gp.xpUnit': 'XP',
+        'gp.dailyAiXp': 'Daily AI XP:',
+        'gp.editProfileTitle': 'Edit Game Profile',
+        'gp.deleteProfileTitle': 'Delete Game Profile',
+        'gp.editModalTitle': 'Edit Game Profile',
+        'gp.editModalPrefix': 'Edit Profile: ',
+        'gp.fieldRating': 'Rating',
+        'gp.fieldHighest': 'Highest Rating',
+        'gp.fieldXp': 'Total XP',
+        'gp.fieldAiXp': 'Daily AI XP Earned',
+        'gp.fieldWins': 'PvP Wins',
+        'gp.fieldLosses': 'PvP Losses',
+        'gp.fieldStreak': 'Current Streak',
+        'gp.fieldBestStreak': 'Best Streak',
+        'gp.fieldTitle': 'Equipped Title',
+        'gp.noneOption': '-- None --',
+        'gp.btnSave': 'Save Changes',
+        'gp.confirmDelTitle': 'Delete Game Profile',
+        'gp.confirmDelSingle': 'Are you sure you want to delete this game profile?',
+        'gp.confirmDelBulk': 'Are you sure you want to delete {n} selected game profiles?',
+        'gp.deletedSuccess': 'Deleted {n} game profile(s)!',
+        'gp.deleteError': 'Error deleting: ',
+        'gp.unknownError': 'Unknown error',
+        'gp.genericError': 'An error occurred: ',
+        'gp.arenaSuccess': 'Arena command executed successfully!',
+        'gp.arenaFailed': 'Arena command failed',
+        'gp.arenaError': 'Arena error: ',
+        'gp.promptRoomTitle': 'Enter new 3D Arena Room Title:',
+        'gp.promptBotPop': 'Target AI Bot Population (0-24):',
+        'gp.confirmDelRoomTitle': 'Delete 3D Arena Room',
+        'gp.confirmDelRoomBody': 'Close and remove room "{id}"?',
+        'gp.profileUpdated': 'Game profile updated!',
+        'gp.profileUpdateErr': 'Failed to update profile'
+    },
+    vi: {
+        'gp.syncArena': 'Đồng bộ Đấu trường 3D → CSDL',
+        'gp.arenaStatus': 'Trạng thái Đấu trường 3D',
+        'gp.online': 'Trực tuyến',
+        'gp.offline': 'Ngoại tuyến',
+        'gp.humanUnit': 'người',
+        'gp.botUnit': 'máy',
+        'gp.arenaRoomsTitle': 'Đấu trường Voxel 3D — Phòng đang mở',
+        'gp.wsServer': 'Máy chủ WebSocket thời gian thực',
+        'gp.uptime': 'Thời gian chạy:',
+        'gp.openClient': 'Mở Đấu trường 3D',
+        'gp.btnNewRoom': 'Tạo phòng 3D mới',
+        'gp.persistent': 'Cố định',
+        'gp.humansBadge': 'Người chơi',
+        'gp.botsBadge': 'Máy',
+        'gp.deleteRoomTitle': 'Xóa phòng',
+        'gp.botFillLabel': 'Tự động thêm máy AI',
+        'gp.enabled': 'Bật',
+        'gp.disabled': 'Tắt',
+        'gp.targetBotsLabel': 'Số máy AI mục tiêu (0-24)',
+        'gp.applyLive': 'Áp dụng ngay',
+        'gp.liveLeaderboard': 'Bảng xếp hạng trực tiếp',
+        'gp.massUnit': 'khối',
+        'gp.killsUnit': 'hạ',
+        'gp.arenaOfflineMsg1': 'Máy chủ Trò chơi 3D thời gian thực',
+        'gp.arenaOfflineMsg2': 'hiện đang ngoại tuyến hoặc không kết nối được.',
+        'gp.winShort': 'Thắng',
+        'gp.lossShort': 'Thua',
+        'gp.winCode': 'T',
+        'gp.lossCode': 'B',
+        'gp.xpUnit': 'KN',
+        'gp.dailyAiXp': 'KN AI hôm nay:',
+        'gp.editProfileTitle': 'Chỉnh sửa hồ sơ',
+        'gp.deleteProfileTitle': 'Xóa hồ sơ này',
+        'gp.editModalTitle': 'Chỉnh sửa hồ sơ trò chơi',
+        'gp.editModalPrefix': 'Chỉnh sửa hồ sơ: ',
+        'gp.fieldRating': 'Điểm xếp hạng',
+        'gp.fieldHighest': 'Điểm cao nhất',
+        'gp.fieldXp': 'Tổng kinh nghiệm',
+        'gp.fieldAiXp': 'Kinh nghiệm AI hôm nay',
+        'gp.fieldWins': 'Số trận thắng PvP',
+        'gp.fieldLosses': 'Số trận thua PvP',
+        'gp.fieldStreak': 'Chuỗi thắng hiện tại',
+        'gp.fieldBestStreak': 'Chuỗi thắng kỷ lục',
+        'gp.fieldTitle': 'Danh hiệu đang trang bị',
+        'gp.noneOption': '-- Không chọn --',
+        'gp.btnSave': 'Lưu thay đổi',
+        'gp.confirmDelTitle': 'Xóa hồ sơ trò chơi',
+        'gp.confirmDelSingle': 'Bạn có chắc chắn muốn xóa hồ sơ này?',
+        'gp.confirmDelBulk': 'Bạn có chắc chắn muốn xóa {n} hồ sơ đã chọn?',
+        'gp.deletedSuccess': 'Đã xóa thành công {n} hồ sơ trò chơi!',
+        'gp.deleteError': 'Lỗi khi xóa: ',
+        'gp.unknownError': 'Lỗi không xác định',
+        'gp.genericError': 'Có lỗi xảy ra: ',
+        'gp.arenaSuccess': 'Đã thực thi lệnh Đấu trường thành công!',
+        'gp.arenaFailed': 'Thực thi lệnh Đấu trường thất bại',
+        'gp.arenaError': 'Lỗi Đấu trường: ',
+        'gp.promptRoomTitle': 'Nhập tên phòng Đấu trường 3D mới:',
+        'gp.promptBotPop': 'Số lượng máy AI mục tiêu (0-24):',
+        'gp.confirmDelRoomTitle': 'Xóa phòng Đấu trường 3D',
+        'gp.confirmDelRoomBody': 'Đóng và xóa phòng "{id}"?',
+        'gp.profileUpdated': 'Đã cập nhật hồ sơ trò chơi!',
+        'gp.profileUpdateErr': 'Không thể cập nhật hồ sơ'
+    }
+});
+
+let currentEditingPlayerName = null;
+
 function toggleSelectAll(master) {
     document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = master.checked);
     updateBulkBtn();
@@ -181,13 +506,13 @@ function updateBulkBtn() {
 }
 
 async function deleteSingle(id) {
-    confirmAction('Xóa hồ sơ game', 'Bạn có chắc chắn muốn xóa hồ sơ game này?', () => executeDelete([id]));
+    confirmAction(gpT('gp.confirmDelTitle'), gpT('gp.confirmDelSingle'), () => executeDelete([id]));
 }
 
 async function bulkDelete() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
     if (selected.length === 0) return;
-    confirmAction('Xóa hồ sơ game', `Bạn có chắc chắn muốn xóa ${selected.length} hồ sơ game đã chọn?`, () => executeDelete(selected));
+    confirmAction(gpT('gp.confirmDelTitle'), gpT('gp.confirmDelBulk').replace('{n}', selected.length), () => executeDelete(selected));
 }
 
 async function executeDelete(ids) {
@@ -202,14 +527,119 @@ async function executeDelete(ids) {
         });
         const data = await res.json();
         if (data.success) {
-            showToast(`🎉 Đã xóa thành công ${data.deleted} hồ sơ game!`, 'success');
+            showToast(gpT('gp.deletedSuccess').replace('{n}', data.deleted), 'success');
             setTimeout(() => location.reload(), 900);
         } else {
-            showToast('Lỗi khi xóa: ' + (data.error || 'Lỗi không xác định'), 'error');
+            showToast(gpT('gp.deleteError') + (data.error || gpT('gp.unknownError')), 'error');
         }
     } catch (err) {
-        showToast('Có lỗi xảy ra: ' + err.message, 'error');
+        showToast(gpT('gp.genericError') + err.message, 'error');
     }
 }
+
+async function callArenaApi(payload) {
+    try {
+        const res = await fetch("{% url 'admin_dashboard:api_arena_control' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || gpT('gp.arenaSuccess'), 'success');
+            setTimeout(() => location.reload(), 700);
+        } else {
+            showToast(data.error || gpT('gp.arenaFailed'), 'error');
+        }
+    } catch (e) {
+        showToast(gpT('gp.arenaError') + e.message, 'error');
+    }
+}
+
+function updateArenaRoom(roomId) {
+    const botsEnabled = document.getElementById(`botsEnabled-${roomId}`).value === 'true';
+    const targetBotPopulation = parseInt(document.getElementById(`botPop-${roomId}`).value || '10', 10);
+    callArenaApi({ action: 'update_room', roomId, botsEnabled, targetBotPopulation });
+}
+
+function createArenaRoomPrompt() {
+    const title = prompt(gpT('gp.promptRoomTitle'), 'Đấu trường 3D');
+    if (!title) return;
+    const bots = parseInt(prompt(gpT('gp.promptBotPop'), '8') || '8', 10);
+    callArenaApi({ action: 'create_room', title, botsEnabled: bots > 0, targetBotPopulation: bots, maxPlayers: 24 });
+}
+
+function deleteArenaRoom(roomId) {
+    confirmAction(gpT('gp.confirmDelRoomTitle'), gpT('gp.confirmDelRoomBody').replace('{id}', roomId), () => {
+        callArenaApi({ action: 'delete_room', roomId });
+    });
+}
+
+function syncArenaSnapshot() {
+    callArenaApi({ action: 'sync_snapshot' });
+}
+
+function syncEditProfileTitle() {
+    const el = document.getElementById('editGpTitle');
+    if (!el) return;
+    if (currentEditingPlayerName !== null) {
+        el.textContent = gpT('gp.editModalPrefix') + currentEditingPlayerName;
+    } else {
+        el.textContent = gpT('gp.editModalTitle');
+    }
+}
+
+function openEditProfileModal(btn) {
+    const p = JSON.parse(btn.dataset.profile || '{}');
+    currentEditingPlayerName = p.displayName || '';
+    document.getElementById('editGpId').value = p.id || '';
+    syncEditProfileTitle();
+    document.getElementById('editGpRating').value = p.rating ?? 1000;
+    document.getElementById('editGpHighest').value = p.highestRating ?? 1000;
+    document.getElementById('editGpXp').value = p.totalXp ?? 0;
+    document.getElementById('editGpAiXp').value = p.dailyAiXpEarned ?? 0;
+    document.getElementById('editGpWins').value = p.wins ?? 0;
+    document.getElementById('editGpLosses').value = p.losses ?? 0;
+    document.getElementById('editGpStreak').value = p.currentWinStreak ?? 0;
+    document.getElementById('editGpBestStreak').value = p.bestWinStreak ?? 0;
+    const titleSelect = document.getElementById('editGpTitleId');
+    titleSelect.value = p.equippedTitleId || '';
+    if (window.AdminUI?.syncSelect) window.AdminUI.syncSelect(titleSelect);
+    new bootstrap.Modal(document.getElementById('editGameProfileModal')).show();
+}
+
+async function saveGameProfile() {
+    const payload = {
+        id: document.getElementById('editGpId').value,
+        rating: parseInt(document.getElementById('editGpRating').value || '0', 10),
+        highestRating: parseInt(document.getElementById('editGpHighest').value || '0', 10),
+        totalXp: parseInt(document.getElementById('editGpXp').value || '0', 10),
+        dailyAiXpEarned: parseInt(document.getElementById('editGpAiXp').value || '0', 10),
+        wins: parseInt(document.getElementById('editGpWins').value || '0', 10),
+        losses: parseInt(document.getElementById('editGpLosses').value || '0', 10),
+        currentWinStreak: parseInt(document.getElementById('editGpStreak').value || '0', 10),
+        bestWinStreak: parseInt(document.getElementById('editGpBestStreak').value || '0', 10),
+        equippedTitleId: document.getElementById('editGpTitleId').value
+    };
+    const res = await fetch("{% url 'admin_dashboard:api_game_profile_update' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.getCsrfToken() },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast(gpT('gp.profileUpdated'), 'success');
+        setTimeout(() => location.reload(), 700);
+    } else {
+        showToast(data.error || gpT('gp.profileUpdateErr'), 'error');
+    }
+}
+
+window.addEventListener('admin:language-change', () => {
+    syncEditProfileTitle();
+});
 </script>
 {% endblock %}

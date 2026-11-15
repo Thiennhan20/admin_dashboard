@@ -2,11 +2,13 @@
 
 # ── Legacy views (all existing functionality) ───────────────────────
 from users_management.views_legacy import (           # noqa: F401
-    admin_login, admin_logout, admin_register,
+    admin_login, admin_login_2fa, admin_login_2fa_cancel,
+    admin_logout, admin_register,
     operations_dashboard, api_dashboard_overview,
     api_mongo_collection, api_mongo_action,
     cleanup_watchlist,
     admin_list, admin_create, admin_detail, admin_edit, admin_delete,
+    admin_reset_2fa,
     movies_list, tv_shows_list, comments_list,
     rooms_list, notifications_list,
     cache_management, api_cache_list, api_cache_action,
@@ -40,3 +42,6 @@ from users_management.views.audit_logs import *        # noqa: F401,F403
 from users_management.views.notifications_api import * # noqa: F401,F403
 from users_management.views.servers import *          # noqa: F401,F403
 from users_management.views.games import *            # noqa: F401,F403
+from users_management.views.daily_challenge import *  # noqa: F401,F403
+from users_management.views.stream_history import *   # noqa: F401,F403
+from users_management.views.push_devices import *     # noqa: F401,F403

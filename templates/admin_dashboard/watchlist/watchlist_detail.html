@@ -17,7 +17,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         {% if item.poster_path %}
-                            <img src="{{ item.poster_path }}" alt="{{ item.title }}" 
+                            <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy" decoding="async"
                                  class="img-fluid rounded" style="max-width: 100%;">
                         {% else %}
                             <div class="bg-secondary d-flex align-items-center justify-content-center rounded" 
@@ -68,7 +68,7 @@
                                 <strong data-i18n="watchDet.addedDate">Added Date:</strong>
                             </div>
                             <div class="col-sm-8">
-                                {{ item.added_at|date:"F d, Y \a\t H:i" }}
+                                {{ item.added_at|date:"Y-m-d H:i" }}
                             </div>
                         </div>
                         
@@ -93,7 +93,7 @@
                                         <i class="fas fa-check-circle"></i> <span data-i18n="watchDet.verified">Verified</span>
                                     </span>
                                 {% else %}
-                                    <span class="badge bg-warning">
+                                    <span class="badge bg-warning text-dark">
                                         <i class="fas fa-exclamation-triangle"></i> <span data-i18n="watchDet.unverified">Unverified</span>
                                     </span>
                                 {% endif %}
@@ -151,7 +151,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
                     {% if item.user.avatar %}
-                        <img src="{{ item.user.avatar }}" alt="{{ item.user.name }}" 
+                        <img src="{{ item.user.avatar }}" alt="{{ item.user.name }}" loading="lazy" decoding="async"
                              class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
                     {% else %}
                         <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
@@ -175,13 +175,13 @@
                 <div class="mb-2">
                     <small class="text-muted" data-i18n="watchDet.apiId">API ID:</small>
                     <br>
-                                                    <code>{{ item.user.id|default:"Not synced" }}</code>
+                                                    <code>{% if item.user.id %}{{ item.user.id }}{% else %}<span data-i18n="watchDet.notSynced">Not synced</span>{% endif %}</code>
                 </div>
                 
                 <div class="mb-2">
                     <small class="text-muted" data-i18n="watchDet.created">Created:</small>
                     <br>
-                    {{ item.user.created_at|date:"M d, Y" }}
+                    {{ item.user.created_at|date:"Y-m-d" }}
                 </div>
                 
                 <div class="mb-2">
@@ -227,7 +227,8 @@ window.AdminUI.addTranslations({
         'watchDet.apiId': 'API ID:',
         'watchDet.created': 'Created:',
         'watchDet.watchlistItems': 'Watchlist Items:',
-        'watchDet.viewUser': 'View User Details'
+        'watchDet.viewUser': 'View User Details',
+        'watchDet.notSynced': 'Not synced'
     },
     vi: {
         'watchDet.title': 'Chi tiết mục danh sách xem',
@@ -240,20 +241,21 @@ window.AdminUI.addTranslations({
         'watchDet.userStatus': 'Trạng thái người dùng:',
         'watchDet.verified': 'Đã xác minh',
         'watchDet.unverified': 'Chưa xác minh',
-        'watchDet.totalWatchlist': 'Tổng Watchlist của người dùng:',
+        'watchDet.totalWatchlist': 'Tổng mục danh sách xem:',
         'watchDet.itemsSuffix': 'mục',
         'watchDet.actions': 'Thao tác',
         'watchDet.editBtn': 'Chỉnh sửa mục',
         'watchDet.deleteBtn': 'Xóa mục',
         'watchDet.backBtn': 'Quay lại danh sách',
-        'watchDet.confirmDeleteTitle': 'Xóa mục Watchlist',
-        'watchDet.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa mục này khỏi Watchlist?',
+        'watchDet.confirmDeleteTitle': 'Xóa mục khỏi danh sách xem',
+        'watchDet.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa mục này khỏi danh sách xem?',
         'watchDet.userInfo': 'Thông tin người dùng',
         'watchDet.userId': 'Mã người dùng:',
         'watchDet.apiId': 'Mã API:',
         'watchDet.created': 'Đã tạo:',
-        'watchDet.watchlistItems': 'Số mục Watchlist:',
-        'watchDet.viewUser': 'Xem chi tiết người dùng'
+        'watchDet.watchlistItems': 'Số mục danh sách xem:',
+        'watchDet.viewUser': 'Xem chi tiết người dùng',
+        'watchDet.notSynced': 'Chưa đồng bộ'
     }
 });
 </script>

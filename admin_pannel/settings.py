@@ -166,6 +166,8 @@ else:
             'PASSWORD': unquote(parsed_database_url.password or ''),
             'HOST': parsed_database_url.hostname or '',
             'PORT': str(parsed_database_url.port or ''),
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '300')),
+            'CONN_HEALTH_CHECKS': True,
         }
     }
     if database_options:
@@ -175,6 +177,8 @@ else:
 # Deployed app endpoints
 CLIENT_URL = os.environ.get('CLIENT_URL', 'http://localhost:3000').rstrip('/')
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:3001').rstrip('/')
+GAME_SERVER_URL = os.environ.get('GAME_SERVER_URL', 'http://localhost:3006').rstrip('/')
+GAME_CLIENT_URL = os.environ.get('GAME_CLIENT_URL', 'http://localhost:5173').rstrip('/')
 API_BASE_URL = os.environ.get('API_BASE_URL', f'{SERVER_URL}/api').rstrip('/')
 API_AUTH_BASE_URL = os.environ.get('API_AUTH_BASE_URL', f'{API_BASE_URL}/auth').rstrip('/')
 MONGODB_URI = os.environ.get('MONGODB_URI', '')

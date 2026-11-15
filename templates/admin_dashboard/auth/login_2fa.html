@@ -1,0 +1,148 @@
+{% extends "admin_dashboard/auth/base_auth.html" %}
+
+{% block title %}Xác thực 2FA — ENTN Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --auth-max-width: 440px;
+    }
+
+    .user-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 2px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--control);
+        border: 1px solid var(--line);
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .user-pill i {
+        color: var(--blue-bright);
+    }
+
+    .otp-input {
+        height: 52px;
+        min-height: 52px;
+        padding: 12px 14px;
+        font-size: 21px !important;
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        text-indent: 0.24em;
+        text-align: center;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .hint-box {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--control);
+        border: 1px solid var(--line);
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+
+    .hint-box strong {
+        color: var(--ink);
+    }
+</style>
+{% endblock %}
+
+{% block card_header %}
+<div class="brand-header">
+    <div class="brand-icon"><i class="fas fa-shield-halved"></i></div>
+    <div class="brand-title" data-i18n="tfa.title">Xác thực hai bước</div>
+    <div class="user-pill">
+        <i class="fas fa-user-shield"></i>
+        <span>{{ pending_username }}</span>
+    </div>
+    <div class="brand-sub" data-i18n="tfa.subtitle">
+        Mở ứng dụng Authenticator và nhập mã 6 chữ số hoặc dùng mã dự phòng một lần.
+    </div>
+</div>
+{% endblock %}
+
+{% block card_body %}
+<form method="POST" id="twoFaForm" autocomplete="off">
+    {% csrf_token %}
+    <div class="field">
+        <label for="code" data-i18n="tfa.code_label">Mã OTP (6 số) hoặc Mã dự phòng</label>
+        <input type="text"
+               class="form-control otp-input"
+               id="code"
+               name="code"
+               placeholder="000000"
+               maxlength="16"
+               inputmode="text"
+               autocomplete="one-time-code"
+               autofocus
+               required>
+    </div>
+
+    <button type="submit" class="btn-auth" id="verifyBtn">
+        <i class="fas fa-check-circle"></i>
+        <span data-i18n="tfa.verify">Xác nhận & Đăng nhập</span>
+    </button>
+</form>
+
+<div class="hint-box">
+    <i class="fas fa-circle-info me-1"></i>
+    <span data-i18n="tfa.backup_hint">Số mã dự phòng còn lại:</span>
+    <strong>{{ remaining_backup_codes|default:0 }}</strong>.
+    <span data-i18n="tfa.contact_hint">Nếu mất thiết bị, hãy nhờ Super Admin reset 2FA.</span>
+</div>
+
+<div class="auth-divider"><span data-i18n="tfa.or">Hoặc</span></div>
+
+<div class="auth-links">
+    <form method="POST" action="{% url 'admin_dashboard:login_2fa_cancel' %}">
+        {% csrf_token %}
+        <button type="submit" class="auth-link">
+            <i class="fas fa-arrow-left fa-fw"></i>
+            <span data-i18n="tfa.cancel">Hủy & Quay lại đăng nhập</span>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.AdminUI.addTranslations({
+        en: {
+            'tfa.title': 'Two-Factor Authentication',
+            'tfa.subtitle': 'Open your Authenticator app and enter the 6-digit code or a single-use recovery code.',
+            'tfa.code_label': 'OTP Code (6 digits) or Backup Code',
+            'tfa.verify': 'Verify & Sign In',
+            'tfa.verifying': 'Verifying...',
+            'tfa.backup_hint': 'Remaining backup codes:',
+            'tfa.contact_hint': 'Lost your device? Ask a Super Admin to reset your 2FA.',
+            'tfa.or': 'Or',
+            'tfa.cancel': 'Cancel & Back to Login'
+        },
+        vi: {
+            'tfa.title': 'Xác thực hai bước',
+            'tfa.subtitle': 'Mở ứng dụng xác thực và nhập mã 6 chữ số hoặc dùng mã dự phòng một lần.',
+            'tfa.code_label': 'Mã OTP (6 số) hoặc Mã dự phòng',
+            'tfa.verify': 'Xác nhận & Đăng nhập',
+            'tfa.verifying': 'Đang xác thực...',
+            'tfa.backup_hint': 'Số mã dự phòng còn lại:',
+            'tfa.contact_hint': 'Nếu mất thiết bị, hãy nhờ Quản trị cấp cao đặt lại xác thực hai bước.',
+            'tfa.or': 'Hoặc',
+            'tfa.cancel': 'Hủy & Quay lại đăng nhập'
+        }
+    });
+
+    document.getElementById('twoFaForm').addEventListener('submit', () => {
+        const btn = document.getElementById('verifyBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>' + (window.AdminUI.t('tfa.verifying') || 'Đang xác thực...') + '</span>';
+    });
+</script>
+{% endblock %}

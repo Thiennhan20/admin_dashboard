@@ -1,5 +1,5 @@
 {% extends 'admin_dashboard/base.html' %}
-{% load static %}
+{% load static admin_tags %}
 
 {% block title %}Chỉnh sửa Admin - {{ admin_user.username }}{% endblock %}
 {% block page_title %}Chỉnh sửa Admin{% endblock %}
@@ -14,25 +14,32 @@
     
     .form-card {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-card);
         padding: 2rem;
         margin-bottom: 2rem;
     }
     
     .form-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        background: linear-gradient(135deg, var(--blue), #4f46e5);
         color: white;
         padding: 1.5rem;
-        border-radius: 15px 15px 0 0;
+        border-radius: 14px 14px 0 0;
         margin: -2rem -2rem 2rem -2rem;
     }
     
     .admin-preview {
-        background: var(--control-hover);
+        background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
+        box-shadow: var(--shadow-card);
     }
     
     .preview-avatar {
@@ -55,28 +62,37 @@
     .form-label {
         font-weight: 600;
         margin-bottom: 0.5rem;
-        color: var(--text-dark);
+        color: var(--ink);
     }
     
     .form-control, .form-select {
-        border: 2px solid #e9ecef;
+        border: 1px solid var(--line);
+        background-color: var(--control);
+        color: var(--ink);
         border-radius: 10px;
         padding: 0.75rem 1rem;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-select {
+        padding-right: 2.25rem;
     }
     
     .form-control:focus, .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+        border-color: var(--blue);
+        background-color: var(--control);
+        color: var(--ink);
+        box-shadow: 0 0 0 3px var(--blue-glow);
     }
     
     .required-field::after {
         content: " *";
-        color: #dc3545;
+        color: var(--red);
     }
     
     .password-section {
-        background: var(--control-hover);
+        background: var(--control);
+        border: 1px solid var(--line);
         border-radius: 10px;
         padding: 1.5rem;
         margin: 1rem 0;
@@ -92,7 +108,7 @@
     
     .password-strength {
         height: 4px;
-        background-color: #e9ecef;
+        background-color: var(--line);
         border-radius: 2px;
         margin-top: 0.5rem;
         overflow: hidden;
@@ -120,8 +136,8 @@
     }
     
     .role-info {
-        background-color: #e3f2fd;
-        border: 1px solid #90caf9;
+        background-color: var(--brand-soft);
+        border: 1px solid var(--brand-border);
         border-radius: 10px;
         padding: 1rem;
         margin-top: 0.5rem;
@@ -129,7 +145,7 @@
     
     .role-description {
         font-size: 0.875rem;
-        color: #1565c0;
+        color: var(--ink);
         margin: 0;
     }
     
@@ -158,27 +174,11 @@
         color: var(--red) !important;
         font-weight: 700;
     }
-    
-    .btn-save {
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-        color: white;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    
-    .btn-save:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
-        color: white;
-    }
-    
+
     .changes-indicator {
         position: fixed;
-        top: 20px;
-        right: 20px;
+        top: 76px;
+        right: 24px;
         background: #17a2b8;
         color: white;
         padding: 0.5rem 1rem;
@@ -244,7 +244,7 @@
                     </h6>
                     <p class="text-muted mb-1">@{{ admin_user.username }} • {{ admin_user.email }}</p>
                     <small class="text-muted">
-                        <span class="badge bg-primary">{{ admin_user.admin_profile.role|title }}</span>
+                        <span class="badge bg-primary" data-i18n="role.{{ admin_user.admin_profile.role }}">{{ admin_user.admin_profile.role|title }}</span>
                         {% if admin_user.is_active %}
                             <span class="badge bg-success" data-i18n="adEdit.status_active">Đang hoạt động</span>
                         {% else %}
@@ -315,7 +315,7 @@
                             <select class="form-select" name="role" id="role" required
                                     data-original="{{ admin_user.admin_profile.role }}">
                                 {% for role in roles %}
-                                <option value="{{ role }}" {% if role == admin_user.admin_profile.role %}selected{% endif %}>
+                                <option value="{{ role }}" {% if role == admin_user.admin_profile.role %}selected{% endif %} data-i18n="role.{{ role }}">
                                     {{ role|title }}
                                 </option>
                                 {% endfor %}
@@ -334,7 +334,7 @@
                                     <strong data-i18n="adEdit.label_is_active">Tài khoản đang hoạt động</strong>
                                 </label>
                             </div>
-                            <div class="form-text" data-i18n="adEdit.formtext_is_active">Bỏ tích để tạm khóa tài khoản admin này</div>
+                            <div class="form-text" data-i18n="adEdit.formtext_is_active">Bỏ tích để tạm khóa tài khoản quản trị này</div>
                         </div>
 
                         {% if request.user.is_superuser %}
@@ -344,7 +344,7 @@
                                        {% if admin_user.is_superuser %}checked{% endif %}
                                        data-original="{{ admin_user.is_superuser|yesno:'true,false' }}">
                                 <label class="form-check-label" for="is_superuser">
-                                    <strong>Superuser</strong> <span data-i18n="adEdit.superuser_label">- Toàn quyền Django Admin</span>
+                                    <strong data-i18n="adEdit.superuser_title">Siêu quản trị</strong> <span data-i18n="adEdit.superuser_label">- Toàn quyền Django Admin</span>
                                 </label>
                             </div>
                             <div class="form-text">
@@ -365,6 +365,8 @@
                     </div>
                 </div>
 
+                {% include 'admin_dashboard/admin/_rbac_matrix_card.html' %}
+
                 <!-- Password Section -->
                 <div class="password-section">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -382,10 +384,10 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label" data-i18n="adEdit.label_new_password">Mật khẩu mới</label>
-                                    <div class="position-relative">
+                                    <div class="input-group">
                                         <input type="password" class="form-control" name="new_password" id="new_password" 
                                                placeholder="Để trống nếu không đổi" data-i18n-placeholder="adEdit.placeholder_new_password">
-                                        <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                        <button type="button" class="btn btn-outline-secondary px-3" 
                                                 onclick="togglePasswordVisibility('new_password')">
                                             <i class="fas fa-eye" id="newPasswordIcon"></i>
                                         </button>
@@ -398,10 +400,10 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label" data-i18n="adEdit.label_confirm_password">Xác nhận mật khẩu mới</label>
-                                    <div class="position-relative">
+                                    <div class="input-group">
                                         <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
                                                placeholder="Nhập lại mật khẩu mới" data-i18n-placeholder="adEdit.placeholder_confirm_password">
-                                        <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                        <button type="button" class="btn btn-outline-secondary px-3" 
                                                 onclick="togglePasswordVisibility('confirm_password')">
                                             <i class="fas fa-eye" id="confirmPasswordIcon"></i>
                                         </button>
@@ -425,7 +427,20 @@
                 </div>
 
                 <!-- Danger Zone -->
-                {% if admin_user.id != request.user.id %}
+                {% has_perm 'admins.delete' as can_delete_admin %}
+                {% if actor_is_super and admin_user.admin_profile.totp_enabled %}
+                <div class="warning-section mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h6 class="text-warning mb-1"><i class="fas fa-shield-halved"></i> <span data-i18n="adEdit.tfa_title">Xác thực 2 bước (2FA TOTP) đang bật</span></h6>
+                        <small class="text-muted" data-i18n="adEdit.tfa_help">Nếu quản trị viên mất thiết bị Authenticator, Super Admin có thể reset 2FA khẩn cấp.</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-warning"
+                            onclick="resetAdmin2FA('{{ admin_user.id }}', '{{ admin_user.username }}')">
+                        <i class="fas fa-unlock"></i> <span data-i18n="adEdit.btn_reset_2fa">Reset 2FA</span>
+                    </button>
+                </div>
+                {% endif %}
+                {% if can_delete_admin and admin_user.id != request.user.id %}
                 <div class="danger-section">
                     <h6 class="text-danger mb-2">
                         <i class="fas fa-exclamation-triangle"></i> <span data-i18n="adEdit.danger_title">Vùng nguy hiểm</span>
@@ -478,8 +493,10 @@ window.AdminUI.addTranslations({
         'adEdit.role_desc_admin': 'Can manage users and watchlists, cannot manage other admins.',
         'adEdit.role_desc_super_admin': 'Has full access to the system, including managing admins.',
         'adEdit.role_desc_moderator': 'Only has view and content management rights, cannot delete.',
+        'adEdit.role_desc_viewer': 'Read-only access to dashboards, listings, and reports.',
         'adEdit.label_is_active': 'Account is active',
         'adEdit.formtext_is_active': 'Uncheck to temporarily lock this admin account',
+        'adEdit.superuser_title': 'Superuser',
         'adEdit.superuser_label': '- Full Django Admin access',
         'adEdit.superuser_help': 'Superuser can access Django Admin (/admin/) and manage all models, users, permissions.',
         'adEdit.warning_title': 'Note',
@@ -497,6 +514,11 @@ window.AdminUI.addTranslations({
         'adEdit.password_note_1': 'Leave blank if you do not want to change the password',
         'adEdit.password_note_2': 'New password must be at least 8 characters',
         'adEdit.password_note_3': 'Should include uppercase, lowercase, numbers and special characters',
+        'adEdit.tfa_title': 'Two-Factor Authentication (2FA) is Enabled',
+        'adEdit.tfa_help': 'If the administrator loses their Authenticator device, a Super Admin can perform an emergency 2FA reset.',
+        'adEdit.btn_reset_2fa': 'Reset 2FA',
+        'adEdit.reset2fa_title': 'Reset 2FA Authentication',
+        'adEdit.reset2fa_body': 'Disable & reset 2FA for administrator "{username}"?',
         'adEdit.danger_title': 'Danger Zone',
         'adEdit.danger_body': 'Deleting an admin cannot be undone!',
         'adEdit.btn_delete': 'Delete This Admin',
@@ -506,16 +528,16 @@ window.AdminUI.addTranslations({
         'adEdit.alert_password_length': 'New password must be at least 8 characters!'
     },
     vi: {
-        'adEdit.breadcrumb_admin_list': 'Quản lý Admin',
+        'adEdit.breadcrumb_admin_list': 'Quản lý Quản trị viên',
         'adEdit.breadcrumb_edit': 'Chỉnh sửa',
         'adEdit.btn_view_detail': 'Xem chi tiết',
         'adEdit.btn_back': 'Quay lại',
         'adEdit.unsaved_changes': 'Có thay đổi chưa lưu',
-        'adEdit.current_admin': 'Admin hiện tại',
+        'adEdit.current_admin': 'Quản trị viên hiện tại',
         'adEdit.status_active': 'Đang hoạt động',
         'adEdit.status_inactive': 'Tạm khóa',
-        'adEdit.form_title': 'Cập nhật thông tin Admin',
-        'adEdit.form_subtitle': 'Chỉnh sửa thông tin và quyền hạn của admin',
+        'adEdit.form_title': 'Cập nhật thông tin Quản trị viên',
+        'adEdit.form_subtitle': 'Chỉnh sửa thông tin và quyền hạn của quản trị viên',
         'adEdit.section_basic': 'Thông tin cơ bản',
         'adEdit.label_username': 'Tên đăng nhập',
         'adEdit.formtext_username': 'Tên đăng nhập phải duy nhất trong hệ thống',
@@ -524,13 +546,15 @@ window.AdminUI.addTranslations({
         'adEdit.label_last_name': 'Tên',
         'adEdit.section_permissions': 'Quyền hạn và trạng thái',
         'adEdit.label_role': 'Vai trò',
-        'adEdit.role_desc_admin': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
-        'adEdit.role_desc_super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
+        'adEdit.role_desc_admin': 'Có quyền quản lý người dùng và danh sách yêu thích, không thể quản lý quản trị viên khác.',
+        'adEdit.role_desc_super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý quản trị viên.',
         'adEdit.role_desc_moderator': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.',
+        'adEdit.role_desc_viewer': 'Chỉ có quyền xem bảng điều khiển, thống kê và danh sách.',
         'adEdit.label_is_active': 'Tài khoản đang hoạt động',
-        'adEdit.formtext_is_active': 'Bỏ tích để tạm khóa tài khoản admin này',
+        'adEdit.formtext_is_active': 'Bỏ tích để tạm khóa tài khoản quản trị này',
+        'adEdit.superuser_title': 'Siêu quản trị',
         'adEdit.superuser_label': '- Toàn quyền Django Admin',
-        'adEdit.superuser_help': 'Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.',
+        'adEdit.superuser_help': 'Siêu quản trị có thể truy cập Django Admin (/admin/) và quản lý toàn bộ dữ liệu, người dùng và phân quyền.',
         'adEdit.warning_title': 'Lưu ý',
         'adEdit.warning_self_body': 'Bạn đang chỉnh sửa chính tài khoản của mình. Hãy cẩn thận khi thay đổi quyền hạn!',
         'adEdit.password_title': 'Đổi mật khẩu',
@@ -546,9 +570,14 @@ window.AdminUI.addTranslations({
         'adEdit.password_note_1': 'Để trống nếu không muốn thay đổi mật khẩu',
         'adEdit.password_note_2': 'Mật khẩu mới phải có ít nhất 8 ký tự',
         'adEdit.password_note_3': 'Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+        'adEdit.tfa_title': 'Xác thực 2 bước (2FA) đang bật',
+        'adEdit.tfa_help': 'Nếu quản trị viên mất thiết bị xác thực, Quản trị cấp cao có thể đặt lại 2FA khẩn cấp.',
+        'adEdit.btn_reset_2fa': 'Đặt lại 2FA',
+        'adEdit.reset2fa_title': 'Đặt lại xác thực 2FA',
+        'adEdit.reset2fa_body': 'Bạn có chắc muốn tắt và đặt lại 2FA cho quản trị viên "{username}"?',
         'adEdit.danger_title': 'Vùng nguy hiểm',
-        'adEdit.danger_body': 'Thao tác xóa admin sẽ không thể hoàn tác!',
-        'adEdit.btn_delete': 'Xóa Admin này',
+        'adEdit.danger_body': 'Thao tác xóa quản trị viên sẽ không thể hoàn tác!',
+        'adEdit.btn_delete': 'Xóa Quản trị viên này',
         'adEdit.btn_cancel': 'Hủy bỏ',
         'adEdit.btn_save': 'Lưu thay đổi',
         'adEdit.alert_confirm_mismatch': 'Mật khẩu xác nhận không khớp!',
@@ -560,9 +589,10 @@ window.AdminUI.addTranslations({
 // Role descriptions
 const t = window.AdminUI.t;
 const roleDescriptions = {
-    'admin': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
-    'super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
-    'moderator': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.'
+    'admin': 'Có quyền quản lý người dùng và danh sách yêu thích, không thể quản lý quản trị viên khác.',
+    'super_admin': 'Có toàn quyền trong hệ thống, bao gồm quản lý quản trị viên.',
+    'moderator': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.',
+    'viewer': 'Chỉ có quyền xem thống kê và danh sách.'
 };
 
 // Track changes
@@ -708,15 +738,52 @@ function updateRoleInfo() {
     }
 }
 
+// Submit helper for POST-only security actions
+function submitAdminPostAction(url) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    const csrfTokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenEl) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfTokenEl.value;
+        form.appendChild(csrfInput);
+    }
+    document.body.appendChild(form);
+    form.submit();
+}
+
 // Delete admin function
 function deleteAdmin(adminId, username) {
     const t = window.AdminUI.t;
     const title = t('admin.delete_title') || 'Xóa tài khoản admin';
     const body = t('admin.delete_body', {username: username}) || `Bạn có chắc chắn muốn xóa admin "${username}"?<br><br>Thao tác này không thể hoàn tác!`;
     confirmAction(title, body, () => {
-        window.location.href = `/dashboard/admins/${adminId}/delete/`;
+        submitAdminPostAction(`/dashboard/admins/${adminId}/delete/`);
     });
 }
+
+function resetAdmin2FA(adminId, username) {
+    const title = t('adEdit.reset2fa_title') || 'Đặt lại xác thực 2FA';
+    const body = t('adEdit.reset2fa_body', {username: username}) || `Bạn có chắc muốn tắt và đặt lại 2FA cho "${username}"?`;
+    confirmAction(title, body, () => {
+        submitAdminPostAction(`/dashboard/admins/${adminId}/reset-2fa/`);
+    });
+}
+
+window.addEventListener('admin:language-change', () => {
+    updateRoleInfo();
+    checkPasswordMatch();
+    const fields = document.getElementById('passwordFields');
+    const text = document.getElementById('passwordToggleText');
+    if (fields && text) {
+        text.textContent = fields.style.display === 'none'
+            ? (t('adEdit.password_show') || 'Hiển thị')
+            : (t('adEdit.password_hide') || 'Ẩn');
+    }
+});
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {

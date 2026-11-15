@@ -12,11 +12,19 @@
                 <div class="avatar-dot mx-auto mb-3" style="width:80px;height:80px;font-size:2rem;background:var(--blue);">{{ request.user.username|first|upper }}</div>
                 <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
                 <p class="text-muted mb-2">{{ request.user.email }}</p>
-                <span class="badge bg-primary px-3 py-2">{{ profile.get_role_display }}</span>
+                <span class="badge bg-primary px-3 py-2" data-i18n="role.{{ profile.role }}">{{ profile.get_role_display }}</span>
             </div>
             <div class="card-footer" style="border-color:var(--line);">
-                <div class="d-flex justify-content-between small text-muted"><span data-i18n="pro.joined">Member since</span><strong>{{ request.user.date_joined|date:"M d, Y" }}</strong></div>
-                <div class="d-flex justify-content-between small text-muted mt-1"><span data-i18n="pro.last_login">Last login</span><strong>{{ request.user.last_login|date:"M d, Y H:i"|default:"Never" }}</strong></div>
+                <div class="d-flex justify-content-between small text-muted"><span data-i18n="pro.joined">Member since</span><strong>{{ request.user.date_joined|date:"Y-m-d" }}</strong></div>
+                <div class="d-flex justify-content-between small text-muted mt-1"><span data-i18n="pro.last_login">Last login</span><strong>{% if request.user.last_login %}{{ request.user.last_login|date:"Y-m-d H:i" }}{% else %}<span data-i18n="pro.never">Never</span>{% endif %}</strong></div>
+                <div class="d-flex justify-content-between small text-muted mt-1">
+                    <span data-i18n="pro.tfa_status">2FA TOTP</span>
+                    {% if profile.totp_enabled %}
+                        <span class="badge bg-success"><i class="fas fa-shield-halved me-1"></i><span data-i18n="pro.tfa_on">Active</span></span>
+                    {% else %}
+                        <span class="badge bg-secondary" data-i18n="pro.tfa_off">Disabled</span>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -48,6 +56,93 @@
                 </form>
             </div>
         </div>
+        <!-- 2FA TOTP Security -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-shield-halved me-2 text-primary"></i><span data-i18n="pro.tfa_title">Two-Factor Authentication (2FA TOTP)</span></h6>
+                {% if profile.totp_enabled %}
+                <span class="badge bg-success" data-i18n="pro.tfa_on">Active</span>
+                {% else %}
+                <span class="badge bg-secondary" data-i18n="pro.tfa_off">Disabled</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if tfa_new_backup_codes %}
+                <div class="alert alert-warning mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <strong><i class="fas fa-key me-1"></i><span data-i18n="pro.tfa_backup_once">Save these single-use backup codes now (shown only once!):</span></strong>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyBackupCodes()"><i class="fas fa-copy me-1"></i><span data-i18n="pro.btn_copy">Copy</span></button>
+                    </div>
+                    <div class="row g-2" id="backupCodesBox">
+                        {% for bc in tfa_new_backup_codes %}
+                        <div class="col-6 col-md-3"><code class="d-block p-2 rounded text-center" style="background: var(--control); border: 1px solid var(--line); color: var(--ink); font-size: 13px;">{{ bc }}</code></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if profile.totp_enabled %}
+                <p class="small text-muted mb-3">
+                    <span data-i18n="pro.tfa_enabled_desc">Your account is protected with TOTP 2FA. Remaining single-use recovery codes:</span>
+                    <strong>{{ tfa_backup_remaining }}</strong>
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <form method="POST" action="{% url 'admin_dashboard:profile_2fa_backup_codes' %}" class="p-3 rounded" style="background: var(--control); border: 1px solid var(--line);">
+                            {% csrf_token %}
+                            <label class="form-label small fw-semibold" data-i18n="pro.tfa_regen_label">Regenerate 8 Backup Codes</label>
+                            <input type="password" class="form-control form-control-sm mb-2" name="current_password" placeholder="Current password" data-i18n-placeholder="pro.current_pwd" required>
+                            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-rotate me-1"></i><span data-i18n="pro.tfa_btn_regen">Regenerate Backup Codes</span>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <form method="POST" action="{% url 'admin_dashboard:profile_2fa_disable' %}" class="p-3 rounded" style="background: var(--control); border: 1px solid rgba(239,68,68,0.35);">
+                            {% csrf_token %}
+                            <label class="form-label small fw-semibold text-danger" data-i18n="pro.tfa_disable_label">Disable 2FA</label>
+                            <input type="password" class="form-control form-control-sm mb-2" name="current_password" placeholder="Current password" data-i18n-placeholder="pro.current_pwd" required>
+                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                <i class="fas fa-shield-slash me-1"></i><span data-i18n="pro.tfa_btn_disable">Disable 2FA</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% elif tfa_pending_secret %}
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4 text-center">
+                        <div class="p-2 bg-white rounded d-inline-block">
+                            <img src="{{ tfa_qr_data_uri }}" alt="2FA QR Code" style="width:170px;height:170px;">
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <p class="small mb-2" data-i18n="pro.tfa_scan_desc">Scan this QR code with Google Authenticator, Authy, or Bitwarden, or enter the manual secret key below:</p>
+                        <div class="input-group input-group-sm mb-3">
+                            <input type="text" class="form-control font-monospace" id="tfaSecretField" value="{{ tfa_pending_secret }}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('tfaSecretField').value)"><i class="fas fa-copy"></i></button>
+                        </div>
+                        <form method="POST" action="{% url 'admin_dashboard:profile_2fa_enable' %}" class="d-flex flex-wrap gap-2 align-items-center">
+                            {% csrf_token %}
+                            <input type="text" class="form-control font-monospace" name="otp_code" placeholder="Enter 6-digit OTP" data-i18n-placeholder="pro.tfa_otp_placeholder" maxlength="8" required style="max-width: 190px; letter-spacing: 0.15em;">
+                            <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i><span data-i18n="pro.tfa_btn_verify">Verify & Enable 2FA</span></button>
+                        </form>
+                        <form method="POST" action="{% url 'admin_dashboard:profile_2fa_setup' %}" class="mt-2">
+                            {% csrf_token %}<input type="hidden" name="cancel" value="1">
+                            <button type="submit" class="btn btn-link btn-sm text-muted p-0"><span data-i18n="pro.tfa_btn_cancel">Cancel setup</span></button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <p class="small text-muted mb-3" data-i18n="pro.tfa_intro">Add an extra layer of security using a time-based 6-digit code from an Authenticator app (works offline, includes 8 backup recovery codes).</p>
+                <form method="POST" action="{% url 'admin_dashboard:profile_2fa_setup' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-qrcode me-1"></i><span data-i18n="pro.tfa_btn_setup">Enable 2FA TOTP</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
         <!-- Recent Activity -->
         <div class="card">
             <div class="card-header"><h6 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i><span data-i18n="pro.act_title">My Recent Activity</span></h6></div>
@@ -55,7 +150,7 @@
                 {% if recent_logs %}
                 <div class="table-responsive"><table class="table table-hover mb-0">
                     <thead><tr><th data-i18n="pro.col_action">Action</th><th data-i18n="pro.col_target">Target</th><th data-i18n="pro.col_time">Time</th></tr></thead>
-                    <tbody>{% for log in recent_logs %}<tr><td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.action }}</span></td><td><small>{{ log.target_type }} {{ log.target_id|truncatechars:20 }}</small></td><td><small class="text-muted">{{ log.timestamp|timesince }} ago</small></td></tr>{% endfor %}</tbody>
+                    <tbody>{% for log in recent_logs %}<tr><td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.action }}</span></td><td><small>{{ log.target_type }} {{ log.target_id|truncatechars:20 }}</small></td><td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ log.timestamp|timesince }}" data-with-ago="1">{{ log.timestamp|timesince }} ago</span></small></td></tr>{% endfor %}</tbody>
                 </table></div>
                 {% else %}<div class="text-center py-4 text-muted" data-i18n="pro.no_activity">No activity recorded yet.</div>{% endif %}
             </div>
@@ -84,7 +179,25 @@ window.AdminUI.addTranslations({
         'pro.col_action': 'Action',
         'pro.col_target': 'Target',
         'pro.col_time': 'Time',
-        'pro.no_activity': 'No activity recorded yet.'
+        'pro.no_activity': 'No activity recorded yet.',
+        'pro.tfa_status': '2FA TOTP',
+        'pro.tfa_on': 'Active',
+        'pro.tfa_off': 'Disabled',
+        'pro.tfa_title': 'Two-Factor Authentication (2FA TOTP)',
+        'pro.tfa_backup_once': 'Save these single-use backup codes now (shown only once!):',
+        'pro.tfa_enabled_desc': 'Your account is protected with TOTP 2FA. Remaining single-use recovery codes:',
+        'pro.tfa_regen_label': 'Regenerate 8 Backup Codes',
+        'pro.tfa_btn_regen': 'Regenerate Backup Codes',
+        'pro.tfa_disable_label': 'Disable 2FA',
+        'pro.tfa_btn_disable': 'Disable 2FA',
+        'pro.tfa_scan_desc': 'Scan this QR code with Google Authenticator, Authy, or Bitwarden, or enter the manual secret key below:',
+        'pro.tfa_btn_verify': 'Verify & Enable 2FA',
+        'pro.tfa_btn_cancel': 'Cancel setup',
+        'pro.tfa_intro': 'Add an extra layer of security using a time-based 6-digit code from an Authenticator app (works offline, includes 8 backup recovery codes).',
+        'pro.tfa_btn_setup': 'Enable 2FA TOTP',
+        'pro.never': 'Never',
+        'pro.btn_copy': 'Copy',
+        'pro.tfa_otp_placeholder': 'Enter 6-digit OTP'
     },
     vi: {
         'pro.joined': 'Thành viên từ',
@@ -103,8 +216,32 @@ window.AdminUI.addTranslations({
         'pro.col_action': 'Hành động',
         'pro.col_target': 'Đối tượng',
         'pro.col_time': 'Thời gian',
-        'pro.no_activity': 'Chưa thực hiện hành động nào gần đây.'
+        'pro.no_activity': 'Chưa thực hiện hành động nào gần đây.',
+        'pro.tfa_status': 'Xác thực 2FA',
+        'pro.tfa_on': 'Đang bật',
+        'pro.tfa_off': 'Chưa bật',
+        'pro.tfa_title': 'Xác thực hai bước',
+        'pro.tfa_backup_once': 'Hãy lưu ngay các mã dự phòng này (chỉ hiển thị 1 lần!):',
+        'pro.tfa_enabled_desc': 'Tài khoản đã được bảo vệ bằng xác thực 2FA. Số mã dự phòng còn lại:',
+        'pro.tfa_regen_label': 'Tạo lại 8 mã dự phòng mới',
+        'pro.tfa_btn_regen': 'Tạo lại mã dự phòng',
+        'pro.tfa_disable_label': 'Tắt xác thực 2FA',
+        'pro.tfa_btn_disable': 'Tắt xác thực 2FA',
+        'pro.tfa_scan_desc': 'Quét mã QR bằng Google Authenticator, Authy hoặc Bitwarden, hoặc nhập mã bí mật thủ công bên dưới:',
+        'pro.tfa_btn_verify': 'Xác nhận & Bật 2FA',
+        'pro.tfa_btn_cancel': 'Hủy thiết lập',
+        'pro.tfa_intro': 'Tăng cường bảo mật bằng mã OTP 6 số từ ứng dụng xác thực (tạo QR ngoại tuyến kèm 8 mã dự phòng).',
+        'pro.tfa_btn_setup': 'Bật xác thực 2FA',
+        'pro.never': 'Chưa bao giờ',
+        'pro.btn_copy': 'Sao chép',
+        'pro.tfa_otp_placeholder': 'Nhập mã OTP 6 chữ số'
     }
 });
+function copyBackupCodes() {
+    var box = document.getElementById('backupCodesBox');
+    if (!box) return;
+    var codes = Array.from(box.querySelectorAll('code')).map(function(el) { return el.textContent.trim(); });
+    navigator.clipboard.writeText(codes.join('\n'));
+}
 </script>
 {% endblock %}

@@ -22,19 +22,6 @@
     </div>
 </div>
 
-{% if messages %}
-<div class="row mb-4">
-    <div class="col-12">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            <i class="fas fa-info-circle me-2"></i>{{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
 <!-- Stats -->
 <div class="row mb-4">
     <div class="col-md-6 mb-3">
@@ -67,8 +54,15 @@
 
 <!-- TV Shows List -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h6 class="mb-0"><i class="fas fa-list me-2"></i><span data-i18n="tv.listTitle">Active TV Shows List</span></h6>
+        <form method="GET" class="header-search-form">
+            <input type="text" name="search" value="{{ search|default:'' }}" class="form-control form-control-sm header-search-input" placeholder="TMDb ID / Title..." data-i18n-placeholder="tv.searchPlaceholder">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if search %}
+            <a href="{% url 'admin_dashboard:tv_shows' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </form>
     </div>
     <div class="card-body p-0">
         {% if tv_shows %}
@@ -91,7 +85,7 @@
                             <td>
                                 {% if show.poster %}
                                     <img src="{% if 'http' in show.poster %}{{ show.poster }}{% else %}https://image.tmdb.org/t/p/w92{{ show.poster }}{% endif %}" 
-                                         alt="{{ show.title }}" 
+                                         alt="{{ show.title }}" loading="lazy" decoding="async"
                                          class="rounded shadow-sm" style="width: 45px; height: 68px; object-fit: cover;">
                                 {% else %}
                                     <div class="bg-secondary rounded d-flex align-items-center justify-content-center" 
@@ -108,7 +102,7 @@
                                 <div class="text-muted small"><span data-i18n="tv.idLabel">ID:</span> {{ show.id }}</div>
                             </td>
                             <td>
-                                <span class="badge bg-info"><i class="fas fa-heart me-1"></i>{{ show.watchlist_count }} <span data-i18n="tv.usersSuffix">users</span></span>
+                                <span class="badge bg-info text-dark"><i class="fas fa-heart me-1"></i>{{ show.watchlist_count }} <span data-i18n="tv.usersSuffix">users</span></span>
                             </td>
                             <td>
                                 <span class="badge bg-success"><i class="fas fa-history me-1"></i>{{ show.progress_count }} <span data-i18n="tv.playsSuffix">plays</span></span>
@@ -123,7 +117,7 @@
                                 </small>
                             </td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline" onsubmit="event.preventDefault(); confirmAction(window.AdminUI.t('tv.confirmDeleteTitle') || 'Xóa phim bộ', window.AdminUI.t('tv.confirmDeleteBody', {title: '&quot;{{ show.title }}&quot;'}) || 'Bạn có chắc chắn muốn xóa phim bộ &quot;{{ show.title }}&quot; khỏi hệ thống?', () => { this.submit(); })">
+                                <form method="POST" class="d-inline" data-title="{{ show.title }}" onsubmit="return confirmDeleteTv(this)">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete_media">
                                     <input type="hidden" name="media_id" value="{{ show.id }}">
@@ -138,10 +132,15 @@
                     </tbody>
                 </table>
             </div>
+            {% if total_pages > 1 %}
+            <div class="pb-3 border-top">
+                {% include 'admin_dashboard/includes/pagination.html' %}
+            </div>
+            {% endif %}
         {% else %}
             <div class="text-center py-5 text-muted">
                 <div class="mb-4">
-                    <i class="fas fa-tv fa-4x text-light-subtle"></i>
+                    <i class="fas fa-tv fa-4x text-muted opacity-50"></i>
                 </div>
                 <h5 data-i18n="tv.emptyTitle">No TV Shows Found</h5>
                 <p class="small mb-0" data-i18n="tv.emptyMsg">No TV shows are currently present in user watchlists or watch progress records.</p>
@@ -189,18 +188,19 @@ window.AdminUI.addTranslations({
         'tv.emptyTitle': 'No TV Shows Found',
         'tv.emptyMsg': 'No TV shows are currently present in user watchlists or watch progress records.',
         'tv.confirmDeleteTitle': 'Delete TV Show',
-        'tv.confirmDeleteBody': 'Are you sure you want to delete the TV show {title} from the system?'
+        'tv.confirmDeleteBody': 'Are you sure you want to delete the TV show {title} from the system?',
+        'tv.searchPlaceholder': 'Search series or TMDb ID...'
     },
     vi: {
         'tv.heading': 'Phim bộ trên nền tảng',
         'tv.subtitle': 'Theo dõi phim bộ trong danh sách xem và lịch sử xem của người dùng. Xóa các bộ phim vi phạm bản quyền hoặc không còn hoạt động khỏi tất cả tài khoản.',
         'tv.statTotalTv': 'Tổng số phim bộ duy nhất',
-        'tv.statWatchlistSaves': 'Tổng lượt lưu Watchlist',
+        'tv.statWatchlistSaves': 'Tổng lượt lưu danh sách',
         'tv.listTitle': 'Danh sách phim bộ đang hoạt động',
         'tv.colPoster': 'Áp phích',
         'tv.colTmdbId': 'Mã TMDb',
-        'tv.colTitle': 'Tên series',
-        'tv.colWatchlist': 'Lượt lưu Watchlist',
+        'tv.colTitle': 'Tên phim bộ',
+        'tv.colWatchlist': 'Lượt lưu danh sách',
         'tv.colHistory': 'Lịch sử xem',
         'tv.colLastWatched': 'Xem gần nhất',
         'tv.colActions': 'Thao tác',
@@ -212,8 +212,15 @@ window.AdminUI.addTranslations({
         'tv.emptyTitle': 'Không tìm thấy phim bộ',
         'tv.emptyMsg': 'Hiện không có phim bộ nào trong danh sách xem hoặc bản ghi tiến trình xem của người dùng.',
         'tv.confirmDeleteTitle': 'Xóa phim bộ',
-        'tv.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim bộ {title} khỏi hệ thống?'
+        'tv.confirmDeleteBody': 'Bạn có chắc chắn muốn xóa phim bộ {title} khỏi hệ thống?',
+        'tv.searchPlaceholder': 'Tìm tên phim bộ hoặc mã TMDb...'
     }
 });
+function confirmDeleteTv(form) {
+    const title = form.dataset.title || '';
+    const t = window.AdminUI.t;
+    confirmAction(t('tv.confirmDeleteTitle'), t('tv.confirmDeleteBody', { title: `"${title}"` }), () => form.submit());
+    return false;
+}
 </script>
 {% endblock %}

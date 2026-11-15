@@ -1,6 +1,6 @@
 {% extends 'admin_dashboard/base.html' %}
 
-{% block title %}Edit User - Admin Panel{% endblock %}
+{% block title %}Edit User: {{ user.name }} — ENTN Admin{% endblock %}
 {% block page_title %}Edit User{% endblock %}
 {% block page_i18n_key %}page.userEdit{% endblock %}
 
@@ -8,94 +8,78 @@
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-edit"></i> <span data-i18n="userEdit.editUserLabel">Edit User:</span> {{ user.name }}
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold">
+                    <i class="fas fa-user-edit text-primary me-2"></i><span data-i18n="userEdit.editUserLabel">Edit User:</span> {{ user.name }}
                 </h6>
+                <code class="small">{{ user.id }}</code>
             </div>
             <div class="card-body">
                 <form method="POST">
                     {% csrf_token %}
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="name" class="form-label" data-i18n="userEdit.labelName">Name *</label>
-                                <input type="text" class="form-control" id="name" name="name" 
-                                       value="{{ user.name }}" required>
-                            </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="name" class="form-label" data-i18n="userEdit.labelName">Full Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}" required>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="email" class="form-label" data-i18n="userEdit.labelEmail">Email *</label>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       value="{{ user.email }}" required>
-                            </div>
+                        <div class="col-md-4">
+                            <label for="username" class="form-label" data-i18n="userEdit.labelUsername">Username</label>
+                            <input type="text" class="form-control font-mono" id="username" name="username" value="{{ user.username|default:'' }}" placeholder="cine_player">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="email" class="form-label" data-i18n="userEdit.labelEmail">Email *</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="avatar" class="form-label" data-i18n="userEdit.labelAvatar">Avatar URL</label>
-                        <input type="url" class="form-control" id="avatar" name="avatar" 
-                               value="{{ user.avatar|default:'' }}" placeholder="https://example.com/avatar.jpg">
-                        <div class="form-text" data-i18n="userEdit.hintAvatar">Leave empty to use default avatar</div>
+                        <input type="url" class="form-control" id="avatar" name="avatar" value="{{ user.avatar|default:'' }}" placeholder="https://example.com/avatar.jpg">
                     </div>
 
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_email_verified" 
-                                   name="is_email_verified" {% if user.is_email_verified %}checked{% endif %}>
-                            <label class="form-check-label" for="is_email_verified" data-i18n="userEdit.labelEmailVerified">
-                                Email Verified
-                            </label>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border" style="border-color:var(--line) !important; background:var(--elevated);">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_email_verified" name="is_email_verified" {% if user.is_email_verified %}checked{% endif %}>
+                                    <label class="form-check-label fw-semibold" for="is_email_verified" data-i18n="userEdit.labelEmailVerified">
+                                        Email Verified
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border" style="border-color:var(--line) !important; background:var(--elevated);">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_banned" name="is_banned" {% if user.isBanned %}checked{% endif %}>
+                                    <label class="form-check-label fw-semibold text-danger" for="is_banned" data-i18n="userEdit.labelBanAccount">
+                                        Suspend / Ban Account
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
+                        <label for="ban_reason" class="form-label" data-i18n="userEdit.labelBanReason">Ban / Moderation Reason</label>
+                        <input type="text" class="form-control" id="ban_reason" name="ban_reason" value="{{ user.banReason|default:'' }}" placeholder="Optional reason shown in moderation logs" data-i18n-placeholder="userEdit.phBanReason">
+                    </div>
+
+                    <div class="mb-4">
                         <label for="watchlist" class="form-label" data-i18n="userEdit.labelWatchlist">Watchlist (JSON)</label>
-                        <textarea class="form-control" id="watchlist" name="watchlist" rows="8" 
-                                  placeholder='[{"id": 1, "title": "Movie Title", "overview": "Description"}]'>{{ user.watchlist|default:'' }}</textarea>
-                        <div class="form-text" data-i18n="userEdit.hintWatchlist">
-                            Enter valid JSON array of movies. Each movie should have: id, title, overview (optional), release_date (optional)
-                        </div>
+                        <textarea class="form-control font-mono" id="watchlist" name="watchlist" rows="8" placeholder='[{"id": 1, "title": "Movie Title"}]'>{{ user.watchlist|default:'' }}</textarea>
                     </div>
 
                     <div class="d-flex justify-content-between">
-                                                 <a href="{% url 'admin_dashboard:user_detail' user.id %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> <span data-i18n="userEdit.btnCancel">Cancel</span>
+                        <a href="{% url 'admin_dashboard:user_detail' user.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i><span data-i18n="userEdit.btnCancel">Cancel</span>
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> <span data-i18n="userEdit.btnSave">Save Changes</span>
+                            <i class="fas fa-save me-1"></i><span data-i18n="userEdit.btnSave">Save Changes</span>
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
-
-        <!-- User Info Card -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-info-circle"></i> <span data-i18n="userEdit.userInfo">User Information</span>
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong data-i18n="userEdit.apiId">API ID:</strong> 
-                            {% if user.id %}
-                                <code>{{ user.id }}</code>
-                            {% else %}
-                                <span class="text-muted" data-i18n="userEdit.notSynced">Not synced</span>
-                            {% endif %}
-                        </p>
-                        <p><strong data-i18n="userEdit.created">Created:</strong> {{ user.created_at|date:"F d, Y H:i" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong data-i18n="userEdit.updated">Updated:</strong> {{ user.updated_at|date:"F d, Y H:i" }}</p>
-                        <p><strong data-i18n="userEdit.watchlistCount">Watchlist Count:</strong> {{ user.watchlist|length|default:0 }} <span data-i18n="userEdit.moviesLabel">movies</span></p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -104,77 +88,35 @@
 
 {% block extra_js %}
 <script>
-    window.AdminUI.addTranslations({
-        en: {
-            'userEdit.editUserLabel': 'Edit User:',
-            'userEdit.labelName': 'Name *',
-            'userEdit.labelEmail': 'Email *',
-            'userEdit.labelAvatar': 'Avatar URL',
-            'userEdit.hintAvatar': 'Leave empty to use default avatar',
-            'userEdit.labelEmailVerified': 'Email Verified',
-            'userEdit.labelWatchlist': 'Watchlist (JSON)',
-            'userEdit.hintWatchlist': 'Enter valid JSON array of movies. Each movie should have: id, title, overview (optional), release_date (optional)',
-            'userEdit.btnCancel': 'Cancel',
-            'userEdit.btnSave': 'Save Changes',
-            'userEdit.userInfo': 'User Information',
-            'userEdit.apiId': 'API ID:',
-            'userEdit.notSynced': 'Not synced',
-            'userEdit.created': 'Created:',
-            'userEdit.updated': 'Updated:',
-            'userEdit.watchlistCount': 'Watchlist Count:',
-            'userEdit.moviesLabel': 'movies'
-        },
-        vi: {
-            'userEdit.editUserLabel': 'Chỉnh sửa người dùng:',
-            'userEdit.labelName': 'Tên *',
-            'userEdit.labelEmail': 'Email *',
-            'userEdit.labelAvatar': 'URL ảnh đại diện',
-            'userEdit.hintAvatar': 'Để trống để sử dụng ảnh đại diện mặc định',
-            'userEdit.labelEmailVerified': 'Email đã xác minh',
-            'userEdit.labelWatchlist': 'Danh sách xem (JSON)',
-            'userEdit.hintWatchlist': 'Nhập mảng JSON hợp lệ chứa danh sách phim. Mỗi bộ phim nên có: id, title, overview (tùy chọn), release_date (tùy chọn)',
-            'userEdit.btnCancel': 'Hủy',
-            'userEdit.btnSave': 'Lưu thay đổi',
-            'userEdit.userInfo': 'Thông tin người dùng',
-            'userEdit.apiId': 'API ID:',
-            'userEdit.notSynced': 'Chưa đồng bộ',
-            'userEdit.created': 'Ngày tạo:',
-            'userEdit.updated': 'Cập nhật:',
-            'userEdit.watchlistCount': 'Số lượng Watchlist:',
-            'userEdit.moviesLabel': 'phim'
-        }
-    });
-
-    // Auto-format JSON in watchlist textarea
-    document.getElementById('watchlist').addEventListener('blur', function() {
-        try {
-            const value = this.value.trim();
-            if (value) {
-                const parsed = JSON.parse(value);
-                this.value = JSON.stringify(parsed, null, 2);
-            }
-        } catch (e) {
-            // If JSON is invalid, don't change the value
-            console.log('Invalid JSON format');
-        }
-    });
-
-    // Confirm before leaving with unsaved changes
-    let formChanged = false;
-    document.querySelector('form').addEventListener('change', function() {
-        formChanged = true;
-    });
-
-    window.addEventListener('beforeunload', function(e) {
-        if (formChanged) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
-
-    // Reset formChanged when form is submitted
-    document.querySelector('form').addEventListener('submit', function() {
-        formChanged = false;
-    });
+window.AdminUI.addTranslations({
+    en: {
+        'userEdit.editUserLabel': 'Edit User:',
+        'userEdit.labelName': 'Full Name *',
+        'userEdit.labelUsername': 'Username',
+        'userEdit.labelEmail': 'Email *',
+        'userEdit.labelAvatar': 'Avatar URL',
+        'userEdit.labelEmailVerified': 'Email Verified',
+        'userEdit.labelBanAccount': 'Suspend / Ban Account',
+        'userEdit.labelBanReason': 'Ban / Moderation Reason',
+        'userEdit.phBanReason': 'Optional reason shown in moderation logs',
+        'userEdit.labelWatchlist': 'Watchlist (JSON)',
+        'userEdit.btnCancel': 'Cancel',
+        'userEdit.btnSave': 'Save Changes'
+    },
+    vi: {
+        'userEdit.editUserLabel': 'Chỉnh sửa người dùng:',
+        'userEdit.labelName': 'Họ và tên *',
+        'userEdit.labelUsername': 'Tên đăng nhập',
+        'userEdit.labelEmail': 'Email *',
+        'userEdit.labelAvatar': 'Liên kết ảnh đại diện',
+        'userEdit.labelEmailVerified': 'Đã xác thực Email',
+        'userEdit.labelBanAccount': 'Tạm khóa / Cấm tài khoản',
+        'userEdit.labelBanReason': 'Lý do khóa / kiểm duyệt',
+        'userEdit.phBanReason': 'Lý do tùy chọn hiển thị trong nhật ký kiểm duyệt',
+        'userEdit.labelWatchlist': 'Danh sách yêu thích (JSON)',
+        'userEdit.btnCancel': 'Hủy',
+        'userEdit.btnSave': 'Lưu thay đổi'
+    }
+});
 </script>
 {% endblock %}

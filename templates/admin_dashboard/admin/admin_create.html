@@ -14,16 +14,19 @@
     
     .form-card {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-card);
         padding: 2rem;
     }
     
     .form-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        background: linear-gradient(135deg, var(--blue), #4f46e5);
         color: white;
         padding: 1.5rem;
-        border-radius: 15px 15px 0 0;
+        border-radius: 14px 14px 0 0;
         margin: -2rem -2rem 2rem -2rem;
     }
     
@@ -34,29 +37,37 @@
     .form-label {
         font-weight: 600;
         margin-bottom: 0.5rem;
-        color: var(--text-dark);
+        color: var(--ink);
     }
     
     .form-control, .form-select {
-        border: 2px solid #e9ecef;
+        border: 1px solid var(--line);
+        background-color: var(--control);
+        color: var(--ink);
         border-radius: 10px;
         padding: 0.75rem 1rem;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-select {
+        padding-right: 2.25rem;
     }
     
     .form-control:focus, .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+        border-color: var(--blue);
+        background-color: var(--control);
+        color: var(--ink);
+        box-shadow: 0 0 0 3px var(--blue-glow);
     }
     
     .required-field::after {
         content: " *";
-        color: #dc3545;
+        color: var(--red);
     }
     
     .password-strength {
         height: 4px;
-        background-color: #e9ecef;
+        background-color: var(--line);
         border-radius: 2px;
         margin-top: 0.5rem;
         overflow: hidden;
@@ -75,7 +86,7 @@
     
     .password-requirements {
         font-size: 0.875rem;
-        color: #6c757d;
+        color: var(--muted);
         margin-top: 0.5rem;
     }
     
@@ -97,25 +108,10 @@
         width: 16px;
         margin-right: 0.5rem;
     }
-    
-    .btn-create {
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-        color: white;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    
-    .btn-create:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
-        color: white;
-    }
-    
+
     .role-info {
-        background-color: var(--control-hover);
+        background-color: var(--control);
+        border: 1px solid var(--line);
         border-radius: 10px;
         padding: 1rem;
         margin-top: 0.5rem;
@@ -123,7 +119,7 @@
     
     .role-description {
         font-size: 0.875rem;
-        color: #6c757d;
+        color: var(--ink-secondary);
         margin-bottom: 0.5rem;
     }
     
@@ -187,10 +183,10 @@
 
                         <div class="form-group">
                             <label class="form-label required-field" data-i18n="adCreate.label_password">Mật khẩu</label>
-                            <div class="position-relative">
+                            <div class="input-group">
                                 <input type="password" class="form-control" name="password" id="password" 
                                        required placeholder="Nhập mật khẩu mạnh" data-i18n-placeholder="adCreate.placeholder_password">
-                                <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                <button type="button" class="btn btn-outline-secondary px-3" 
                                         onclick="togglePassword('password')">
                                     <i class="fas fa-eye" id="passwordIcon"></i>
                                 </button>
@@ -220,10 +216,10 @@
 
                         <div class="form-group">
                             <label class="form-label required-field" data-i18n="adCreate.label_confirm">Xác nhận mật khẩu</label>
-                            <div class="position-relative">
+                            <div class="input-group">
                                 <input type="password" class="form-control" name="confirm_password" id="confirm_password" 
                                        required placeholder="Nhập lại mật khẩu" data-i18n-placeholder="adCreate.placeholder_confirm">
-                                <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100 px-3" 
+                                <button type="button" class="btn btn-outline-secondary px-3" 
                                         onclick="togglePassword('confirm_password')">
                                     <i class="fas fa-eye" id="confirmPasswordIcon"></i>
                                 </button>
@@ -255,18 +251,21 @@
                             <select class="form-select" name="role" id="role" required>
                                 <option value="" data-i18n="adCreate.role_select">Chọn vai trò</option>
                                 {% for role in roles %}
-                                <option value="{{ role }}">{{ role|title }}</option>
+                                <option value="{{ role }}" data-i18n="role.{{ role }}">{{ role|title }}</option>
                                 {% endfor %}
                             </select>
                             <div class="role-info" id="roleInfo" style="display: none;">
                                 <div class="role-description" id="adminDesc" style="display: none;">
-                                    <strong>Admin:</strong> <span data-i18n="adCreate.role_admin_desc">Có quyền quản lý users và watchlist, không thể quản lý admin khác.</span>
+                                    <strong data-i18n="role.admin">Quản trị viên</strong>: <span data-i18n="adCreate.role_admin_desc">Có quyền quản lý người dùng và danh sách yêu thích, không thể quản lý quản trị viên khác.</span>
                                 </div>
                                 <div class="role-description" id="superAdminDesc" style="display: none;">
-                                    <strong>Super Admin:</strong> <span data-i18n="adCreate.role_super_admin_desc">Có toàn quyền trong hệ thống, bao gồm quản lý admin.</span>
+                                    <strong data-i18n="role.super_admin">Quản trị cấp cao</strong>: <span data-i18n="adCreate.role_super_admin_desc">Có toàn quyền trong hệ thống, bao gồm quản lý quản trị viên.</span>
                                 </div>
                                 <div class="role-description" id="moderatorDesc" style="display: none;">
-                                    <strong>Moderator:</strong> <span data-i18n="adCreate.role_moderator_desc">Chỉ có quyền xem và quản lý nội dung, không thể xóa.</span>
+                                    <strong data-i18n="role.moderator">Kiểm duyệt viên</strong>: <span data-i18n="adCreate.role_moderator_desc">Chỉ có quyền xem và quản lý nội dung, không thể xóa.</span>
+                                </div>
+                                <div class="role-description" id="viewerDesc" style="display: none;">
+                                    <strong data-i18n="role.viewer">Người xem</strong>: <span data-i18n="adCreate.role_viewer_desc">Chỉ có quyền xem báo cáo, thống kê và danh sách.</span>
                                 </div>
                             </div>
                         </div>
@@ -275,7 +274,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="is_superuser" id="is_superuser">
                                 <label class="form-check-label" for="is_superuser">
-                                    <strong>Superuser</strong> <span data-i18n="adCreate.superuser_label">- Có toàn quyền Django Admin</span>
+                                    <strong data-i18n="adCreate.superuser_title">Siêu quản trị</strong> <span data-i18n="adCreate.superuser_label">- Có toàn quyền Django Admin</span>
                                 </label>
                             </div>
                             <div class="form-text">
@@ -306,6 +305,8 @@
                         </div>
                     </div>
                 </div>
+
+                {% include 'admin_dashboard/admin/_rbac_matrix_card.html' %}
 
                 <!-- Submit Buttons -->
                 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
@@ -358,6 +359,8 @@ window.AdminUI.addTranslations({
         'adCreate.role_admin_desc': 'Can manage users and watchlists, cannot manage other admins.',
         'adCreate.role_super_admin_desc': 'Has full access to the system, including managing admins.',
         'adCreate.role_moderator_desc': 'Only has view and content management rights, cannot delete.',
+        'adCreate.role_viewer_desc': 'Read-only access to dashboards, listings, and reports.',
+        'adCreate.superuser_title': 'Superuser',
         'adCreate.superuser_label': '- Has full Django Admin access',
         'adCreate.superuser_help': 'Superuser can access Django Admin (/admin/) and manage all models, users, permissions.',
         'adCreate.preview_title': 'Preview Admin',
@@ -367,11 +370,11 @@ window.AdminUI.addTranslations({
         'adCreate.alert_invalid': 'Please fill in all required fields with valid information!'
     },
     vi: {
-        'adCreate.breadcrumb_admin_list': 'Quản lý Admin',
+        'adCreate.breadcrumb_admin_list': 'Quản lý Quản trị viên',
         'adCreate.breadcrumb_create': 'Tạo mới',
         'adCreate.btn_back': 'Quay lại',
-        'adCreate.form_title': 'Thông tin Admin mới',
-        'adCreate.form_subtitle': 'Điền đầy đủ thông tin để tạo tài khoản admin',
+        'adCreate.form_title': 'Thông tin Quản trị viên mới',
+        'adCreate.form_subtitle': 'Điền đầy đủ thông tin để tạo tài khoản quản trị viên',
         'adCreate.section_login': 'Thông tin đăng nhập',
         'adCreate.label_username': 'Tên đăng nhập',
         'adCreate.placeholder_username': 'Nhập tên đăng nhập',
@@ -396,15 +399,17 @@ window.AdminUI.addTranslations({
         'adCreate.placeholder_last_name': 'Nhập tên',
         'adCreate.label_role': 'Vai trò',
         'adCreate.role_select': 'Chọn vai trò',
-        'adCreate.role_admin_desc': 'Có quyền quản lý users và watchlist, không thể quản lý admin khác.',
-        'adCreate.role_super_admin_desc': 'Có toàn quyền trong hệ thống, bao gồm quản lý admin.',
+        'adCreate.role_admin_desc': 'Có quyền quản lý người dùng và danh sách yêu thích, không thể quản lý quản trị viên khác.',
+        'adCreate.role_super_admin_desc': 'Có toàn quyền trong hệ thống, bao gồm quản lý quản trị viên.',
         'adCreate.role_moderator_desc': 'Chỉ có quyền xem và quản lý nội dung, không thể xóa.',
+        'adCreate.role_viewer_desc': 'Chỉ có quyền xem danh sách và báo cáo.',
+        'adCreate.superuser_title': 'Siêu quản trị',
         'adCreate.superuser_label': '- Có toàn quyền Django Admin',
-        'adCreate.superuser_help': 'Superuser có thể truy cập Django Admin (/admin/) và quản lý tất cả models, users, permissions.',
-        'adCreate.preview_title': 'Preview Admin',
-        'adCreate.preview_name': 'Admin Name',
+        'adCreate.superuser_help': 'Siêu quản trị có thể truy cập Django Admin (/admin/) và quản lý toàn bộ dữ liệu, người dùng và phân quyền.',
+        'adCreate.preview_title': 'Xem trước Quản trị viên',
+        'adCreate.preview_name': 'Tên Quản trị viên',
         'adCreate.btn_cancel': 'Hủy bỏ',
-        'adCreate.btn_submit': 'Tạo Admin',
+        'adCreate.btn_submit': 'Tạo Quản trị viên',
         'adCreate.alert_invalid': 'Vui lòng điền đầy đủ thông tin hợp lệ!'
     }
 });
@@ -510,12 +515,18 @@ function updateRoleInfo() {
     const role = document.getElementById('role').value;
     const roleInfo = document.getElementById('roleInfo');
     const descriptions = document.querySelectorAll('.role-description');
-    
+    const descIdMap = {
+        admin: 'adminDesc',
+        super_admin: 'superAdminDesc',
+        moderator: 'moderatorDesc',
+        viewer: 'viewerDesc'
+    };
+
     descriptions.forEach(desc => desc.style.display = 'none');
-    
-    if (role) {
+
+    if (role && descIdMap[role]) {
         roleInfo.style.display = 'block';
-        const targetDesc = document.getElementById(role.replace('_', '') + 'Desc');
+        const targetDesc = document.getElementById(descIdMap[role]);
         if (targetDesc) {
             targetDesc.style.display = 'block';
         }
@@ -626,5 +637,10 @@ form.addEventListener('submit', function(e) {
 
 // Initial validation
 validateForm();
+
+window.addEventListener('admin:language-change', () => {
+    checkPasswordMatch();
+    updatePreview();
+});
 </script>
 {% endblock %}

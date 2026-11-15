@@ -1,5 +1,5 @@
 {% extends 'admin_dashboard/base.html' %}
-{% load static %}
+{% load static admin_tags %}
 
 {% block title %}Admin{% endblock %}
 {% block page_title %}Admin{% endblock %}
@@ -49,28 +49,40 @@
     
     .role-badge {
         font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 10px;
-        font-weight: 500;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 600;
     }
     
     .role-admin {
-        background-color: #e3f2fd;
-        color: #1565c0;
+        background-color: rgba(59, 130, 246, 0.14);
+        color: #2563eb;
+        border: 1px solid rgba(59, 130, 246, 0.28);
+    }
+    html[data-theme="dark"] .role-admin {
+        color: #60a5fa;
     }
     
     .role-super_admin {
-        background-color: #fce4ec;
-        color: #c2185b;
+        background-color: rgba(244, 63, 94, 0.14);
+        color: #e11d48;
+        border: 1px solid rgba(244, 63, 94, 0.28);
+    }
+    html[data-theme="dark"] .role-super_admin {
+        color: #fb7185;
     }
     
     .role-moderator {
-        background-color: #f3e5f5;
-        color: #7b1fa2;
+        background-color: rgba(168, 85, 247, 0.14);
+        color: #9333ea;
+        border: 1px solid rgba(168, 85, 247, 0.28);
+    }
+    html[data-theme="dark"] .role-moderator {
+        color: #c084fc;
     }
     
     .stats-card {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        background: linear-gradient(135deg, var(--blue), #4f46e5);
         color: white;
         border-radius: 15px;
         padding: 1.5rem;
@@ -79,10 +91,13 @@
     
     .filter-section {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-card);
     }
 </style>
 {% endblock %}
@@ -99,9 +114,12 @@
                 </ol>
             </nav>
         </div>
+        {% has_perm 'admins.edit' as can_edit_admin %}
+        {% if can_edit_admin %}
         <a href="{% url 'admin_dashboard:admin_create' %}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> <span data-i18n="adList.btn_create">Tạo Admin Mới</span>
         </a>
+        {% endif %}
     </div>
 
     <!-- Stats Card -->
@@ -134,35 +152,47 @@
 
     <!-- Filter Section -->
     <div class="filter-section">
-        <div class="row align-items-center">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <span class="input-group-text">
-                        <i class="fas fa-search"></i>
-                    </span>
-                    <input type="text" class="form-control" id="searchInput" 
-                           placeholder="Tìm kiếm admin..." data-i18n-placeholder="adList.search_placeholder">
+        <div class="filter-stack">
+            <div class="filter-search-row">
+                <div class="filter-field">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="Tìm kiếm admin..." data-i18n-placeholder="adList.search_placeholder">
+                    </div>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary filter-action-btn" onclick="filterAdmins()">
+                        <i class="fas fa-search"></i><span data-i18n="common.btn_search">Search</span>
+                    </button>
                 </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="roleFilter">
-                    <option value="" data-i18n="adList.role_all">Tất cả vai trò</option>
-                    <option value="admin" data-i18n="adList.role_admin">Admin</option>
-                    <option value="super_admin" data-i18n="adList.role_super_admin">Super Admin</option>
-                    <option value="moderator" data-i18n="adList.role_moderator">Moderator</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="statusFilter">
-                    <option value="" data-i18n="adList.status_all">Tất cả trạng thái</option>
-                    <option value="active" data-i18n="adList.status_active">Đang hoạt động</option>
-                    <option value="inactive" data-i18n="adList.status_inactive">Tạm khóa</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                    <i class="fas fa-undo"></i> <span data-i18n="adList.btn_reset">Reset</span>
-                </button>
+            <div class="filter-controls-row">
+                <div class="filter-dropdowns filter-dropdowns--2">
+                    <div class="filter-field">
+                        <select class="form-select" id="roleFilter">
+                            <option value="" data-i18n="adList.role_all">Tất cả vai trò</option>
+                            <option value="admin" data-i18n="adList.role_admin">Admin</option>
+                            <option value="super_admin" data-i18n="adList.role_super_admin">Super Admin</option>
+                            <option value="moderator" data-i18n="adList.role_moderator">Moderator</option>
+                            <option value="viewer" data-i18n="adList.role_viewer">Viewer</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <select class="form-select" id="statusFilter">
+                            <option value="" data-i18n="adList.status_all">Tất cả trạng thái</option>
+                            <option value="active" data-i18n="adList.status_active">Đang hoạt động</option>
+                            <option value="inactive" data-i18n="adList.status_inactive">Tạm khóa</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary filter-action-btn" onclick="resetFilters()">
+                        <i class="fas fa-undo"></i><span data-i18n="adList.btn_reset">Reset</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -194,7 +224,7 @@
                             </h5>
                             <p class="text-muted mb-0">@{{ admin.username }}</p>
                         </div>
-                        <span class="role-badge role-{{ admin.admin_profile.role }}">
+                        <span class="role-badge role-{{ admin.admin_profile.role }}" data-i18n="role.{{ admin.admin_profile.role }}">
                             {{ admin.admin_profile.role|title }}
                         </span>
                     </div>
@@ -215,7 +245,7 @@
                             </div>
                             <div class="col-6">
                                 <i class="fas fa-clock me-1"></i>
-                                {{ admin.last_login|date:"d/m/Y"|default:"Chưa đăng nhập" }}
+                                {% if admin.last_login %}{{ admin.last_login|date:"d/m/Y" }}{% else %}<span data-i18n="adList.never_login">Chưa đăng nhập</span>{% endif %}
                             </div>
                         </div>
 
@@ -231,6 +261,9 @@
                                 {% if admin.is_superuser %}
                                     • <span class="text-warning"><i class="fas fa-crown"></i> <span data-i18n="adList.superuser">Superuser</span></span>
                                 {% endif %}
+                                {% if admin.admin_profile.totp_enabled %}
+                                    • <span class="text-success"><i class="fas fa-shield-halved"></i> 2FA</span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -243,11 +276,15 @@
                            class="btn btn-outline-primary btn-sm flex-fill">
                             <i class="fas fa-eye"></i> <span data-i18n="adList.btn_view">Xem</span>
                         </a>
+                        {% has_perm 'admins.edit' as can_edit_admin %}
+                        {% has_perm 'admins.delete' as can_delete_admin %}
+                        {% if can_edit_admin %}
                         <a href="{% url 'admin_dashboard:admin_edit' admin.id %}" 
                            class="btn btn-outline-warning btn-sm flex-fill">
                             <i class="fas fa-edit"></i> <span data-i18n="adList.btn_edit">Sửa</span>
                         </a>
-                        {% if admin.id != request.user.id and total_admins > 1 %}
+                        {% endif %}
+                        {% if can_delete_admin and admin.id != request.user.id and total_admins > 1 %}
                         <button class="btn btn-outline-danger btn-sm flex-fill" 
                                 onclick="deleteAdmin('{{ admin.id }}', '{{ admin.username }}')">
                             <i class="fas fa-trash"></i> <span data-i18n="adList.btn_delete">Xóa</span>
@@ -297,11 +334,13 @@ window.AdminUI.addTranslations({
         'adList.role_admin': 'Admin',
         'adList.role_super_admin': 'Super Admin',
         'adList.role_moderator': 'Moderator',
+        'adList.role_viewer': 'Viewer',
         'adList.status_all': 'All Statuses',
         'adList.status_active': 'Active',
         'adList.status_inactive': 'Locked',
         'adList.btn_reset': 'Reset',
         'adList.status_label': 'Status:',
+        'adList.never_login': 'Never logged in',
         'adList.superuser': 'Superuser',
         'adList.btn_view': 'View',
         'adList.btn_edit': 'Edit',
@@ -312,29 +351,31 @@ window.AdminUI.addTranslations({
         'adList.no_results_desc': 'Try changing the filters or search keywords'
     },
     vi: {
-        'adList.breadcrumb_admin': 'Admin',
-        'adList.btn_create': 'Tạo Admin Mới',
-        'adList.stats_title': 'Tổng quan Admin',
+        'adList.breadcrumb_admin': 'Quản trị viên',
+        'adList.btn_create': 'Tạo Quản trị viên mới',
+        'adList.stats_title': 'Tổng quan Quản trị viên',
         'adList.stats_subtitle': 'Quản lý tài khoản quản trị hệ thống',
-        'adList.stat_total': 'Tổng Admin',
+        'adList.stat_total': 'Tổng Quản trị viên',
         'adList.stat_active': 'Đang hoạt động',
-        'adList.search_placeholder': 'Tìm kiếm admin...',
+        'adList.search_placeholder': 'Tìm kiếm quản trị viên...',
         'adList.role_all': 'Tất cả vai trò',
-        'adList.role_admin': 'Admin',
-        'adList.role_super_admin': 'Super Admin',
-        'adList.role_moderator': 'Moderator',
+        'adList.role_admin': 'Quản trị viên',
+        'adList.role_super_admin': 'Quản trị cấp cao',
+        'adList.role_moderator': 'Kiểm duyệt viên',
+        'adList.role_viewer': 'Người xem',
         'adList.status_all': 'Tất cả trạng thái',
         'adList.status_active': 'Đang hoạt động',
         'adList.status_inactive': 'Tạm khóa',
-        'adList.btn_reset': 'Reset',
+        'adList.btn_reset': 'Đặt lại',
         'adList.status_label': 'Trạng thái:',
-        'adList.superuser': 'Superuser',
+        'adList.never_login': 'Chưa đăng nhập',
+        'adList.superuser': 'Siêu quản trị',
         'adList.btn_view': 'Xem',
         'adList.btn_edit': 'Sửa',
         'adList.btn_delete': 'Xóa',
-        'adList.empty_title': 'Chưa có admin nào',
-        'adList.empty_desc': 'Hãy tạo tài khoản admin đầu tiên',
-        'adList.no_results_title': 'Không tìm thấy admin nào',
+        'adList.empty_title': 'Chưa có quản trị viên nào',
+        'adList.empty_desc': 'Hãy tạo tài khoản quản trị viên đầu tiên',
+        'adList.no_results_title': 'Không tìm thấy quản trị viên nào',
         'adList.no_results_desc': 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
     }
 });

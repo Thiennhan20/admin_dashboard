@@ -16,6 +16,9 @@ class AdminProfile(models.Model):
     role = models.CharField(max_length=50, default='admin', choices=ROLE_CHOICES)
     avatar = models.TextField(blank=True, default='')  # base64 or URL
     permissions = models.JSONField(default=dict, blank=True, help_text='Custom permission overrides as {module.action: bool}')
+    totp_secret = models.CharField(max_length=64, blank=True, default='')
+    totp_enabled = models.BooleanField(default=False)
+    totp_backup_codes = models.JSONField(default=list, blank=True, help_text='Hashed one-time 2FA recovery codes')
     last_api_sync = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -27,13 +30,17 @@ class AdminProfile(models.Model):
     def __str__(self):
         return f"Admin: {self.user.username} ({self.role})"
 
+    @property
+    def is_super_admin(self):
+        return bool(self.user.is_superuser or self.role == 'super_admin')
+
     def has_perm(self, perm_code):
         """Check if this admin has a specific permission (e.g. 'users.delete')."""
         if self.role == 'super_admin' or self.user.is_superuser:
             return True
         # Check explicit overrides first
-        if perm_code in self.permissions:
-            return self.permissions[perm_code]
+        if isinstance(self.permissions, dict) and perm_code in self.permissions:
+            return bool(self.permissions[perm_code])
         # Fall back to role defaults
         return perm_code in ROLE_DEFAULTS.get(self.role, set())
 
@@ -41,18 +48,56 @@ class AdminProfile(models.Model):
 # ── RBAC Default Permissions ────────────────────────────────────────
 MODULES = [
     'dashboard', 'users', 'comments', 'movies', 'tv_shows', 'watchlist',
-    'watch_progress', 'search_history', 'rooms', 'notifications', 'cache',
+    'watch_progress', 'search_history', 'stream_history', 'rooms',
+    'notifications', 'push_devices', 'sessions',
+    'games', 'daily_challenge', 'servers', 'cache',
     'admins', 'monitoring', 'settings', 'reports', 'content', 'changelog',
     'email', 'scheduled_tasks', 'webhooks', 'backup', 'error_logs',
     'audit_logs', 'analytics', 'tokens',
 ]
 ACTIONS = ['view', 'edit', 'delete', 'export']
 
+MODULE_LABELS = {
+    'dashboard': 'Dashboard',
+    'users': 'Users',
+    'comments': 'Comments',
+    'movies': 'Movies',
+    'tv_shows': 'TV Shows',
+    'watchlist': 'Watchlist',
+    'watch_progress': 'Watch Progress',
+    'search_history': 'Search History',
+    'stream_history': 'Stream History',
+    'rooms': 'Watch Rooms',
+    'notifications': 'Notifications',
+    'push_devices': 'Push Devices',
+    'sessions': 'Active Sessions',
+    'games': '3D Arena / Games',
+    'daily_challenge': 'Daily Challenge',
+    'servers': 'Stream Servers',
+    'cache': 'Upstash Cache',
+    'admins': 'Admin Accounts',
+    'monitoring': 'Monitoring',
+    'settings': 'Platform Settings',
+    'reports': 'Moderation Reports',
+    'content': 'Featured Content',
+    'changelog': 'Changelog',
+    'email': 'Email Dispatch',
+    'scheduled_tasks': 'Scheduled Tasks',
+    'webhooks': 'Webhooks',
+    'backup': 'Backup & Restore',
+    'error_logs': 'Error Logs',
+    'audit_logs': 'Audit Logs',
+    'analytics': 'Analytics',
+    'tokens': 'Security Tokens',
+}
+
 ROLE_DEFAULTS = {
     'super_admin': {f'{m}.{a}' for m in MODULES for a in ACTIONS},
     'admin': {f'{m}.{a}' for m in MODULES for a in ACTIONS} - {
-        'admins.delete', 'settings.edit', 'settings.delete',
-        'backup.delete', 'scheduled_tasks.edit', 'scheduled_tasks.delete',
+        'admins.edit', 'admins.delete',
+        'settings.view', 'settings.edit', 'settings.delete', 'settings.export',
+        'backup.view', 'backup.edit', 'backup.delete', 'backup.export',
+        'scheduled_tasks.edit', 'scheduled_tasks.delete',
         'webhooks.edit', 'webhooks.delete',
     },
     'moderator': {
@@ -63,8 +108,12 @@ ROLE_DEFAULTS = {
         'watchlist.view',
         'watch_progress.view',
         'search_history.view',
+        'stream_history.view',
         'rooms.view', 'rooms.delete',
         'notifications.view', 'notifications.edit',
+        'push_devices.view',
+        'sessions.view',
+        'games.view', 'daily_challenge.view',
         'reports.view', 'reports.edit',
         'content.view',
         'analytics.view',
@@ -74,6 +123,33 @@ ROLE_DEFAULTS = {
         'scheduled_tasks.view', 'admins.view', 'error_logs.view',
     },
 }
+
+
+def get_rbac_matrix(profile=None):
+    """Build module x action permission matrix metadata for admin create/edit templates."""
+    overrides = (profile.permissions if profile and isinstance(profile.permissions, dict) else {})
+    role = profile.role if profile else 'admin'
+    role_defaults = ROLE_DEFAULTS.get(role, set())
+    rows = []
+    for mod in MODULES:
+        perms = []
+        for act in ACTIONS:
+            code = f'{mod}.{act}'
+            default_val = code in role_defaults
+            effective_val = bool(overrides[code]) if code in overrides else default_val
+            perms.append({
+                'action': act,
+                'code': code,
+                'default': default_val,
+                'effective': effective_val,
+                'is_overridden': code in overrides,
+            })
+        rows.append({
+            'module': mod,
+            'label': MODULE_LABELS.get(mod, mod.replace('_', ' ').title()),
+            'actions': perms,
+        })
+    return rows
 
 
 # ── Audit Log ───────────────────────────────────────────────────────
@@ -250,7 +326,7 @@ class UserReport(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_reports')
     resolution_note = models.TextField(blank=True, default='')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -314,6 +390,7 @@ class ScheduledTask(models.Model):
         ('cleanup_blacklist', 'Cleanup Blacklisted Tokens'),
         ('cleanup_progress', 'Cleanup Old Watch Progress'),
         ('backup_db', 'Backup Database'),
+        ('weekly_report', 'Weekly Activity Report Snapshot'),
         ('health_check', 'Health Check All Services'),
         ('custom', 'Custom Task'),
     ]
@@ -339,6 +416,23 @@ class ScheduledTask(models.Model):
             return None
         from datetime import timedelta
         return self.last_run + timedelta(minutes=self.interval_minutes)
+
+    @property
+    def human_interval(self):
+        mins = max(1, int(self.interval_minutes or 1))
+        if mins >= 1440 and mins % 1440 == 0:
+            days = mins // 1440
+            return f'{days} day' if days == 1 else f'{days} days'
+        if mins >= 60 and mins % 60 == 0:
+            hours = mins // 60
+            return f'{hours} hour' if hours == 1 else f'{hours} hours'
+        if mins >= 1440:
+            days = mins // 1440
+            rem_h = (mins % 1440) // 60
+            return f'{days}d {rem_h}h' if rem_h else f'{days}d'
+        if mins >= 60:
+            return f'{mins // 60}h {mins % 60}m'
+        return f'{mins} min'
 
 
 class TaskRunLog(models.Model):

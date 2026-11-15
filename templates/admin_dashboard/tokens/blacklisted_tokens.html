@@ -8,9 +8,9 @@
 {% if error %}<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>{% endif %}
 
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-ban me-2"></i><span data-i18n="nav.blacklistedTokens">Blacklisted Tokens</span> ({{ total }})</h6>
-        <div>
+        <div class="card-toolbar">
             <button class="btn btn-sm btn-outline-warning" onclick="cleanupTokens()"><i class="fas fa-broom me-1"></i><span data-i18n="tok.btn_cleanup">Cleanup Expired</span></button>
             <button class="btn btn-sm btn-outline-danger d-none" id="bulkDeleteBtn" onclick="bulkDelete()"><i class="fas fa-trash me-1"></i><span data-i18n="tok.btn_delete_selected">Delete Selected</span></button>
         </div>
@@ -18,11 +18,11 @@
     <div class="card-body p-0">
         {% if items %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th><input type="checkbox" id="selectAll"></th><th data-i18n="tok.col_id">ID</th><th data-i18n="tok.col_user_id">User ID</th><th data-i18n="tok.col_created">Created At</th><th data-i18n="tok.col_expires">Expires At</th></tr></thead>
+            <thead><tr><th><input type="checkbox" class="form-check-input" id="selectAll"></th><th data-i18n="tok.col_id">ID</th><th data-i18n="tok.col_user_id">User ID</th><th data-i18n="tok.col_created">Created At</th><th data-i18n="tok.col_expires">Expires At</th></tr></thead>
             <tbody>
                 {% for item in items %}
                 <tr>
-                    <td><input type="checkbox" class="row-check" value="{{ item.id }}"></td>
+                    <td><input type="checkbox" class="form-check-input row-check" value="{{ item.id }}"></td>
                     <td><code class="small">{{ item.id|truncatechars:12 }}</code></td>
                     <td><code class="small">{{ item.userId|default:"—" }}</code></td>
                     <td><small>{{ item.createdAt|default:"—" }}</small></td>
@@ -54,21 +54,25 @@ window.AdminUI.addTranslations({
         'tok.no_blacklisted': 'No blacklisted tokens found.',
         'tok.confirm_cleanup_title': 'Cleanup Expired Tokens',
         'tok.confirm_cleanup_body': 'Delete all expired blacklisted tokens?',
+        'tok.cleaned_up': 'Deleted {count} expired token(s)',
         'tok.confirm_delete_title': 'Delete Tokens',
-        'tok.confirm_delete_body': 'Delete {count} token(s)?'
+        'tok.confirm_delete_body': 'Delete {count} token(s)?',
+        'tok.deleted_ok': 'Deleted!'
     },
     vi: {
-        'tok.btn_cleanup': 'Dọn dẹp token hết hạn',
-        'tok.btn_delete_selected': 'Xóa các mục đã chọn',
-        'tok.col_id': 'Mã Token',
-        'tok.col_user_id': 'Mã người dùng',
+        'tok.btn_cleanup': 'Dọn mã hết hạn',
+        'tok.btn_delete_selected': 'Xóa đã chọn',
+        'tok.col_id': 'Mã số',
+        'tok.col_user_id': 'ID người dùng',
         'tok.col_created': 'Tạo lúc',
         'tok.col_expires': 'Hết hạn lúc',
-        'tok.no_blacklisted': 'Không tìm thấy token blacklist nào.',
-        'tok.confirm_cleanup_title': 'Dọn dẹp token hết hạn',
-        'tok.confirm_cleanup_body': 'Xóa toàn bộ các token blacklist đã hết hạn?',
-        'tok.confirm_delete_title': 'Xóa mã token',
-        'tok.confirm_delete_body': 'Xóa {count} mã token đã chọn?'
+        'tok.no_blacklisted': 'Không tìm thấy mã thu hồi nào.',
+        'tok.confirm_cleanup_title': 'Dọn mã hết hạn',
+        'tok.confirm_cleanup_body': 'Xóa toàn bộ các mã thu hồi đã hết hạn?',
+        'tok.cleaned_up': 'Đã xóa {count} mã hết hạn',
+        'tok.confirm_delete_title': 'Xóa mã thu hồi',
+        'tok.confirm_delete_body': 'Xóa {count} mã đã chọn?',
+        'tok.deleted_ok': 'Đã xóa!'
     }
 });
 
@@ -85,15 +89,16 @@ function toggleBulk() {
         btn.querySelector('span').textContent = checked > 0 ? t('tok.btn_delete_selected') + ' (' + checked + ')' : t('tok.btn_delete_selected');
     }
 }
+window.addEventListener('admin:language-change', toggleBulk);
 function cleanupTokens() {
     confirmAction(t('tok.confirm_cleanup_title'), t('tok.confirm_cleanup_body'), () => {
-        fetch('{% url "admin_dashboard:api_tokens_cleanup" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens'}) }).then(r=>r.json()).then(d=>{ showToast(d.success?`Deleted ${d.deleted} tokens`:d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
+        fetch('{% url "admin_dashboard:api_tokens_cleanup" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens'}) }).then(r=>r.json()).then(d=>{ showToast(d.success ? t('tok.cleaned_up', {count: d.deleted}) : d.error, d.success?'success':'error'); setTimeout(() => location.reload(), 900); });
     });
 }
 function bulkDelete() {
     const ids = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
     confirmAction(t('tok.confirm_delete_title'), t('tok.confirm_delete_body', {count: ids.length}), () => {
-        fetch('{% url "admin_dashboard:api_tokens_delete" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens',ids}) }).then(r=>r.json()).then(d=>{ if(d.success){ showToast('Deleted!', 'success'); setTimeout(() => location.reload(), 900); } else showToast(d.error, 'error'); });
+        fetch('{% url "admin_dashboard:api_tokens_delete" %}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify({collection:'blacklistedtokens',ids}) }).then(r=>r.json()).then(d=>{ if(d.success){ showToast(t('tok.deleted_ok'), 'success'); setTimeout(() => location.reload(), 900); } else showToast(d.error, 'error'); });
     });
 }
 </script>

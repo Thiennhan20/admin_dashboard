@@ -1,6 +1,6 @@
 {% extends 'admin_dashboard/base.html' %}
 
-{% block title %}Cache Manager - Movie Admin{% endblock %}
+{% block title %}Cache Manager — ENTN Admin{% endblock %}
 {% block page_title %}Cache Manager{% endblock %}
 {% block page_i18n_key %}nav.cache{% endblock %}
 
@@ -15,9 +15,19 @@
     }
 
     .cache-toolbar .search-box {
-        flex: 1;
+        flex: 1 1 220px;
         min-width: 200px;
-        max-width: 380px;
+        max-width: 340px;
+    }
+
+    .cache-toolbar .filter-chips {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .cache-toolbar .cache-flush-wrap {
+        margin-left: auto;
+        flex-shrink: 0;
     }
 
     .cache-stats {
@@ -189,6 +199,7 @@
         .cache-stats { flex-direction: column; }
         .cache-toolbar { flex-direction: column; align-items: stretch; }
         .cache-toolbar .search-box { max-width: none; }
+        .cache-toolbar .cache-flush-wrap { margin-left: 0; display: flex; justify-content: flex-end; }
     }
 
     /* JSON Syntax Highlighting */
@@ -261,7 +272,7 @@
     <div class="filter-chips" id="filterChips">
         <button class="filter-chip active" data-filter="" data-i18n="cache.all">All</button>
     </div>
-    <div style="margin-left: auto">
+    <div class="cache-flush-wrap">
         <button class="btn btn-sm btn-outline-danger rounded-pill px-3" id="flushAllBtn" disabled>
             <i class="fas fa-trash me-1"></i> <span data-i18n="cache.flushAll">Flush All</span>
         </button>
@@ -304,17 +315,17 @@
                 <h5 class="modal-title" style="font-size: 16px; font-weight: 800; color: var(--ink);">
                     <i class="fas fa-file-code me-2 text-muted"></i><span data-i18n="cache.dataTitle">Cache Data</span>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng" data-i18n-aria-label="common.close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.key">KEY</div>
+                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.key">Từ khóa</div>
                     <div id="modalKey" class="cache-key p-2 rounded" style="background: var(--control); max-width: 100%;"></div>
                 </div>
                 <div>
-                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.value">VALUE</div>
+                    <div class="text-muted small fw-bold mb-1" data-i18n="cache.value">Dữ liệu</div>
                     <div id="modalValueLoading" style="display:none;" class="p-4 text-center text-muted">
-                        <i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br><span data-i18n="common.loading">Fetching data...</span>
+                        <i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br><span data-i18n="common.loading">Đang tải...</span>
                     </div>
                     <pre id="modalValue" class="p-3 rounded" style="background: var(--control); color: var(--ink); font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></pre>
                 </div>
@@ -331,9 +342,82 @@
     const actionUrl = '{% url "admin_dashboard:api_cache_action" %}';
 
     let state = { page: 1, category: '', search: '', loading: false };
+    let lastCacheData = null;
     let debounceTimer = null;
 
+    function t(key, params = {}) {
+        const val = window.AdminUI ? window.AdminUI.t(key, params) : undefined;
+        return val !== undefined ? val : key;
+    }
+
     function escape(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+
+    function renderCacheData(data) {
+        if (!data) return;
+        lastCacheData = data;
+        document.getElementById('errorBox').innerHTML = '';
+
+        // Stats
+        document.getElementById('statTotal').textContent = data.total_all;
+        document.getElementById('statCategories').textContent = data.categories.length;
+
+        if (data.stats) {
+            let commands = parseInt(data.stats.commands || 0);
+            let commandsLimit = 500000;
+            let commandsPct = Math.min(100, (commands / commandsLimit) * 100);
+            document.getElementById('statCommands').textContent = commands >= 1000 ? (commands/1000).toFixed(1) + 'K' : commands;
+            document.getElementById('statCommandsProgress').style.width = commandsPct + '%';
+
+            document.getElementById('statStorage').textContent = data.stats.storage_used.replace(/\s+/g, ' ');
+            document.getElementById('statStorageMax').textContent = data.stats.storage_max.replace(/\s+/g, ' ');
+            let storageUsed = parseFloat(data.stats.storage_used_bytes || 0);
+            let storageMax = parseFloat(data.stats.storage_max_bytes || 268435456);
+            let storagePct = Math.min(100, (storageUsed / storageMax) * 100);
+            document.getElementById('statStorageProgress').style.width = storagePct + '%';
+        }
+
+        // Filter chips
+        const chipsEl = document.getElementById('filterChips');
+        chipsEl.innerHTML = `<button class="filter-chip ${!state.category ? 'active' : ''}" data-filter="">${escape(t('cache.all'))}</button>`
+            + data.categories.map(cat => {
+                const label = t('cache.cat_' + cat) !== ('cache.cat_' + cat) ? t('cache.cat_' + cat) : (cat.charAt(0).toUpperCase() + cat.slice(1));
+                return `<button class="filter-chip ${state.category === cat ? 'active' : ''}" data-filter="${escape(cat)}">${escape(label)}</button>`;
+            }).join('');
+        bindChips();
+
+        // Flush button
+        document.getElementById('flushAllBtn').disabled = data.total_all === 0;
+
+        // Render rows
+        const body = document.getElementById('cacheBody');
+        const keys = data.keys;
+        const startIdx = (data.page - 1) * 10;
+
+        body.innerHTML = keys.length ? keys.map((item, i) => {
+            const num = startIdx + i + 1;
+            const display = item.key.replace(/^tmdb:/, '');
+            const ttlHtml = item.ttl > 3600
+                ? `<span class="ttl-badge fresh">${formatTTL(item.ttl)}</span>`
+                : item.ttl > 0
+                    ? `<span class="ttl-badge expiring">${formatTTL(item.ttl)}</span>`
+                    : `<span class="ttl-badge no-ttl">∞</span>`;
+            return `<tr>
+                <td style="color:var(--muted);font-weight:700">${num}</td>
+                <td><div class="cache-key" data-key="${escape(item.key)}"><span class="prefix">tmdb:</span>${escape(display)}</div></td>
+                <td><span class="cat-badge ${item.category}">${escape(t('cache.cat_' + item.category) !== ('cache.cat_' + item.category) ? t('cache.cat_' + item.category) : item.category)}</span></td>
+                <td>${ttlHtml}</td>
+                <td><button class="btn-delete-key" data-key="${escape(item.key)}" title="${escape(t('common.delete'))}"><i class="fas fa-xmark"></i></button></td>
+            </tr>`;
+        }).join('') : `<tr><td colspan="5" class="text-muted text-center py-4">${escape(t('cache.emptyMatch'))}</td></tr>`;
+
+        const info = document.getElementById('cachePageInfo');
+        info.textContent = keys.length
+            ? t('cache.showingRange', { start: startIdx + 1, end: startIdx + keys.length, total: data.total })
+            : '';
+
+        renderPagination(data.page, data.total_pages);
+        bindDeleteButtons();
+    }
 
     async function loadPage() {
         if (state.loading) return;
@@ -359,76 +443,7 @@
                 state.loading = false;
                 return;
             }
-
-            document.getElementById('errorBox').innerHTML = '';
-
-            // Stats
-            document.getElementById('statTotal').textContent = data.total_all;
-            document.getElementById('statCategories').textContent = data.categories.length;
-
-            if (data.stats) {
-                // Commands
-                let commands = parseInt(data.stats.commands || 0);
-                let commandsLimit = 500000;
-                let commandsPct = Math.min(100, (commands / commandsLimit) * 100);
-                document.getElementById('statCommands').textContent = commands >= 1000 ? (commands/1000).toFixed(1) + 'K' : commands;
-                document.getElementById('statCommandsProgress').style.width = commandsPct + '%';
-                
-                // Storage
-                document.getElementById('statStorage').textContent = data.stats.storage_used.replace(/\s+/g, ' ');
-                document.getElementById('statStorageMax').textContent = data.stats.storage_max.replace(/\s+/g, ' ');
-                let storageUsed = parseFloat(data.stats.storage_used_bytes || 0);
-                let storageMax = parseFloat(data.stats.storage_max_bytes || 268435456); // 256MB fallback
-                let storagePct = Math.min(100, (storageUsed / storageMax) * 100);
-                document.getElementById('statStorageProgress').style.width = storagePct + '%';
-            }
-
-            // Filter chips (only rebuild if categories changed)
-            const chipsEl = document.getElementById('filterChips');
-            const existingChips = chipsEl.querySelectorAll('.filter-chip').length;
-            if (existingChips !== data.categories.length + 1) {
-                chipsEl.innerHTML = `<button class="filter-chip ${!state.category ? 'active' : ''}" data-filter="">All</button>`
-                    + data.categories.map(cat =>
-                        `<button class="filter-chip ${state.category === cat ? 'active' : ''}" data-filter="${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</button>`
-                    ).join('');
-                bindChips();
-            }
-
-            // Flush button
-            document.getElementById('flushAllBtn').disabled = data.total_all === 0;
-
-            // Render rows
-            const keys = data.keys;
-            const startIdx = (data.page - 1) * 10;
-
-            body.innerHTML = keys.length ? keys.map((item, i) => {
-                const num = startIdx + i + 1;
-                const display = item.key.replace(/^tmdb:/, '');
-                const ttlHtml = item.ttl > 3600
-                    ? `<span class="ttl-badge fresh">${formatTTL(item.ttl)}</span>`
-                    : item.ttl > 0
-                        ? `<span class="ttl-badge expiring">${formatTTL(item.ttl)}</span>`
-                        : `<span class="ttl-badge no-ttl">∞</span>`;
-                return `<tr>
-                    <td style="color:var(--muted);font-weight:700">${num}</td>
-                    <td><div class="cache-key" data-key="${escape(item.key)}"><span class="prefix">tmdb:</span>${escape(display)}</div></td>
-                    <td><span class="cat-badge ${item.category}">${item.category}</span></td>
-                    <td>${ttlHtml}</td>
-                    <td><button class="btn-delete-key" data-key="${escape(item.key)}" title="Delete"><i class="fas fa-xmark"></i></button></td>
-                </tr>`;
-            }).join('') : `<tr><td colspan="5" class="text-muted text-center py-4">No keys match the filter</td></tr>`;
-
-            // Page info
-            const info = document.getElementById('cachePageInfo');
-            if (keys.length) {
-                info.textContent = `Showing ${startIdx + 1}–${startIdx + keys.length} of ${data.total}`;
-            } else {
-                info.textContent = '';
-            }
-
-            // Pagination
-            renderPagination(data.page, data.total_pages);
-            bindDeleteButtons();
+            renderCacheData(data);
         } catch (e) {
             document.getElementById('errorBox').innerHTML =
                 `<div class="alert alert-danger mb-3"><i class="fas fa-circle-exclamation me-2"></i>${escape(e.message)}</div>`;
@@ -439,13 +454,15 @@
     }
 
     function formatTTL(seconds) {
+        const isEn = window.AdminUI && window.AdminUI.language() === 'en';
+        const uH = isEn ? 'h' : 'g', uM = isEn ? 'm' : 'p', uS = 's';
         if (seconds >= 3600) {
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
-            return `${h}h ${m}m`;
+            return `${h}${uH} ${m}${uM}`;
         }
-        if (seconds >= 60) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-        return `${seconds}s`;
+        if (seconds >= 60) return `${Math.floor(seconds / 60)}${uM} ${seconds % 60}${uS}`;
+        return `${seconds}${uS}`;
     }
 
     function renderPagination(current, total) {
@@ -480,7 +497,7 @@
         document.querySelectorAll('.btn-delete-key').forEach(btn => {
             btn.addEventListener('click', () => {
                 const key = btn.dataset.key;
-                confirmAction('Delete Cache Key', `Delete cache key?<br><code>${key}</code>`, async () => {
+                confirmAction(t('cache.deleteTitle'), `${t('cache.deleteBody')}<br><code>${escape(key)}</code>`, async () => {
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                     try {
@@ -491,7 +508,7 @@
                         });
                         if (res.ok) loadPage();
                     } catch (e) {
-                        showToast('Failed: ' + e.message, 'error');
+                        showToast(t('cache.failedPrefix') + ' ' + e.message, 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-xmark"></i>';
                     }
@@ -521,10 +538,10 @@
 
     // Flush all
     document.getElementById('flushAllBtn')?.addEventListener('click', () => {
-        confirmAction('Flush All Cache', 'Flush ALL tmdb cache keys? This cannot be undone.', async () => {
+        confirmAction(t('cache.flushTitle'), t('cache.flushBody'), async () => {
             const btn = document.getElementById('flushAllBtn');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Flushing...';
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${escape(t('cache.flushing'))}`;
             try {
                 const res = await fetch(actionUrl, {
                     method: 'POST',
@@ -533,10 +550,10 @@
                 });
                 if (res.ok) { state.page = 1; loadPage(); }
             } catch (e) {
-                showToast('Failed: ' + e.message, 'error');
+                showToast(t('cache.failedPrefix') + ' ' + e.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-trash-can me-1"></i> Flush All';
+                btn.innerHTML = `<i class="fas fa-trash-can me-1"></i> <span data-i18n="cache.flushAll">${escape(t('cache.flushAll'))}</span>`;
             }
         });
     });
@@ -573,28 +590,48 @@
                 'cache.search': 'Search cache keys…',
                 'cache.all': 'All',
                 'cache.flushAll': 'Flush All',
+                'cache.flushing': 'Flushing...',
                 'cache.key': 'Key',
                 'cache.category': 'Category',
                 'cache.dataTitle': 'Cache Data',
                 'cache.value': 'Value',
                 'cache.commands': 'Commands',
                 'cache.perMonth': 'per month',
-                'cache.storage': 'Storage'
+                'cache.storage': 'Storage',
+                'cache.emptyMatch': 'No keys match the filter',
+                'cache.showingRange': 'Showing {start}–{end} of {total}',
+                'cache.deleteTitle': 'Delete Cache Key',
+                'cache.deleteBody': 'Delete cache key?',
+                'cache.flushTitle': 'Flush All Cache',
+                'cache.flushBody': 'Flush ALL cache keys? This cannot be undone.',
+                'cache.failedPrefix': 'Failed:',
+                'cache.errorPrefix': 'Error:',
+                'cache.fetchErrorPrefix': 'Error fetching data:'
             },
             vi: {
-                'cache.totalKeys': 'Tổng số Key',
+                'cache.totalKeys': 'Tổng số khóa',
                 'cache.categories': 'Phân loại',
                 'cache.provider': 'Máy chủ',
-                'cache.search': 'Tìm kiếm từ khóa cache…',
+                'cache.search': 'Tìm kiếm từ khóa bộ nhớ đệm…',
                 'cache.all': 'Tất cả',
                 'cache.flushAll': 'Xóa toàn bộ',
-                'cache.key': 'Từ khóa (Key)',
+                'cache.flushing': 'Đang xóa...',
+                'cache.key': 'Từ khóa',
                 'cache.category': 'Phân loại',
-                'cache.dataTitle': 'Dữ liệu Cache',
+                'cache.dataTitle': 'Dữ liệu bộ nhớ đệm',
                 'cache.value': 'Dữ liệu',
                 'cache.commands': 'Lượt truy vấn',
                 'cache.perMonth': 'mỗi tháng',
-                'cache.storage': 'Lưu trữ'
+                'cache.storage': 'Lưu trữ',
+                'cache.emptyMatch': 'Không có từ khóa nào khớp bộ lọc',
+                'cache.showingRange': 'Hiển thị {start}–{end} trên {total}',
+                'cache.deleteTitle': 'Xóa khóa bộ nhớ đệm',
+                'cache.deleteBody': 'Bạn có chắc muốn xóa khóa bộ nhớ đệm này?',
+                'cache.flushTitle': 'Xóa toàn bộ bộ nhớ đệm',
+                'cache.flushBody': 'Xóa TOÀN BỘ khóa bộ nhớ đệm? Thao tác này không thể hoàn tác.',
+                'cache.failedPrefix': 'Thất bại:',
+                'cache.errorPrefix': 'Lỗi:',
+                'cache.fetchErrorPrefix': 'Lỗi tải dữ liệu:'
             }
         });
     }
@@ -636,12 +673,16 @@
                     }
                 }
             } else {
-                document.getElementById('modalValue').textContent = 'Error: ' + data.error;
+                document.getElementById('modalValue').textContent = t('cache.errorPrefix') + ' ' + data.error;
             }
         } catch (err) {
             document.getElementById('modalValueLoading').style.display = 'none';
-            document.getElementById('modalValue').textContent = 'Error fetching data: ' + err.message;
+            document.getElementById('modalValue').textContent = t('cache.fetchErrorPrefix') + ' ' + err.message;
         }
+    });
+
+    document.addEventListener('admin:language-change', () => {
+        if (lastCacheData) renderCacheData(lastCacheData);
     });
 
     // Initial chips binding + first load

@@ -31,7 +31,7 @@
     <div class="card-body p-0">
         {% if endpoints %}
         <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="wh.col_name">Name</th><th data-i18n="wh.col_url">URL</th><th data-i18n="wh.col_events">Events</th><th data-i18n="wh.col_status">Status</th><th data-i18n="wh.col_actions">Actions</th></tr></thead>
+            <thead><tr><th data-i18n="wh.col_name">Name</th><th data-i18n="wh.col_url">URL</th><th data-i18n="wh.col_events">Events</th><th data-i18n="wh.col_status">Status</th><th class="text-end" data-i18n="wh.col_actions">Actions</th></tr></thead>
             <tbody>{% for ep in endpoints %}<tr>
                 <td><strong>{{ ep.name }}</strong></td>
                 <td><code class="small">{{ ep.url|truncatechars:40 }}</code></td>
@@ -43,10 +43,12 @@
                     <span class="badge bg-secondary" data-i18n="wh.badge_inactive">Inactive</span>
                     {% endif %}
                 </td>
-                <td class="d-flex gap-1">
-                    <button class="btn btn-sm btn-outline-primary" onclick="testWebhook('{{ ep.id }}')" title="Test"><i class="fas fa-paper-plane"></i></button>
-                    <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning"><i class="fas fa-toggle-{% if ep.is_active %}on{% else %}off{% endif %}"></i></button></form>
-                    <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+                <td class="text-end">
+                    <div class="table-actions">
+                        <button class="btn btn-sm btn-outline-primary btn-action-icon" onclick="testWebhook('{{ ep.id }}')" title="Test" data-i18n-title="wh.btn_test"><i class="fas fa-paper-plane"></i></button>
+                        <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="common.toggle"><i class="fas fa-toggle-{% if ep.is_active %}on{% else %}off{% endif %}"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="common.delete"><i class="fas fa-trash"></i></button></form>
+                    </div>
                 </td>
             </tr>{% endfor %}</tbody>
         </table></div>
@@ -63,9 +65,9 @@
             <tbody>{% for log in recent_logs %}<tr>
                 <td><small>{{ log.endpoint.name }}</small></td>
                 <td><code class="small">{{ log.event }}</code></td>
-                <td><span class="badge bg-{% if log.response_status >= 200 and log.response_status < 300 %}success{% elif log.response_status == 0 %}danger{% else %}warning{% endif %}">{{ log.response_status }}</span></td>
+                <td><span class="badge bg-{% if log.response_status >= 200 and log.response_status < 300 %}success{% elif log.response_status == 0 %}danger{% else %}warning text-dark{% endif %}">{{ log.response_status }}</span></td>
                 <td><small class="text-muted">{{ log.response_body|truncatechars:50 }}</small></td>
-                <td><small class="text-muted">{{ log.sent_at|timesince }} ago</small></td>
+                <td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ log.sent_at|timesince }}" data-with-ago="1">{{ log.sent_at|timesince }} ago</span></small></td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-4 text-muted" data-i18n="wh.no_deliveries">No webhook deliveries yet.</div>{% endif %}
@@ -106,7 +108,10 @@ window.AdminUI.addTranslations({
         'wh.no_deliveries': 'No webhook deliveries yet.',
         'wh.confirm_test_title': 'Test Webhook',
         'wh.confirm_test_body': 'Send a test payload to this endpoint?',
-        'wh.btn_send_test': 'Send Test'
+        'wh.btn_test': 'Test',
+        'wh.btn_send_test': 'Send Test',
+        'wh.test_success': 'Success! Status: ',
+        'wh.test_error': 'Error: '
     },
     vi: {
         'wh.title': 'Webhook nhận tin',
@@ -135,15 +140,18 @@ window.AdminUI.addTranslations({
         'wh.col_time': 'Thời gian',
         'wh.no_deliveries': 'Chưa có lượt gửi webhook nào.',
         'wh.confirm_test_title': 'Thử nghiệm Webhook',
-        'wh.confirm_test_body': 'Gửi gói tin test thử nghiệm tới webhook này?',
-        'wh.btn_send_test': 'Gửi thử'
+        'wh.confirm_test_body': 'Gửi gói tin thử nghiệm tới webhook này?',
+        'wh.btn_test': 'Thử nghiệm',
+        'wh.btn_send_test': 'Gửi thử',
+        'wh.test_success': 'Thành công! Mã trạng thái: ',
+        'wh.test_error': 'Lỗi: '
     }
 });
 
 function testWebhook(id) {
     confirmAction(t('wh.confirm_test_title'), t('wh.confirm_test_body'), () => {
         fetch(`/dashboard/webhooks/${id}/test/`, { method:'POST', headers:{'X-CSRFToken':csrf} })
-        .then(r=>r.json()).then(d=>{ showToast(d.success ? `Success! Status: ${d.status_code}` : 'Error: ' + d.error, d.success ? 'success' : 'error'); setTimeout(() => location.reload(), 900); });
+        .then(r=>r.json()).then(d=>{ showToast(d.success ? t('wh.test_success') + d.status_code : t('wh.test_error') + d.error, d.success ? 'success' : 'error'); setTimeout(() => location.reload(), 900); });
     }, {btnClass:'primary', btnText:t('wh.btn_send_test')});
 }
 </script>

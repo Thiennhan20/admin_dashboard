@@ -36,20 +36,20 @@
         {% if entries %}
         {% for e in entries %}
         <div class="p-3" style="border-bottom:1px solid var(--line);">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex justify-content-between align-items-start gap-3">
                 <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
                         <span class="badge bg-primary">v{{ e.version }}</span>
-                        <span class="badge bg-{% if e.category == 'feature' %}success{% elif e.category == 'fix' %}danger{% elif e.category == 'improvement' %}info{% elif e.category == 'security' %}warning{% else %}dark{% endif %}" data-i18n="cl.cat_{{ e.category }}">{{ e.get_category_display }}</span>
+                        <span class="badge bg-{% if e.category == 'feature' %}success{% elif e.category == 'fix' %}danger{% elif e.category == 'improvement' %}info text-dark{% elif e.category == 'security' %}warning text-dark{% else %}dark{% endif %}" data-i18n="cl.cat_{{ e.category }}">{{ e.get_category_display }}</span>
                         {% if not e.is_published %}<span class="badge bg-secondary" data-i18n="cl.status_draft">Draft</span>{% endif %}
                         <h6 class="mb-0">{{ e.title }}</h6>
                     </div>
                     <p class="text-muted small mb-0 mt-1">{{ e.content|linebreaksbr|truncatechars:200 }}</p>
-                    <small class="text-muted">{{ e.published_at|date:"M d, Y" }} · by {{ e.created_by|default:"Unknown" }}</small>
+                    <small class="text-muted">{{ e.published_at|date:"Y-m-d" }} · <span data-i18n="common.by">by</span> {% if e.created_by %}{{ e.created_by }}{% else %}<span data-i18n="common.unknown">Unknown</span>{% endif %}</small>
                 </div>
-                <div class="d-flex gap-1">
-                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning" title="Toggle"><i class="fas fa-eye{% if e.is_published %}-slash{% endif %}"></i></button></form>
-                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+                <div class="table-actions">
+                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="common.toggle"><i class="fas fa-eye{% if e.is_published %}-slash{% endif %}"></i></button></form>
+                    <form method="POST" action="{% url 'admin_dashboard:changelog_action' e.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="common.delete"><i class="fas fa-trash"></i></button></form>
                 </div>
             </div>
         </div>
@@ -89,7 +89,7 @@ window.AdminUI.addTranslations({
         'cl.cat_improvement': 'Cải tiến',
         'cl.cat_security': 'Bảo mật',
         'cl.cat_breaking': 'Thay đổi cấu trúc',
-        'cl.form_content': 'Nội dung (Markdown)',
+        'cl.form_content': 'Nội dung Markdown',
         'cl.btn_create': 'Tạo bản ghi',
         'cl.status_draft': 'Nháp',
         'cl.no_entries': 'Chưa có bản ghi cập nhật nào.'

@@ -1,0 +1,581 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Daily Challenge - Admin Panel{% endblock %}
+{% block page_title %}Daily Challenge & Submissions{% endblock %}
+{% block page_i18n_key %}nav.dailyChallenge{% endblock %}
+
+{% block content %}
+{% include 'admin_dashboard/includes/confirm_modal.html' %}
+{% csrf_token %}
+
+{% if error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>
+{% endif %}
+
+<!-- Header Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h5 class="mb-1">
+                    <i class="fas fa-calendar-check text-primary me-2"></i>
+                    <span data-i18n="dc.title">Thử thách hàng ngày</span>
+                </h5>
+                <p class="text-muted small mb-0">
+                    <span data-i18n="dc.subtitlePrefix">Quản lý mã bí mật theo ngày</span> (UTC+7: {{ today_vn }}), <span data-i18n="dc.subtitleSuffix">theo dõi tỷ lệ giải mã và đặt lại lượt chơi của người dùng.</span>
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="openChallengeModal('{{ today_vn }}', '')">
+                    <i class="fas fa-plus me-1"></i><span data-i18n="dc.btnSetChallenge">Tạo / Sửa mã bí mật</span>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-file-export me-1"></i><span data-i18n="common.btn_export">Export Data</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'dailychallenges' %}?format=csv"><i class="fas fa-calendar-day fa-fw text-primary"></i><span data-i18n="dc.exportChallenges">Thử thách (CSV)</span></a></li>
+                        <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'dailysubmissions' %}?format=csv"><i class="fas fa-list-check fa-fw text-success"></i><span data-i18n="dc.exportSubmissions">Bài làm (CSV)</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats KPI Row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="dc.statToday">Hôm nay (UTC+7)</div>
+                <div class="fs-5 fw-bold mt-1 font-mono">{{ today_vn }}</div>
+                {% if stats.today_configured %}
+                <span class="badge bg-success bg-opacity-10 text-success mt-1"><i class="fas fa-check-circle me-1"></i><span data-i18n="dc.todayReady">Đã cấu hình</span></span>
+                {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning mt-1"><i class="fas fa-clock me-1"></i><span data-i18n="dc.todayPending">Chưa có challenge</span></span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="dc.statChallenges">Tổng Số Ngày Thi</div>
+                <div class="fs-3 fw-bold text-primary mt-1">{{ stats.total_challenges|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="dc.statSubmissions">Tổng Lượt Tham Gia</div>
+                <div class="fs-3 fw-bold text-info mt-1">{{ stats.total_submissions|default:0 }}</div>
+                <small class="text-muted">{{ stats.solved_count|default:0 }} <span data-i18n="dc.solvedLabel">giải thành công</span> ({{ stats.solve_rate|default:0 }}%)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold" data-i18n="dc.statAvgGuesses">Số Lượt Đoán TB</div>
+                <div class="fs-3 fw-bold text-warning mt-1">{{ stats.avg_guesses|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Challenges Schedule Card -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-lock text-warning me-2"></i><span data-i18n="dc.challengesTitle">Danh Sách Mã Thử Thách Theo Ngày</span> ({{ challenges|length }})</h6>
+    </div>
+    <div class="card-body p-0">
+        {% if challenges %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th data-i18n="dc.colDate">Ngày (UTC+7)</th>
+                        <th data-i18n="dc.colSecret">Mã bí mật</th>
+                        <th data-i18n="dc.colParticipants">Người Tham Gia</th>
+                        <th data-i18n="dc.colSolved">Đã Giải / Tỷ Lệ</th>
+                        <th class="text-end" data-i18n="dc.colActions">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ch in challenges %}
+                    <tr>
+                        <td>
+                            <span class="font-mono fw-bold">{{ ch.date }}</span>
+                            {% if ch.date == today_vn %}
+                            <span class="badge bg-primary ms-1" data-i18n="dc.todayBadge">HÔM NAY</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="font-mono badge bg-secondary bg-opacity-25 text-body px-2 py-1 secret-mask" id="secret-{{ ch.id }}" data-secret="{{ ch.secret }}" data-revealed="0">••••</span>
+                            <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" onclick="toggleSecret('{{ ch.id }}')" title="Hiện / Ẩn mã" data-i18n-title="dc.toggleSecretTitle">
+                                <i class="fas fa-eye" id="eye-{{ ch.id }}"></i>
+                            </button>
+                        </td>
+                        <td><span class="badge bg-info bg-opacity-10 text-info font-mono">{{ ch.totalParticipants|default:0 }}</span></td>
+                        <td>
+                            <span class="badge bg-success bg-opacity-10 text-success font-mono">{{ ch.totalSolved|default:0 }}</span>
+                            <small class="text-muted ms-1">({{ ch.solve_rate }}%)</small>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="?date={{ ch.date }}" class="btn btn-sm btn-outline-info" title="Lọc bài làm ngày này" data-i18n-title="dc.filterDateTitle">
+                                    <i class="fas fa-filter"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="openChallengeModal('{{ ch.date }}', '{{ ch.secret }}')" title="Sửa mã bí mật" data-i18n-title="dc.editSecretTitle">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteChallenge('{{ ch.id }}', '{{ ch.date }}')" title="Xóa" data-i18n-title="common.delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small" data-i18n="dc.emptyChallenges">Chưa có dữ liệu Daily Challenge.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Player Submissions Card -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-users-viewfinder text-info me-2"></i><span data-i18n="dc.submissionsTitle">Bài Làm Người Chơi</span> ({{ total }})</h6>
+            <button type="button" id="bulkDelSubBtn" class="btn btn-sm btn-outline-danger d-none" onclick="bulkDeleteSubs()">
+                <i class="fas fa-trash me-1"></i><span data-i18n="dc.btnDeleteSelected">Xóa mục đã chọn</span>
+            </button>
+        </div>
+        <form method="GET" class="filter-inline-grid--2">
+            <div class="filter-field">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" name="search" class="form-control" value="{{ search }}" placeholder="Tìm theo username hoặc User ID..." data-i18n-placeholder="dc.searchPlaceholder">
+                </div>
+            </div>
+            <div class="filter-field">
+                <select name="date" class="form-select" onchange="this.form.submit()">
+                    <option value="" data-i18n="dc.allDates">Tất cả các ngày</option>
+                    {% for d in available_dates %}
+                    <option value="{{ d }}" {% if date_filter == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-field">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="" data-i18n="dc.allStatus">Tất cả trạng thái</option>
+                    <option value="solved" {% if status_filter == 'solved' %}selected{% endif %} data-i18n="dc.statusSolved">Đã giải</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %} data-i18n="dc.statusFailed">Hết lượt</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %} data-i18n="dc.statusActive">Đang chơi</option>
+                </select>
+            </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn btn-primary filter-action-btn">
+                    <i class="fas fa-search"></i><span data-i18n="common.btn_search">Search</span>
+                </button>
+                <a href="{% url 'admin_dashboard:daily_challenge' %}" class="btn btn-outline-secondary filter-action-btn">
+                    <i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear Filters</span>
+                </a>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        {% if submissions %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="36"><input type="checkbox" class="form-check-input" id="selectAllSubs" onchange="toggleSelectAllSubs(this)"></th>
+                        <th data-i18n="dc.colPlayer">Người Chơi</th>
+                        <th data-i18n="dc.colDate">Ngày</th>
+                        <th data-i18n="dc.colGuesses">Số Lượt Đoán</th>
+                        <th data-i18n="dc.colResult">Kết Quả</th>
+                        <th data-i18n="dc.colDuration">Thời Gian / XP</th>
+                        <th class="text-end" data-i18n="dc.colActions">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in submissions %}
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input sub-checkbox" value="{{ sub.id }}" onchange="updateSubBulkBtn()"></td>
+                        <td>
+                            <div class="fw-semibold">
+                                {% if sub.user_id_str %}
+                                <a href="{% url 'admin_dashboard:user_detail' sub.user_id_str %}" class="text-decoration-none">{{ sub.username|default:"Player" }}</a>
+                                {% else %}{{ sub.username|default:"Player" }}{% endif %}
+                            </div>
+                            <small class="text-muted font-mono">{{ sub.user_id_str|truncatechars:14 }}</small>
+                        </td>
+                        <td><span class="font-mono badge bg-secondary bg-opacity-25 text-body">{{ sub.date }}</span></td>
+                        <td>
+                            <span class="font-mono fw-bold">{{ sub.guessCount|default:0 }} / {{ sub.maxGuesses|default:8 }}</span>
+                        </td>
+                        <td>
+                            {% if sub.isSolved %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i><span data-i18n="dc.badgeSolved">Solved</span></span>
+                            {% elif sub.isFinished %}
+                            <span class="badge bg-danger"><i class="fas fa-times me-1"></i><span data-i18n="dc.badgeFailed">Failed</span></span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i><span data-i18n="dc.badgeActive">In Progress</span></span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="font-mono small">{{ sub.durationSeconds|default:0 }}s</span>
+                            {% if sub.xpAwarded %}
+                            <span class="badge bg-info bg-opacity-10 text-info ms-1">+{{ sub.xpAwarded }} XP</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-info btn-inspect-guesses"
+                                        data-player="{{ sub.username|default:'Player' }}"
+                                        data-date="{{ sub.date }}"
+                                        data-guesses="{{ sub.guesses_json }}"
+                                        onclick="openGuessesModal(this)" title="Xem lịch sử đoán" data-i18n-title="dc.inspectGuessesTitle">
+                                    <i class="fas fa-list-ol"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSub('{{ sub.id }}')" title="Xóa / Đặt lại lượt chơi" data-i18n-title="dc.deleteSubTitle">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted small" data-i18n="dc.emptySubs">Không có bài làm Daily Challenge nào phù hợp.</div>
+        {% endif %}
+    </div>
+</div>
+{% include 'admin_dashboard/includes/pagination.html' %}
+
+<!-- Create / Edit Secret Modal -->
+<div class="modal fade" id="challengeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="fas fa-lock text-warning me-2"></i><span data-i18n="dc.modalSecretTitle">Cấu Hình Daily Challenge</span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" data-i18n="dc.colDate">Ngày (YYYY-MM-DD, UTC+7)</label>
+                    <input type="date" id="chDateInput" class="form-control font-mono" value="{{ today_vn }}">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold" data-i18n="dc.secretInputLabel">Mã 4 chữ số khác nhau</label>
+                    <div class="input-group">
+                        <input type="text" id="chSecretInput" class="form-control font-mono fw-bold" maxlength="4" placeholder="VD: 4829" data-i18n-placeholder="dc.secretPlaceholder">
+                        <button type="button" class="btn btn-outline-secondary" onclick="randomizeSecret()">
+                            <i class="fas fa-dice me-1"></i><span data-i18n="dc.btnRandom">Ngẫu nhiên</span>
+                        </button>
+                    </div>
+                    <small class="text-muted" data-i18n="dc.secretHint">Yêu cầu đúng 4 chữ số từ 0-9 không trùng nhau.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveChallenge()" data-i18n="dc.saveBtn">Lưu Challenge</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inspect Guesses Modal -->
+<div class="modal fade" id="guessesModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="fas fa-list-ol text-info me-2"></i><span id="guessesModalTitle" data-i18n="dc.modalGuessesTitle">Lịch sử đoán</span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="guessesModalBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const dcT = (...a) => (window.AdminUI ? window.AdminUI.t(...a) : a[0]);
+let lastGuessesPayload = null;
+
+function toggleSecret(id) {
+    const el = document.getElementById(`secret-${id}`);
+    const eye = document.getElementById(`eye-${id}`);
+    if (!el) return;
+    const revealed = el.dataset.revealed === '1';
+    el.textContent = revealed ? '••••' : el.dataset.secret;
+    el.dataset.revealed = revealed ? '0' : '1';
+    if (eye) eye.className = revealed ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+function randomizeSecret() {
+    const pool = ['0','1','2','3','4','5','6','7','8','9'];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    document.getElementById('chSecretInput').value = pool.slice(0, 4).join('');
+}
+
+function openChallengeModal(dateVal, secretVal) {
+    document.getElementById('chDateInput').value = dateVal || '{{ today_vn }}';
+    document.getElementById('chSecretInput').value = secretVal || '';
+    new bootstrap.Modal(document.getElementById('challengeModal')).show();
+}
+
+async function saveChallenge() {
+    const date = document.getElementById('chDateInput').value.trim();
+    const secret = document.getElementById('chSecretInput').value.trim();
+    if (secret && (secret.length !== 4 || new Set(secret).size !== 4 || !/^\d{4}$/.test(secret))) {
+        showToast(dcT('dc.errInvalidSecret'), 'error');
+        return;
+    }
+    const res = await fetch("{% url 'admin_dashboard:api_daily_challenge_action' %}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({ action: 'upsert_challenge', date, secret, auto_generate: !secret })
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast(dcT('dc.msgSavedChallenge').replace('{date}', data.date).replace('{secret}', data.secret), 'success');
+        setTimeout(() => location.reload(), 700);
+    } else {
+        showToast(data.error || dcT('dc.errSaveChallenge'), 'error');
+    }
+}
+
+function deleteChallenge(id, dateLabel) {
+    confirmAction(dcT('dc.confirmDelChallengeTitle'), dcT('dc.confirmDelChallengeBody').replace('{date}', dateLabel), async () => {
+        const res = await fetch("{% url 'admin_dashboard:api_daily_challenge_action' %}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({ action: 'delete_challenge', id })
+        });
+        const data = await res.json();
+        if (data.success) { showToast(dcT('dc.msgDeletedChallenge'), 'success'); setTimeout(() => location.reload(), 700); }
+        else showToast(data.error || dcT('dc.errDeleteChallenge'), 'error');
+    });
+}
+
+function toggleSelectAllSubs(master) {
+    document.querySelectorAll('.sub-checkbox').forEach(cb => cb.checked = master.checked);
+    updateSubBulkBtn();
+}
+
+function updateSubBulkBtn() {
+    const count = document.querySelectorAll('.sub-checkbox:checked').length;
+    document.getElementById('bulkDelSubBtn')?.classList.toggle('d-none', count === 0);
+}
+
+function deleteSub(id) {
+    confirmAction(dcT('dc.confirmResetSubTitle'), dcT('dc.confirmResetSubBody'), () => execDeleteSubs([id]));
+}
+
+function bulkDeleteSubs() {
+    const ids = [...document.querySelectorAll('.sub-checkbox:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    confirmAction(dcT('dc.confirmBulkDelSubTitle'), dcT('dc.confirmBulkDelSubBody').replace('{n}', ids.length), () => execDeleteSubs(ids));
+}
+
+async function execDeleteSubs(ids) {
+    const res = await fetch("{% url 'admin_dashboard:api_daily_challenge_action' %}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({ action: 'delete_submission', ids })
+    });
+    const data = await res.json();
+    if (data.success) { showToast(dcT('dc.msgDeletedSubs').replace('{n}', data.deleted), 'success'); setTimeout(() => location.reload(), 700); }
+    else showToast(data.error || dcT('dc.errDeleteSub'), 'error');
+}
+
+function renderGuessesModal(payload) {
+    const { player, dateVal, guesses } = payload;
+    document.getElementById('guessesModalTitle').textContent = `${player} · ${dateVal}`;
+    const body = document.getElementById('guessesModalBody');
+    if (!Array.isArray(guesses) || !guesses.length) {
+        body.innerHTML = `<div class="text-muted text-center py-3">${dcT('dc.noGuesses')}</div>`;
+    } else {
+        body.innerHTML = `<div class="list-group list-group-flush">${guesses.map((g, idx) => `
+            <div class="list-group-item d-flex justify-content-between align-items-center" style="background:transparent;color:var(--ink);border-color:var(--line);">
+                <div>
+                    <span class="text-muted font-mono me-2">#${idx + 1}</span>
+                    <span class="badge bg-primary font-mono fs-6">${g.guess || '----'}</span>
+                </div>
+                <div class="small">
+                    <span class="badge bg-info bg-opacity-10 text-info me-1">${g.correctNumbers ?? 0} ${dcT('dc.digitsLabel')}</span>
+                    <span class="badge bg-success bg-opacity-10 text-success">${g.correctPosition ?? 0} ${dcT('dc.exactLabel')}</span>
+                </div>
+            </div>`).join('')}</div>`;
+    }
+}
+
+function openGuessesModal(btn) {
+    const player = btn.dataset.player;
+    const dateVal = btn.dataset.date;
+    let guesses = [];
+    try { guesses = JSON.parse(btn.dataset.guesses || '[]'); } catch (e) {}
+    lastGuessesPayload = { player, dateVal, guesses };
+    renderGuessesModal(lastGuessesPayload);
+    new bootstrap.Modal(document.getElementById('guessesModal')).show();
+}
+
+window.AdminUI.addTranslations({
+    en: {
+        'dc.title': 'Daily Challenge (4-Digit Puzzle)',
+        'dc.subtitlePrefix': 'Manage daily secret codes',
+        'dc.subtitleSuffix': 'monitor solve rates, and reset player submissions.',
+        'dc.btnSetChallenge': 'Set Challenge Secret',
+        'dc.exportChallenges': 'Challenges (CSV)',
+        'dc.exportSubmissions': 'Submissions (CSV)',
+        'dc.statToday': 'Today (UTC+7)',
+        'dc.todayReady': 'Configured',
+        'dc.todayPending': 'Not Created Yet',
+        'dc.statChallenges': 'Total Challenges',
+        'dc.statSubmissions': 'Total Submissions',
+        'dc.solvedLabel': 'solved',
+        'dc.statAvgGuesses': 'Avg Guesses',
+        'dc.challengesTitle': 'Daily Secret Schedule',
+        'dc.colDate': 'Date (UTC+7)',
+        'dc.colSecret': 'Secret Code',
+        'dc.todayBadge': 'TODAY',
+        'dc.toggleSecretTitle': 'Reveal / Hide',
+        'dc.filterDateTitle': 'Filter submissions for this date',
+        'dc.editSecretTitle': 'Edit secret',
+        'dc.colParticipants': 'Participants',
+        'dc.colSolved': 'Solved / Rate',
+        'dc.colActions': 'Actions',
+        'dc.submissionsTitle': 'Player Submissions',
+        'dc.btnDeleteSelected': 'Delete Selected',
+        'dc.searchPlaceholder': 'Search username or User ID...',
+        'dc.allDates': 'All Dates',
+        'dc.allStatus': 'All Statuses',
+        'dc.statusSolved': 'Solved',
+        'dc.statusFailed': 'Failed',
+        'dc.statusActive': 'In Progress',
+        'dc.badgeSolved': 'Solved',
+        'dc.badgeFailed': 'Failed',
+        'dc.badgeActive': 'In Progress',
+        'dc.colPlayer': 'Player',
+        'dc.colGuesses': 'Guesses',
+        'dc.colResult': 'Result',
+        'dc.colDuration': 'Duration / XP',
+        'dc.inspectGuessesTitle': 'View Guess History',
+        'dc.deleteSubTitle': 'Delete / Reset Submission',
+        'dc.modalSecretTitle': 'Configure Daily Challenge',
+        'dc.secretInputLabel': '4 Unique Digits (Secret)',
+        'dc.secretPlaceholder': 'e.g. 4829',
+        'dc.btnRandom': 'Random',
+        'dc.secretHint': 'Must be 4 unique digits (0-9), e.g. 4829.',
+        'dc.saveBtn': 'Save Challenge',
+        'dc.modalGuessesTitle': 'Guesses',
+        'dc.emptyChallenges': 'No daily challenges created yet.',
+        'dc.emptySubs': 'No matching daily submissions found.',
+        'dc.errInvalidSecret': 'Secret must be exactly 4 unique digits.',
+        'dc.msgSavedChallenge': 'Saved challenge {date} (secret: {secret})',
+        'dc.errSaveChallenge': 'Failed to save challenge',
+        'dc.confirmDelChallengeTitle': 'Delete Daily Challenge',
+        'dc.confirmDelChallengeBody': 'Delete challenge for {date}?',
+        'dc.msgDeletedChallenge': 'Deleted challenge!',
+        'dc.errDeleteChallenge': 'Error deleting challenge',
+        'dc.confirmResetSubTitle': 'Reset / Delete Submission',
+        'dc.confirmResetSubBody': 'Remove this submission and allow player to replay this date?',
+        'dc.confirmBulkDelSubTitle': 'Bulk Delete Submissions',
+        'dc.confirmBulkDelSubBody': 'Delete {n} selected submission(s)?',
+        'dc.msgDeletedSubs': 'Deleted {n} submission(s)!',
+        'dc.errDeleteSub': 'Delete failed',
+        'dc.noGuesses': 'No guesses recorded yet.',
+        'dc.digitsLabel': 'digits',
+        'dc.exactLabel': 'exact'
+    },
+    vi: {
+        'dc.title': 'Thử thách hàng ngày',
+        'dc.subtitlePrefix': 'Quản lý mã bí mật theo ngày',
+        'dc.subtitleSuffix': 'theo dõi tỷ lệ giải mã và đặt lại lượt chơi của người dùng.',
+        'dc.btnSetChallenge': 'Tạo / Sửa mã bí mật',
+        'dc.exportChallenges': 'Thử thách (CSV)',
+        'dc.exportSubmissions': 'Bài làm (CSV)',
+        'dc.statToday': 'Hôm nay (UTC+7)',
+        'dc.todayReady': 'Đã cấu hình',
+        'dc.todayPending': 'Chưa có thử thách',
+        'dc.statChallenges': 'Tổng Số Ngày Thi',
+        'dc.statSubmissions': 'Tổng Lượt Tham Gia',
+        'dc.solvedLabel': 'giải thành công',
+        'dc.statAvgGuesses': 'Số Lượt Đoán TB',
+        'dc.challengesTitle': 'Danh Sách Mã Thử Thách Theo Ngày',
+        'dc.colDate': 'Ngày (UTC+7)',
+        'dc.colSecret': 'Mã bí mật',
+        'dc.todayBadge': 'HÔM NAY',
+        'dc.toggleSecretTitle': 'Hiện / Ẩn mã',
+        'dc.filterDateTitle': 'Lọc bài làm ngày này',
+        'dc.editSecretTitle': 'Sửa mã bí mật',
+        'dc.colParticipants': 'Người Tham Gia',
+        'dc.colSolved': 'Đã Giải / Tỷ Lệ',
+        'dc.colActions': 'Thao Tác',
+        'dc.submissionsTitle': 'Bài Làm Người Chơi',
+        'dc.btnDeleteSelected': 'Xóa mục đã chọn',
+        'dc.searchPlaceholder': 'Tìm theo tên người dùng hoặc ID...',
+        'dc.allDates': 'Tất cả các ngày',
+        'dc.allStatus': 'Tất cả trạng thái',
+        'dc.statusSolved': 'Đã giải',
+        'dc.statusFailed': 'Hết lượt',
+        'dc.statusActive': 'Đang chơi',
+        'dc.badgeSolved': 'Đã giải',
+        'dc.badgeFailed': 'Hết lượt',
+        'dc.badgeActive': 'Đang chơi',
+        'dc.colPlayer': 'Người Chơi',
+        'dc.colGuesses': 'Số Lượt Đoán',
+        'dc.colResult': 'Kết Quả',
+        'dc.colDuration': 'Thời Gian / KN',
+        'dc.inspectGuessesTitle': 'Xem lịch sử đoán',
+        'dc.deleteSubTitle': 'Xóa / Đặt lại lượt chơi',
+        'dc.modalSecretTitle': 'Cấu hình Thử thách hàng ngày',
+        'dc.secretInputLabel': 'Mã 4 chữ số khác nhau',
+        'dc.secretPlaceholder': 'VD: 4829',
+        'dc.btnRandom': 'Ngẫu nhiên',
+        'dc.secretHint': 'Yêu cầu đúng 4 chữ số từ 0-9 không trùng nhau.',
+        'dc.saveBtn': 'Lưu thử thách',
+        'dc.modalGuessesTitle': 'Lịch sử đoán',
+        'dc.emptyChallenges': 'Chưa có dữ liệu thử thách hàng ngày.',
+        'dc.emptySubs': 'Không có bài làm nào phù hợp.',
+        'dc.errInvalidSecret': 'Mã bí mật phải gồm đúng 4 chữ số khác nhau.',
+        'dc.msgSavedChallenge': 'Đã lưu thử thách ngày {date} (mã: {secret})',
+        'dc.errSaveChallenge': 'Lưu thử thách thất bại',
+        'dc.confirmDelChallengeTitle': 'Xóa thử thách hàng ngày',
+        'dc.confirmDelChallengeBody': 'Xóa thử thách ngày {date}?',
+        'dc.msgDeletedChallenge': 'Đã xóa thử thách!',
+        'dc.errDeleteChallenge': 'Lỗi khi xóa thử thách',
+        'dc.confirmResetSubTitle': 'Xóa / Đặt lại lượt chơi',
+        'dc.confirmResetSubBody': 'Xóa bài làm này để người chơi có thể chơi lại ngày này?',
+        'dc.confirmBulkDelSubTitle': 'Xóa nhiều bài làm',
+        'dc.confirmBulkDelSubBody': 'Xóa {n} bài làm đã chọn?',
+        'dc.msgDeletedSubs': 'Đã xóa {n} bài làm!',
+        'dc.errDeleteSub': 'Xóa thất bại',
+        'dc.noGuesses': 'Chưa có lượt đoán nào.',
+        'dc.digitsLabel': 'số đúng',
+        'dc.exactLabel': 'đúng vị trí'
+    }
+});
+
+window.addEventListener('admin:language-change', () => {
+    const modal = document.getElementById('guessesModal');
+    if (lastGuessesPayload && modal && modal.classList.contains('show')) {
+        renderGuessesModal(lastGuessesPayload);
+    }
+});
+</script>
+{% endblock %}

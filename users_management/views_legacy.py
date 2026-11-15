@@ -4,87 +4,325 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import user_passes_test
-from .models import AdminProfile
-from .services import MONGO_COLLECTIONS, mongo_admin, public_rooms, server_health, clean_value
+from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
+from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from urllib.parse import urlencode
+from bson import ObjectId
+from .models import (
+    AdminProfile, ROLE_DEFAULTS, MODULES, ACTIONS, MODULE_LABELS,
+    AuditLog, get_rbac_matrix,
+)
+from .decorators import require_permission, require_super_admin
+from .rate_limit import (
+    check_rate_limit, record_failure, clear_failures,
+    format_retry_wait, get_client_ip,
+)
+from .totp import verify_totp_code, verify_and_consume_backup_code
+from .services import (
+    MONGO_COLLECTIONS, mongo_admin, public_rooms, server_health,
+    arena_health, runtime_system_info, clean_value,
+    check_api_status as _service_check_api_status, parallel_run, cached_swr,
+    build_pagination_context, invalidate_swr,
+)
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.db import models
 
 # API configuration
 API_BASE_URL = settings.API_AUTH_BASE_URL
 
+_2FA_SESSION_KEYS = ('_2fa_user_id', '_2fa_username', '_2fa_backend', '_2fa_expires_at', '_2fa_next')
+_2FA_SESSION_TTL_SECONDS = 600
+
+
+def _clear_pending_2fa_session(request):
+    for key in _2FA_SESSION_KEYS:
+        request.session.pop(key, None)
+
+
+def _safe_next_url(request, raw_next):
+    if raw_next and url_has_allowed_host_and_scheme(
+        raw_next,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw_next
+    return ''
+
+
 def is_admin_user(user):
     """Kiểm tra user có phải là admin không"""
     return user.is_authenticated and (user.is_staff or user.is_superuser)
 
+
 def admin_login(request):
-    """Trang đăng nhập cho admin dashboard"""
-    # Nếu đã đăng nhập và là admin, chuyển đến dashboard
+    """Trang đăng nhập cho admin dashboard (kèm Rate Limit & 2FA TOTP challenge)."""
+    next_url = _safe_next_url(request, request.POST.get('next') or request.GET.get('next') or '')
     if request.user.is_authenticated and is_admin_user(request.user):
         messages.info(request, f'Bạn đã đăng nhập với tài khoản {request.user.username}')
-        return redirect('admin_dashboard:dashboard')
-    
+        return redirect(next_url or 'admin_dashboard:dashboard')
+
+    allow_bootstrap_register = not User.objects.filter(is_staff=True).exists()
+    entered_username = ''
+
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        
-        # Kiểm tra thông tin đăng nhập
+        _clear_pending_2fa_session(request)
+        username = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
+        entered_username = username
+
+        allowed, retry_after, reason = check_rate_limit('admin_login', request, username)
+        if not allowed:
+            wait_str = format_retry_wait(retry_after)
+            messages.error(
+                request,
+                f'Quá nhiều lần đăng nhập thất bại ({reason}). Vui lòng thử lại sau {wait_str}.',
+            )
+            return render(
+                request,
+                'admin_dashboard/auth/login.html',
+                {
+                    'allow_bootstrap_register': allow_bootstrap_register,
+                    'username': entered_username,
+                    'next': next_url,
+                    'rate_limited_seconds': retry_after,
+                },
+                status=429,
+            )
+
         if not username or not password:
             messages.error(request, 'Vui lòng nhập đầy đủ thông tin!')
-            return render(request, 'admin_dashboard/auth/login.html')
-        
+            return render(
+                request,
+                'admin_dashboard/auth/login.html',
+                {
+                    'allow_bootstrap_register': allow_bootstrap_register,
+                    'username': entered_username,
+                    'next': next_url,
+                },
+            )
+
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
             if is_admin_user(user):
+                clear_failures('admin_login', request, username)
+                profile = AdminProfile.objects.filter(user=user).first()
+                if profile and profile.totp_enabled and profile.totp_secret:
+                    request.session['_2fa_user_id'] = user.pk
+                    request.session['_2fa_username'] = user.username
+                    request.session['_2fa_backend'] = getattr(
+                        user, 'backend', 'django.contrib.auth.backends.ModelBackend'
+                    )
+                    request.session['_2fa_expires_at'] = int(timezone.now().timestamp()) + _2FA_SESSION_TTL_SECONDS
+                    request.session['_2fa_next'] = next_url
+                    request.session.modified = True
+                    return redirect('admin_dashboard:login_2fa')
+
                 login(request, user)
+                try:
+                    AuditLog.log(request, 'login', 'auth', str(user.pk), {'username': user.username, 'method': 'password'})
+                except Exception:
+                    pass
                 messages.success(request, f'Chào mừng {user.username}! Đăng nhập thành công.')
-                return redirect('admin_dashboard:dashboard')
+                return redirect(next_url or 'admin_dashboard:dashboard')
             else:
-                messages.error(request, 'Tài khoản này không có quyền truy cập admin dashboard!')
+                record_failure('admin_login', request, username)
+                messages.error(request, 'Tài khoản này không có quyền truy cập trang quản trị!')
         else:
-            messages.error(request, 'Tên đăng nhập hoặc mật khẩu không đúng!')
-    
-    return render(request, 'admin_dashboard/auth/login.html')
+            remaining, locked_now, lock_wait = record_failure('admin_login', request, username)
+            if locked_now:
+                wait_str = format_retry_wait(lock_wait)
+                messages.error(
+                    request,
+                    f'Tên đăng nhập hoặc mật khẩu không đúng! Tài khoản/IP đã bị tạm khóa {wait_str}.',
+                )
+                return render(
+                    request,
+                    'admin_dashboard/auth/login.html',
+                    {
+                        'allow_bootstrap_register': allow_bootstrap_register,
+                        'username': entered_username,
+                        'next': next_url,
+                        'rate_limited_seconds': lock_wait,
+                    },
+                    status=429,
+                )
+            extra = f' (Còn {remaining} lần thử)' if remaining <= 2 else ''
+            messages.error(request, f'Tên đăng nhập hoặc mật khẩu không đúng!{extra}')
+
+    return render(
+        request,
+        'admin_dashboard/auth/login.html',
+        {
+            'allow_bootstrap_register': allow_bootstrap_register,
+            'username': entered_username,
+            'next': next_url,
+        },
+    )
+
+
+def admin_login_2fa(request):
+    """Bước xác thực OTP 2FA TOTP / Backup Code sau khi kiểm tra mật khẩu thành công."""
+    if request.user.is_authenticated and is_admin_user(request.user):
+        return redirect('admin_dashboard:dashboard')
+
+    uid = request.session.get('_2fa_user_id')
+    expires_at = request.session.get('_2fa_expires_at') or 0
+    if not uid or int(timezone.now().timestamp()) > int(expires_at):
+        _clear_pending_2fa_session(request)
+        messages.error(request, 'Phiên xác thực 2FA không tồn tại hoặc đã hết hạn. Vui lòng đăng nhập lại.')
+        return redirect('admin_dashboard:login')
+
+    user = User.objects.filter(pk=uid, is_active=True).first()
+    profile = AdminProfile.objects.filter(user=user).first() if user else None
+    if not user or not is_admin_user(user) or not (profile and profile.totp_enabled and profile.totp_secret):
+        _clear_pending_2fa_session(request)
+        messages.error(request, 'Trạng thái 2FA không hợp lệ. Vui lòng đăng nhập lại.')
+        return redirect('admin_dashboard:login')
+
+    remaining_backup_codes = len(profile.totp_backup_codes or [])
+
+    if request.method == 'POST':
+        allowed, retry_after, reason = check_rate_limit('admin_2fa', request, user.username)
+        if not allowed:
+            wait_str = format_retry_wait(retry_after)
+            messages.error(
+                request,
+                f'Quá nhiều lần nhập sai mã 2FA ({reason}). Vui lòng thử lại sau {wait_str}.',
+            )
+            return render(
+                request,
+                'admin_dashboard/auth/login_2fa.html',
+                {
+                    'pending_username': user.username,
+                    'remaining_backup_codes': remaining_backup_codes,
+                    'rate_limited_seconds': retry_after,
+                },
+                status=429,
+            )
+
+        code = (request.POST.get('code') or '').strip()
+        used_backup = False
+        valid = verify_totp_code(profile.totp_secret, code)
+        if not valid:
+            used_backup = verify_and_consume_backup_code(profile, code)
+            valid = used_backup
+
+        if valid:
+            clear_failures('admin_2fa', request, user.username)
+            next_url = _safe_next_url(request, request.session.get('_2fa_next') or '')
+            backend = request.session.get('_2fa_backend') or 'django.contrib.auth.backends.ModelBackend'
+            _clear_pending_2fa_session(request)
+            login(request, user, backend=backend)
+            try:
+                AuditLog.log(
+                    request,
+                    'login',
+                    'auth',
+                    str(user.pk),
+                    {'username': user.username, 'method': 'totp_backup' if used_backup else 'totp'},
+                )
+            except Exception:
+                pass
+            if used_backup:
+                profile.refresh_from_db(fields=['totp_backup_codes'])
+                left = len(profile.totp_backup_codes or [])
+                messages.warning(
+                    request,
+                    f'Đăng nhập bằng mã dự phòng thành công! Bạn còn {left} mã dự phòng chưa dùng.',
+                )
+            else:
+                messages.success(request, f'Chào mừng {user.username}! Xác thực 2FA thành công.')
+            return redirect(next_url or 'admin_dashboard:dashboard')
+
+        remaining, locked_now, lock_wait = record_failure('admin_2fa', request, user.username)
+        if locked_now:
+            wait_str = format_retry_wait(lock_wait)
+            messages.error(
+                request,
+                f'Mã OTP / dự phòng không đúng! Đã tạm khóa xác thực trong {wait_str}.',
+            )
+            return render(
+                request,
+                'admin_dashboard/auth/login_2fa.html',
+                {
+                    'pending_username': user.username,
+                    'remaining_backup_codes': remaining_backup_codes,
+                    'rate_limited_seconds': lock_wait,
+                },
+                status=429,
+            )
+        messages.error(request, f'Mã OTP hoặc mã dự phòng không đúng! Còn {remaining} lần thử.')
+
+    return render(
+        request,
+        'admin_dashboard/auth/login_2fa.html',
+        {
+            'pending_username': user.username,
+            'remaining_backup_codes': remaining_backup_codes,
+        },
+    )
+
+
+@require_POST
+def admin_login_2fa_cancel(request):
+    """Hủy bước 2FA đang chờ và quay lại trang đăng nhập."""
+    _clear_pending_2fa_session(request)
+    messages.info(request, 'Đã hủy phiên xác thực 2FA.')
+    return redirect('admin_dashboard:login')
+
 
 def admin_logout(request):
     """Đăng xuất khỏi admin dashboard"""
+    if request.user.is_authenticated:
+        try:
+            AuditLog.log(request, 'logout', 'auth', str(request.user.pk), {'username': request.user.username})
+        except Exception:
+            pass
+    _clear_pending_2fa_session(request)
     logout(request)
     messages.success(request, 'Đã đăng xuất thành công!')
     return redirect('admin_dashboard:login')
 
+
 def admin_register(request):
-    """Trang đăng ký admin mới - Chỉ cho phép tạo staff user"""
-    # Kiểm tra nếu đã đăng nhập và là admin
-    if request.user.is_authenticated and is_admin_user(request.user):
-        messages.info(request, f'Bạn đã đăng nhập với tài khoản {request.user.username}')
-        return redirect('admin_dashboard:dashboard')
-    
+    """Trang đăng ký admin mới - Chỉ mở khi hệ thống chưa có Admin (Bootstrap) hoặc được tạo bởi Superuser"""
+    has_any_admin = User.objects.filter(is_staff=True).exists()
+    if has_any_admin and not (request.user.is_authenticated and request.user.is_superuser):
+        messages.error(request, 'Tính năng tự đăng ký đã đóng để bảo mật. Vui lòng liên hệ Super Admin!')
+        return redirect('admin_dashboard:login')
+
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_staff = True  # Cho phép truy cập Django admin
-            user.is_superuser = False  # Không phải superuser
+            user.is_staff = True
+            user.is_superuser = not has_any_admin
             user.save()
-            
-            # Tạo admin profile
-            AdminProfile.objects.create(user=user, role='admin')
-            
-            messages.success(request, f'Đã tạo admin mới: {user.username}. Có thể đăng nhập tại /admin/ hoặc /dashboard/')
+
+            role = 'super_admin' if not has_any_admin else 'admin'
+            AdminProfile.objects.update_or_create(
+                user=user,
+                defaults={'role': role, 'permissions': {}},
+            )
+
+            messages.success(request, f'Đã khởi tạo tài khoản quản trị: {user.username}.')
             return redirect('admin_dashboard:login')
         else:
             for error in form.errors.values():
                 messages.error(request, error)
     else:
         form = UserCreationForm()
-    
+
     return render(request, 'admin_dashboard/auth/register.html', {'form': form})
 
 def check_admin_access(user):
@@ -92,39 +330,86 @@ def check_admin_access(user):
     return user.is_staff or user.is_superuser
 
 
+_MONGO_COLLECTION_MODULE = {
+    'users': 'users',
+    'sessions': 'sessions',
+    'comments': 'comments',
+    'watchprogresses': 'watch_progress',
+    'streamhistories': 'stream_history',
+    'searchhistories': 'search_history',
+    'notifications': 'notifications',
+    'passwordresettokens': 'tokens',
+    'blacklistedtokens': 'tokens',
+    'gameprofiles': 'games',
+    'gamehistories': 'games',
+    'dailychallenges': 'daily_challenge',
+    'dailysubmissions': 'daily_challenge',
+    'systemsettings': 'settings',
+}
+
+
+def _has_perm(request, perm_code):
+    if not request.user.is_authenticated:
+        return False
+    if request.user.is_superuser:
+        return True
+    profile = getattr(request.user, 'admin_profile', None)
+    return bool(profile and profile.has_perm(perm_code))
+
+
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('dashboard.view')
 def operations_dashboard(request):
     """Operations dashboard. Data loads asynchronously for a smoother UI."""
     context = {
         'client_url': settings.CLIENT_URL,
         'server_url': settings.SERVER_URL,
+        'game_server_url': getattr(settings, 'GAME_SERVER_URL', 'http://localhost:3006'),
+        'game_client_url': getattr(settings, 'GAME_CLIENT_URL', 'http://localhost:5173'),
         'api_base_url': settings.API_BASE_URL,
         'api_auth_base_url': settings.API_AUTH_BASE_URL,
         'mongo_enabled': mongo_admin.enabled,
         'mongo_collections': MONGO_COLLECTIONS,
+        'system_info': runtime_system_info(),
     }
     return render(request, 'admin_dashboard/dashboard/dashboard.html', context)
 
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('dashboard.view')
 def api_dashboard_overview(request):
-    try:
-        mongo_data = mongo_admin.overview()
-    except Exception as exc:
-        mongo_data = {'enabled': mongo_admin.enabled, 'error': str(exc)}
+    force = request.GET.get('refresh') == '1'
 
-    rooms, rooms_error = public_rooms()
-    health = server_health()
+    def _safe_mongo():
+        try:
+            return mongo_admin.overview(force=force)
+        except Exception as exc:
+            return {'enabled': mongo_admin.enabled, 'error': str(exc)}
+
+    results = parallel_run({
+        'mongo': _safe_mongo,
+        'rooms': lambda: public_rooms(force=force),
+        'health': lambda: server_health(force=force),
+        'arena': lambda: arena_health(force=force),
+    }, max_workers=4)
+
+    mongo_data = results['mongo']
+    rooms, rooms_error = results['rooms']
+    health = results['health']
+    arena = results['arena']
 
     return JsonResponse({
         'success': True,
         'client_url': settings.CLIENT_URL,
         'server_url': settings.SERVER_URL,
+        'game_server_url': getattr(settings, 'GAME_SERVER_URL', 'http://localhost:3006'),
         'api_base_url': settings.API_BASE_URL,
         'api_auth_base_url': settings.API_AUTH_BASE_URL,
         'server_health': health,
+        'arena_health': arena,
+        'system_info': runtime_system_info(),
         'rooms': rooms,
         'rooms_error': rooms_error,
         'mongo': mongo_data,
@@ -138,6 +423,10 @@ def api_dashboard_overview(request):
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
 def api_mongo_collection(request, collection):
+    mod = _MONGO_COLLECTION_MODULE.get(collection, 'dashboard')
+    req_perm = f'{mod}.view'
+    if not _has_perm(request, req_perm):
+        return JsonResponse({'success': False, 'error': f'Permission {req_perm} required'}, status=403)
     try:
         data = mongo_admin.list_collection(
             collection,
@@ -156,6 +445,11 @@ def api_mongo_collection(request, collection):
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
 @require_http_methods(["POST"])
 def api_mongo_action(request, collection, document_id, action):
+    mod = _MONGO_COLLECTION_MODULE.get(collection, 'dashboard')
+    req_action = 'delete' if action == 'delete' else 'edit'
+    req_perm = f'{mod}.{req_action}'
+    if not _has_perm(request, req_perm):
+        return JsonResponse({'success': False, 'error': f'Permission {req_perm} required'}, status=403)
     try:
         if action == 'delete':
             changed = mongo_admin.delete_document(collection, document_id)
@@ -297,7 +591,7 @@ def user_detail(request, user_id):
             }
             return render(request, 'admin_dashboard/users/user_detail.html', context)
         else:
-            messages.error(request, f'Không tìm thấy user với ID: {user_id}')
+            messages.error(request, f'Không tìm thấy người dùng với ID: {user_id}')
             return redirect('admin_dashboard:users_list')
             
     except Exception as e:
@@ -325,7 +619,7 @@ def user_edit(request, user_id):
             )
             
             if response.status_code == 200:
-                messages.success(request, 'Cập nhật user thành công!')
+                messages.success(request, 'Cập nhật người dùng thành công!')
                 return redirect('admin_dashboard:user_detail', user_id=user_id)
             else:
                 messages.error(request, f'Lỗi khi cập nhật: {response.status_code}')
@@ -341,7 +635,7 @@ def user_edit(request, user_id):
             }
             return render(request, 'admin_dashboard/users/user_edit.html', context)
         else:
-            messages.error(request, f'Không tìm thấy user với ID: {user_id}')
+            messages.error(request, f'Không tìm thấy người dùng với ID: {user_id}')
             return redirect('admin_dashboard:users_list')
             
     except Exception as e:
@@ -354,9 +648,9 @@ def user_delete(request, user_id):
     try:
         response = requests.delete(f'{API_BASE_URL}/users/{user_id}', timeout=10)
         if response.status_code == 200:
-            messages.success(request, 'Xóa user thành công!')
+            messages.success(request, 'Xóa người dùng thành công!')
         else:
-            messages.error(request, f'Lỗi khi xóa user: {response.status_code}')
+            messages.error(request, f'Lỗi khi xóa người dùng: {response.status_code}')
             
     except Exception as e:
         messages.error(request, f'Lỗi: {str(e)}')
@@ -452,7 +746,7 @@ def watchlist_detail(request, item_id):
                     }
                     return render(request, 'admin_dashboard/watchlist/watchlist_detail.html', context)
         
-        messages.error(request, 'Không tìm thấy watchlist item!')
+        messages.error(request, 'Không tìm thấy mục danh sách xem!')
         return redirect('admin_dashboard:watchlist_list')
         
     except Exception as e:
@@ -495,7 +789,7 @@ def watchlist_edit(request, item_id):
                     )
                     
                     if update_response.status_code == 200:
-                        messages.success(request, 'Cập nhật watchlist item thành công!')
+                        messages.success(request, 'Cập nhật mục danh sách xem thành công!')
                         return redirect('admin_dashboard:watchlist_detail', item_id=item_id)
                     else:
                         messages.error(request, f'Lỗi khi cập nhật: {update_response.status_code}')
@@ -544,7 +838,7 @@ def watchlist_edit(request, item_id):
                         }
                     return render(request, 'admin_dashboard/watchlist/watchlist_edit.html', context)
         
-        messages.error(request, 'Không tìm thấy watchlist item!')
+        messages.error(request, 'Không tìm thấy mục danh sách xem!')
         return redirect('admin_dashboard:watchlist_list')
         
     except Exception as e:
@@ -578,7 +872,7 @@ def watchlist_delete(request, item_id):
                 )
                 
                 if update_response.status_code == 200:
-                    messages.success(request, 'Xóa watchlist item thành công!')
+                    messages.success(request, 'Xóa mục danh sách xem thành công!')
                 else:
                     messages.error(request, f'Lỗi khi xóa: {update_response.status_code}')
                     
@@ -589,45 +883,76 @@ def watchlist_delete(request, item_id):
 
 
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('watchlist.delete')
 def cleanup_watchlist(request):
-    """Dọn dẹp watchlist - Real-time với API"""
+    """Dọn dẹp watchlist không hợp lệ (ưu tiên MongoDB bulk_write, fallback API song song)."""
     try:
-        response = requests.get(f'{API_BASE_URL}/users', timeout=10)
-        if response.status_code == 200:
-            users_data = response.json()
+        if mongo_admin.enabled:
+            from pymongo import UpdateOne
+            db = mongo_admin.db()
+            bad_item_filter = {
+                'watchlist': {
+                    '$elemMatch': {
+                        '$or': [
+                            {'id': None}, {'id': ''}, {'id': {'$exists': False}},
+                            {'title': None}, {'title': ''}, {'title': {'$exists': False}},
+                        ]
+                    }
+                }
+            }
+            dirty_users = list(db.users.find(bad_item_filter, {'watchlist': 1}))
+            ops = []
+            for user in dirty_users:
+                wl = user.get('watchlist') or []
+                cleaned_wl = [m for m in wl if isinstance(m, dict) and m.get('id') and m.get('title')]
+                if len(cleaned_wl) != len(wl):
+                    ops.append(UpdateOne({'_id': user['_id']}, {'$set': {'watchlist': cleaned_wl}}))
             cleaned_count = 0
-            
-            for user in users_data:
-                watchlist = user.get('watchlist', [])
-                # Lọc bỏ các items không hợp lệ
-                cleaned_watchlist = [
-                    movie for movie in watchlist 
-                    if movie.get('id') and movie.get('title')
-                ]
-                
-                if len(cleaned_watchlist) != len(watchlist):
-                    # Cập nhật user với watchlist đã dọn dẹp (sử dụng _id thực tế từ API)
-                    update_response = requests.put(
-                        f'{API_BASE_URL}/users/{user["_id"]}',
-                        json={'watchlist': cleaned_watchlist},
-                        timeout=10
-                    )
-                    
-                    if update_response.status_code == 200:
-                        cleaned_count += 1
-            
-            messages.success(request, f'Đã dọn dẹp watchlist cho {cleaned_count} users!')
+            if ops:
+                res = db.users.bulk_write(ops, ordered=False)
+                cleaned_count = int(getattr(res, 'modified_count', 0) or len(ops))
+            invalidate_swr('media_catalog:movie', 'media_catalog:tv')
+            messages.success(request, f'Đã dọn dẹp danh sách xem cho {cleaned_count} người dùng!')
         else:
-            messages.error(request, f'Lỗi khi lấy dữ liệu: {response.status_code}')
-            
+            response = requests.get(f'{API_BASE_URL}/users', timeout=10)
+            if response.status_code == 200:
+                from concurrent.futures import ThreadPoolExecutor
+                users_data = response.json()
+                updates = []
+                for user in users_data:
+                    watchlist = user.get('watchlist', [])
+                    cleaned_watchlist = [
+                        movie for movie in watchlist
+                        if movie.get('id') and movie.get('title')
+                    ]
+                    if len(cleaned_watchlist) != len(watchlist):
+                        updates.append((user['_id'], cleaned_watchlist))
+
+                def _push_clean(item):
+                    uid, wl = item
+                    resp = requests.put(f'{API_BASE_URL}/users/{uid}', json={'watchlist': wl}, timeout=10)
+                    return resp.status_code == 200
+
+                cleaned_count = 0
+                if updates:
+                    with ThreadPoolExecutor(max_workers=5) as pool:
+                        cleaned_count = sum(1 for ok in pool.map(_push_clean, updates) if ok)
+                invalidate_swr('media_catalog:movie', 'media_catalog:tv')
+                messages.success(request, f'Đã dọn dẹp danh sách xem cho {cleaned_count} người dùng!')
+            else:
+                messages.error(request, f'Lỗi khi lấy dữ liệu: {response.status_code}')
+
     except Exception as e:
         messages.error(request, f'Lỗi: {str(e)}')
-    
+
     return redirect('admin_dashboard:watchlist_list')
 
 # API endpoints cho AJAX calls
 @require_http_methods(["POST"])
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('dashboard.edit')
 def api_sync_from_api(request):
     """API endpoint để refresh dữ liệu từ API (cho AJAX)"""
     try:
@@ -657,120 +982,150 @@ def api_sync_from_api(request):
             'error': str(e)
         })
 
-def check_api_status():
-    """Kiểm tra trạng thái API"""
-    try:
-        response = requests.get(f'{API_BASE_URL}/users', timeout=5)
-        if response.status_code == 200:
-            return {
-                'status': 'online',
-                'last_check': datetime.now().strftime('%H:%M:%S'),
-                'response_time': response.elapsed.total_seconds()
-            }
-        else:
-            return {
-                'status': 'error',
-                'last_check': datetime.now().strftime('%H:%M:%S'),
-                'message': f'HTTP {response.status_code}'
-            }
-    except requests.exceptions.RequestException as e:
-        return {
-            'status': 'offline',
-            'last_check': datetime.now().strftime('%H:%M:%S'),
-            'message': str(e)
-        }
-
-@login_required
-
-
 # Admin Management Views
+VALID_ADMIN_ROLES = ('super_admin', 'admin', 'moderator', 'viewer')
+
+
+def _is_actor_super_admin(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, 'admin_profile', None)
+    return bool(profile and profile.role == 'super_admin')
+
+
+def _build_role_defaults_json():
+    return json.dumps({r: sorted(perms) for r, perms in ROLE_DEFAULTS.items()})
+
+
+def _extract_permission_overrides_from_post(post_data, role):
+    """Parse custom RBAC matrix checkboxes and keep only diffs against ROLE_DEFAULTS[role]."""
+    defaults = ROLE_DEFAULTS.get(role, set())
+    overrides = {}
+    for mod in MODULES:
+        for act in ACTIONS:
+            code = f'{mod}.{act}'
+            checked = post_data.get(f'perm_{code}') == 'on'
+            if checked != (code in defaults):
+                overrides[code] = checked
+    return overrides
+
+
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('admins.view')
 def admin_list(request):
     """Danh sách tài khoản admin"""
     try:
-        # Lấy tất cả admin users với profile
         admin_users = User.objects.filter(
             admin_profile__isnull=False
         ).select_related('admin_profile').order_by('-date_joined')
-        
+
         context = {
             'admin_users': admin_users,
             'total_admins': admin_users.count(),
+            'active_admins': admin_users.filter(is_active=True).count(),
+            'tfa_enabled_count': admin_users.filter(admin_profile__totp_enabled=True).count(),
         }
         return render(request, 'admin_dashboard/admin/admin_list.html', context)
-        
+
     except Exception as e:
         messages.error(request, f'Lỗi khi lấy danh sách admin: {str(e)}')
         return redirect('admin_dashboard:dashboard')
 
+
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('admins.edit')
 def admin_create(request):
-    """Tạo tài khoản admin mới - Sử dụng Django admin chuẩn"""
-    # Chỉ superuser mới có thể tạo admin mới
-    if not request.user.is_superuser:
-        messages.error(request, 'Chỉ có Superuser mới có thể tạo admin mới!')
+    """Tạo tài khoản admin mới kèm vai trò & ma trận phân quyền RBAC."""
+    actor_is_super = _is_actor_super_admin(request.user)
+    if not actor_is_super:
+        messages.error(request, 'Chỉ Super Admin hoặc Superuser mới có thể tạo tài khoản admin mới!')
         return redirect('admin_dashboard:admin_list')
-    
+
+    available_roles = ['admin', 'super_admin', 'moderator', 'viewer']
+    base_context = {
+        'roles': available_roles,
+        'rbac_matrix': get_rbac_matrix(None),
+        'actions': ACTIONS,
+        'role_defaults_json': _build_role_defaults_json(),
+    }
+
     if request.method == 'POST':
         try:
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            password = request.POST.get('password')
-            confirm_password = request.POST.get('confirm_password')
-            first_name = request.POST.get('first_name', '')
-            last_name = request.POST.get('last_name', '')
+            username = (request.POST.get('username') or '').strip()
+            email = (request.POST.get('email') or '').strip()
+            password = request.POST.get('password') or ''
+            confirm_password = request.POST.get('confirm_password') or ''
+            first_name = (request.POST.get('first_name') or '').strip()
+            last_name = (request.POST.get('last_name') or '').strip()
             role = request.POST.get('role', 'admin')
             is_superuser = request.POST.get('is_superuser') == 'on'
-            
-            # Validation
+
+            if role not in VALID_ADMIN_ROLES:
+                messages.error(request, 'Vai trò không hợp lệ!')
+                return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
             if not all([username, email, password]):
                 messages.error(request, 'Vui lòng điền đầy đủ thông tin bắt buộc!')
-                return render(request, 'admin_dashboard/admin/admin_create.html')
-                
+                return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
             if password != confirm_password:
                 messages.error(request, 'Mật khẩu xác nhận không khớp!')
-                return render(request, 'admin_dashboard/admin/admin_create.html')
-                
+                return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
             if User.objects.filter(username=username).exists():
                 messages.error(request, 'Tên đăng nhập đã tồn tại!')
-                return render(request, 'admin_dashboard/admin/admin_create.html')
-                
+                return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
             if User.objects.filter(email=email).exists():
                 messages.error(request, 'Email đã được sử dụng!')
-                return render(request, 'admin_dashboard/admin/admin_create.html')
-            
-            # Tạo user với quyền admin đúng cách
+                return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
             user = User.objects.create_user(
                 username=username,
                 email=email,
                 password=password,
                 first_name=first_name,
                 last_name=last_name,
-                is_staff=True,  # Cho phép truy cập Django admin
-                is_superuser=is_superuser,  # Quyền superuser nếu được chọn
-                is_active=True
+                is_staff=True,
+                is_superuser=is_superuser,
+                is_active=True,
             )
-            
-            # Tạo admin profile
+
+            overrides = {}
+            if request.POST.get('perm_matrix_submitted') == '1':
+                overrides = _extract_permission_overrides_from_post(request.POST, role)
+
             AdminProfile.objects.create(
                 user=user,
-                role=role
+                role=role,
+                permissions=overrides,
             )
-            
-            # Thêm thông báo hướng dẫn
+
+            try:
+                AuditLog.log(
+                    request, 'create_admin', 'admin_user', str(user.pk),
+                    {'username': username, 'role': role, 'is_superuser': is_superuser, 'custom_overrides': len(overrides)},
+                )
+            except Exception:
+                pass
+
             admin_type = "Superuser" if is_superuser else "Staff"
-            messages.success(request, f'Đã tạo thành công tài khoản {admin_type}: {username}. Có thể đăng nhập tại /admin/')
+            messages.success(request, f'Đã tạo thành công tài khoản {admin_type}: {username} ({role}).')
             return redirect('admin_dashboard:admin_list')
-            
+
         except Exception as e:
             messages.error(request, f'Lỗi khi tạo admin: {str(e)}')
-    
-    context = {
-        'roles': ['admin', 'super_admin', 'moderator']
-    }
-    return render(request, 'admin_dashboard/admin/admin_create.html', context)
+
+    return render(request, 'admin_dashboard/admin/admin_create.html', base_context)
+
 
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('admins.view')
 def admin_detail(request, admin_id):
     """Chi tiết tài khoản admin"""
     try:
@@ -778,12 +1133,15 @@ def admin_detail(request, admin_id):
             id=admin_id,
             admin_profile__isnull=False
         )
-        
+
         context = {
             'admin_user': admin_user,
+            'rbac_matrix': get_rbac_matrix(admin_user.admin_profile),
+            'actions': ACTIONS,
+            'actor_is_super': _is_actor_super_admin(request.user),
         }
         return render(request, 'admin_dashboard/admin/admin_detail.html', context)
-        
+
     except User.DoesNotExist:
         messages.error(request, 'Không tìm thấy tài khoản admin!')
         return redirect('admin_dashboard:admin_list')
@@ -791,75 +1149,100 @@ def admin_detail(request, admin_id):
         messages.error(request, f'Lỗi: {str(e)}')
         return redirect('admin_dashboard:admin_list')
 
+
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('admins.edit')
 def admin_edit(request, admin_id):
-    """Chỉnh sửa tài khoản admin"""
+    """Chỉnh sửa tài khoản admin & ma trận phân quyền RBAC"""
     try:
         admin_user = User.objects.select_related('admin_profile').get(
             id=admin_id,
             admin_profile__isnull=False
         )
-        
+        actor_is_super = _is_actor_super_admin(request.user)
+        target_is_super = admin_user.is_superuser or admin_user.admin_profile.role == 'super_admin'
+
+        if target_is_super and not actor_is_super:
+            messages.error(request, 'Chỉ Super Admin mới có thể chỉnh sửa tài khoản Super Admin!')
+            return redirect('admin_dashboard:admin_detail', admin_id=admin_id)
+
+        available_roles = ['super_admin', 'admin', 'moderator', 'viewer'] if actor_is_super else ['admin', 'moderator', 'viewer']
+        edit_context = {
+            'admin_user': admin_user,
+            'roles': available_roles,
+            'rbac_matrix': get_rbac_matrix(admin_user.admin_profile),
+            'actions': ACTIONS,
+            'role_defaults_json': _build_role_defaults_json(),
+            'actor_is_super': actor_is_super,
+        }
+
         if request.method == 'POST':
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            first_name = request.POST.get('first_name', '')
-            last_name = request.POST.get('last_name', '')
-            role = request.POST.get('role', 'admin')
+            username = (request.POST.get('username') or '').strip()
+            email = (request.POST.get('email') or '').strip()
+            first_name = (request.POST.get('first_name') or '').strip()
+            last_name = (request.POST.get('last_name') or '').strip()
+            role = request.POST.get('role', admin_user.admin_profile.role)
             is_active = request.POST.get('is_active') == 'on'
             new_password = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
-            
-            # Validation
+
+            if role not in VALID_ADMIN_ROLES or (role == 'super_admin' and not actor_is_super):
+                messages.error(request, 'Bạn không có quyền gán vai trò này!')
+                return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
             if not all([username, email]):
-                messages.error(request, 'Username và Email là bắt buộc!')
-                return render(request, 'admin_dashboard/admin/admin_edit.html', {'admin_user': admin_user})
-            
-            # Check username conflict (exclude current user)
+                messages.error(request, 'Tên đăng nhập và Email là bắt buộc!')
+                return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
             if User.objects.filter(username=username).exclude(id=admin_id).exists():
                 messages.error(request, 'Tên đăng nhập đã tồn tại!')
-                return render(request, 'admin_dashboard/admin/admin_edit.html', {'admin_user': admin_user})
-                
-            # Check email conflict (exclude current user)
+                return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
             if User.objects.filter(email=email).exclude(id=admin_id).exists():
                 messages.error(request, 'Email đã được sử dụng!')
-                return render(request, 'admin_dashboard/admin/admin_edit.html', {'admin_user': admin_user})
-            
-            # Check password confirmation if new password provided
+                return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
             if new_password and new_password != confirm_password:
                 messages.error(request, 'Mật khẩu xác nhận không khớp!')
-                return render(request, 'admin_dashboard/admin/admin_edit.html', {'admin_user': admin_user})
-            
-            # Update user
+                return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
             admin_user.username = username
             admin_user.email = email
             admin_user.first_name = first_name
             admin_user.last_name = last_name
             admin_user.is_active = is_active
-            
-            # Chỉ superuser mới có thể thay đổi quyền superuser
+
             if request.user.is_superuser:
-                is_superuser = request.POST.get('is_superuser') == 'on'
-                admin_user.is_superuser = is_superuser
-            
+                admin_user.is_superuser = request.POST.get('is_superuser') == 'on'
+
             if new_password:
                 admin_user.set_password(new_password)
-                
+
             admin_user.save()
-            
-            # Update profile
-            admin_user.admin_profile.role = role
-            admin_user.admin_profile.save()
-            
+
+            profile = admin_user.admin_profile
+            old_role = profile.role
+            profile.role = role
+            if request.POST.get('perm_matrix_submitted') == '1':
+                profile.permissions = _extract_permission_overrides_from_post(request.POST, role)
+            elif role != old_role:
+                profile.permissions = {}
+            profile.save()
+
+            try:
+                AuditLog.log(
+                    request, 'edit_admin', 'admin_user', str(admin_user.pk),
+                    {'username': username, 'role': role, 'is_active': is_active, 'overrides': profile.permissions},
+                )
+            except Exception:
+                pass
+
             messages.success(request, 'Đã cập nhật thông tin admin thành công!')
             return redirect('admin_dashboard:admin_detail', admin_id=admin_id)
-        
-        context = {
-            'admin_user': admin_user,
-            'roles': ['admin', 'super_admin', 'moderator']
-        }
-        return render(request, 'admin_dashboard/admin/admin_edit.html', context)
-        
+
+        return render(request, 'admin_dashboard/admin/admin_edit.html', edit_context)
+
     except User.DoesNotExist:
         messages.error(request, 'Không tìm thấy tài khoản admin!')
         return redirect('admin_dashboard:admin_list')
@@ -867,7 +1250,11 @@ def admin_edit(request, admin_id):
         messages.error(request, f'Lỗi: {str(e)}')
         return redirect('admin_dashboard:admin_list')
 
+
 @login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_POST
+@require_permission('admins.delete')
 def admin_delete(request, admin_id):
     """Xóa tài khoản admin"""
     try:
@@ -875,24 +1262,32 @@ def admin_delete(request, admin_id):
             id=admin_id,
             admin_profile__isnull=False
         )
-        
-        # Không cho phép xóa chính mình
+
         if admin_user.id == request.user.id:
             messages.error(request, 'Không thể xóa chính tài khoản của bạn!')
             return redirect('admin_dashboard:admin_list')
-        
-        # Không cho phép xóa nếu chỉ còn 1 admin
+
+        target_is_super = admin_user.is_superuser or admin_user.admin_profile.role == 'super_admin'
+        if target_is_super and not _is_actor_super_admin(request.user):
+            messages.error(request, 'Chỉ Super Admin mới có quyền xóa tài khoản Super Admin!')
+            return redirect('admin_dashboard:admin_list')
+
         total_admins = User.objects.filter(admin_profile__isnull=False).count()
         if total_admins <= 1:
             messages.error(request, 'Không thể xóa admin cuối cùng!')
             return redirect('admin_dashboard:admin_list')
-        
+
         username = admin_user.username
-        admin_user.delete()  # Cascade delete sẽ xóa AdminProfile
-        
+        admin_user.delete()
+
+        try:
+            AuditLog.log(request, 'delete_admin', 'admin_user', str(admin_id), {'username': username})
+        except Exception:
+            pass
+
         messages.success(request, f'Đã xóa tài khoản admin: {username}')
         return redirect('admin_dashboard:admin_list')
-        
+
     except User.DoesNotExist:
         messages.error(request, 'Không tìm thấy tài khoản admin!')
         return redirect('admin_dashboard:admin_list')
@@ -900,15 +1295,41 @@ def admin_delete(request, admin_id):
         messages.error(request, f'Lỗi khi xóa admin: {str(e)}')
         return redirect('admin_dashboard:admin_list')
 
-# Helper to check if API is online
-def check_api_status():
+
+@login_required
+@user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_POST
+@require_super_admin
+def admin_reset_2fa(request, admin_id):
+    """Super Admin reset khẩn cấp 2FA khi admin mất thiết bị Authenticator."""
     try:
-        response = requests.get(f'{settings.SERVER_URL}/health', timeout=3)
-        if response.ok:
-            return {'status': 'online'}
-        return {'status': 'error', 'message': f'HTTP {response.status_code}'}
+        target_user = User.objects.select_related('admin_profile').get(
+            id=admin_id,
+            admin_profile__isnull=False,
+        )
+        profile = target_user.admin_profile
+        profile.totp_secret = ''
+        profile.totp_enabled = False
+        profile.totp_backup_codes = []
+        profile.save(update_fields=['totp_secret', 'totp_enabled', 'totp_backup_codes', 'updated_at'])
+
+        try:
+            AuditLog.log(
+                request, 'reset_2fa', 'admin_user', str(target_user.pk),
+                {'username': target_user.username},
+            )
+        except Exception:
+            pass
+
+        messages.success(request, f'Đã reset 2FA cho tài khoản {target_user.username}.')
+    except User.DoesNotExist:
+        messages.error(request, 'Không tìm thấy tài khoản admin!')
     except Exception as e:
-        return {'status': 'offline', 'message': str(e)}
+        messages.error(request, f'Lỗi reset 2FA: {str(e)}')
+    return redirect('admin_dashboard:admin_detail', admin_id=admin_id)
+
+# Re-export non-blocking cached health status helper so view imports remain compatible
+check_api_status = _service_check_api_status
 
 def flat_list_to_dict(flat_list):
     if not flat_list:
@@ -950,191 +1371,227 @@ def _upstash_rooms_pipeline(commands):
     return [item.get('result') for item in resp.json()]
 
 
+def _build_media_catalog(is_tv):
+    """Aggregate movies or TV shows from user watchlists and watchprogresses in parallel."""
+    db = mongo_admin.db()
+    target_type = 'tv' if is_tv else 'movie'
+    default_prefix = 'Phim bộ ' if is_tv else 'Phim '
+
+    watchlist_match = (
+        {'watchlist.type': 'tv'}
+        if is_tv
+        else {'$or': [
+            {'watchlist.type': 'movie'},
+            {'watchlist.type': {'$exists': False}},
+            {'watchlist.type': None},
+        ]}
+    )
+    watchlist_pipeline = [
+        {'$match': {'watchlist.0': {'$exists': True}}},
+        {'$project': {'watchlist': 1}},
+        {'$unwind': '$watchlist'},
+        {'$match': watchlist_match},
+        {'$group': {
+            '_id': {'$toString': '$watchlist.id'},
+            'title': {'$first': '$watchlist.title'},
+            'poster': {'$first': '$watchlist.poster_path'},
+            'watchlist_count': {'$sum': 1},
+        }},
+    ]
+
+    wp_match = {'isTVShow': True} if is_tv else {'isTVShow': {'$ne': True}}
+    wp_pipeline = [
+        {'$match': wp_match},
+        {'$group': {
+            '_id': {'$toString': '$contentId'},
+            'title': {'$first': '$title'},
+            'poster': {'$first': '$poster'},
+            'progress_count': {'$sum': 1},
+            'last_watched': {'$max': '$lastWatched'},
+        }},
+    ]
+
+    results = parallel_run({
+        'watchlist': lambda: list(db.users.aggregate(watchlist_pipeline)),
+        'progress': lambda: list(db.watchprogresses.aggregate(wp_pipeline)),
+    }, max_workers=2)
+
+    media_map = {}
+    total_watchlist_count = 0
+
+    for doc in results['watchlist']:
+        media_id = str(doc.get('_id'))
+        wl_count = doc.get('watchlist_count', 0)
+        total_watchlist_count += wl_count
+        media_map[media_id] = {
+            'id': media_id,
+            'title': doc.get('title'),
+            'poster': doc.get('poster'),
+            'watchlist_count': wl_count,
+            'progress_count': 0,
+            'last_watched': None,
+        }
+
+    for doc in results['progress']:
+        media_id = str(doc.get('_id'))
+        p_last = doc.get('last_watched')
+        p_last_str = (
+            p_last.isoformat() if isinstance(p_last, datetime) else (str(p_last) if p_last else None)
+        )
+        if media_id not in media_map:
+            media_map[media_id] = {
+                'id': media_id,
+                'title': doc.get('title') or (default_prefix + media_id),
+                'poster': doc.get('poster') or '',
+                'watchlist_count': 0,
+                'progress_count': 0,
+                'last_watched': None,
+            }
+        entry = media_map[media_id]
+        entry['progress_count'] += doc.get('progress_count', 0)
+        if p_last_str and (not entry['last_watched'] or p_last_str > entry['last_watched']):
+            entry['last_watched'] = p_last_str
+
+    items = sorted(media_map.values(), key=lambda x: x['watchlist_count'], reverse=True)
+    return {
+        'items': items,
+        'total_unique': len(items),
+        'total_watchlist_count': total_watchlist_count,
+    }
+
+
+def _media_catalog_list(request, *, is_tv):
+    """Shared handler for paginated Movies and TV Shows catalog management."""
+    db = mongo_admin.db()
+    target_type = 'tv' if is_tv else 'movie'
+    redirect_name = 'admin_dashboard:tv_shows' if is_tv else 'admin_dashboard:movies'
+    template_name = (
+        'admin_dashboard/tv_shows/tv_shows_list.html'
+        if is_tv
+        else 'admin_dashboard/movies/movies_list.html'
+    )
+    list_key = 'tv_shows' if is_tv else 'movies'
+    total_key = 'total_tv' if is_tv else 'total_movies'
+    label = 'TV Show' if is_tv else 'phim'
+
+    if request.method == 'POST' and request.POST.get('action') == 'delete_media':
+        media_id = request.POST.get('media_id')
+        post_is_tv = request.POST.get('is_tv') == 'true'
+        if media_id:
+            try:
+                try:
+                    media_id_int = int(media_id)
+                except ValueError:
+                    media_id_int = media_id
+
+                del_res = parallel_run({
+                    'progress': lambda: db.watchprogresses.delete_many({
+                        'contentId': media_id,
+                        'isTVShow': post_is_tv,
+                    }),
+                    'watchlist': lambda: db.users.update_many(
+                        {'watchlist.id': {'$in': [media_id_int, str(media_id)]}},
+                        {'$pull': {'watchlist': {'id': {'$in': [media_id_int, str(media_id)]}}}},
+                    ),
+                    'comments': lambda: db.comments.delete_many({
+                        'movieId': {'$in': [str(media_id), media_id_int]},
+                        'type': target_type,
+                    }),
+                    'streams': lambda: db.streamhistories.delete_many({
+                        'movieId': {'$in': [str(media_id), media_id_int]},
+                    }),
+                }, max_workers=4)
+                del_progress = del_res['progress']
+                del_watchlist = del_res['watchlist']
+                del_comments = del_res['comments']
+                invalidate_swr(f'media_catalog:{target_type}', 'admin_sidebar_counts', 'mongo_overview_cache')
+                messages.success(
+                    request,
+                    f'Đã xóa {label} thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists, '
+                    f'{del_progress.deleted_count} watch histories và {del_comments.deleted_count} bình luận.',
+                )
+            except Exception as e:
+                messages.error(request, f'Lỗi khi xóa {label}: {str(e)}')
+            return redirect(redirect_name)
+
+    page = max(1, int(request.GET.get('page', 1) or 1))
+    limit = max(1, min(100, int(request.GET.get('limit', 25) or 25)))
+    search = request.GET.get('search', '').strip()
+    force = request.GET.get('refresh') == '1'
+
+    try:
+        catalog = cached_swr(
+            f'media_catalog:{target_type}',
+            fresh_ttl=60,
+            stale_ttl=300,
+            fetcher=lambda: _build_media_catalog(is_tv),
+            force=force,
+        )
+        items = catalog['items']
+        if search:
+            q_lower = search.lower()
+            items = [
+                m for m in items
+                if q_lower in str(m.get('title') or '').lower() or q_lower in str(m.get('id') or '').lower()
+            ]
+
+        total = len(items)
+        total_pages = max(1, -(-total // limit))
+        if page > total_pages:
+            page = total_pages
+        start = (page - 1) * limit
+        page_items = items[start:start + limit]
+
+        context = {
+            list_key: page_items,
+            total_key: catalog['total_unique'],
+            'total_watchlist_count': catalog['total_watchlist_count'],
+            'page': page,
+            'limit': limit,
+            'total': total,
+            'total_pages': total_pages,
+            'page_range': range(max(1, page - 2), min(total_pages, page + 2) + 1),
+            'search': search,
+            'preserved_params': urlencode({'search': search}) if search else '',
+            'api_status': check_api_status(),
+        }
+    except Exception as e:
+        context = {
+            list_key: [],
+            total_key: 0,
+            'total_watchlist_count': 0,
+            'page': 1,
+            'limit': limit,
+            'total': 0,
+            'total_pages': 1,
+            'page_range': range(1, 2),
+            'search': search,
+            'preserved_params': '',
+            'error': f'Lỗi MongoDB: {str(e)}',
+            'api_status': {'status': 'offline'},
+        }
+    return render(request, template_name, context)
+
+
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('movies.view')
 def movies_list(request):
     """Quản lý Movies"""
-    db = mongo_admin.db()
-    
-    # Xử lý xóa phim khỏi hệ thống
-    if request.method == 'POST' and request.POST.get('action') == 'delete_media':
-        media_id = request.POST.get('media_id')
-        is_tv = request.POST.get('is_tv') == 'true'
-        if media_id:
-            try:
-                # 1. Xóa lịch sử xem phim
-                del_progress = db.watchprogresses.delete_many({
-                    'contentId': media_id,
-                    'isTVShow': is_tv
-                })
-                # 2. Xóa khỏi watchlist của tất cả người dùng
-                try:
-                    media_id_int = int(media_id)
-                except ValueError:
-                    media_id_int = media_id
-                
-                del_watchlist = db.users.update_many(
-                    {},
-                    {'$pull': {'watchlist': {'id': media_id_int}}}
-                )
-                messages.success(request, f'Đã xóa phim thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists và {del_progress.deleted_count} watch histories.')
-            except Exception as e:
-                messages.error(request, f'Lỗi khi xóa phim: {str(e)}')
-            return redirect('admin_dashboard:movies')
-
-    try:
-        # Aggregation: lấy danh sách phim từ watchlist và watch progress
-        users = list(db.users.find({}, {'watchlist': 1}))
-        movies_map = {}
-        total_watchlist_count = 0
-        
-        for u in users:
-            for item in u.get('watchlist', []):
-                item_type = item.get('type', 'movie')
-                if item_type == 'movie':
-                    total_watchlist_count += 1
-                    movie_id = str(item.get('id'))
-                    if movie_id not in movies_map:
-                        movies_map[movie_id] = {
-                            'id': movie_id,
-                            'title': item.get('title'),
-                            'poster': item.get('poster_path'),
-                            'watchlist_count': 0,
-                            'progress_count': 0,
-                            'last_watched': None
-                        }
-                    movies_map[movie_id]['watchlist_count'] += 1
-
-        progresses = list(db.watchprogresses.find({'isTVShow': {'$ne': True}}))
-        for p in progresses:
-            movie_id = str(p.get('contentId'))
-            if movie_id not in movies_map:
-                movies_map[movie_id] = {
-                    'id': movie_id,
-                    'title': p.get('title', 'Phim ' + movie_id),
-                    'poster': p.get('poster', ''),
-                    'watchlist_count': 0,
-                    'progress_count': 0,
-                    'last_watched': None
-                }
-            movies_map[movie_id]['progress_count'] += 1
-            p_last = p.get('lastWatched')
-            if p_last:
-                p_last_str = p_last.isoformat() if isinstance(p_last, datetime) else str(p_last)
-                if not movies_map[movie_id]['last_watched'] or p_last_str > movies_map[movie_id]['last_watched']:
-                    movies_map[movie_id]['last_watched'] = p_last_str
-                    
-        movies_list_data = sorted(movies_map.values(), key=lambda x: x['watchlist_count'], reverse=True)
-        context = {
-            'movies': movies_list_data,
-            'total_movies': len(movies_list_data),
-            'total_watchlist_count': total_watchlist_count,
-            'api_status': check_api_status()
-        }
-    except Exception as e:
-        context = {
-            'movies': [],
-            'total_movies': 0,
-            'total_watchlist_count': 0,
-            'error': f'Lỗi MongoDB: {str(e)}',
-            'api_status': {'status': 'offline'}
-        }
-    return render(request, 'admin_dashboard/movies/movies_list.html', context)
+    return _media_catalog_list(request, is_tv=False)
 
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('tv_shows.view')
 def tv_shows_list(request):
     """Quản lý TV Shows"""
-    db = mongo_admin.db()
-    
-    # Xử lý xóa TV show khỏi hệ thống
-    if request.method == 'POST' and request.POST.get('action') == 'delete_media':
-        media_id = request.POST.get('media_id')
-        is_tv = request.POST.get('is_tv') == 'true'
-        if media_id:
-            try:
-                # 1. Xóa lịch sử xem phim
-                del_progress = db.watchprogresses.delete_many({
-                    'contentId': media_id,
-                    'isTVShow': is_tv
-                })
-                # 2. Xóa khỏi watchlist của tất cả người dùng
-                try:
-                    media_id_int = int(media_id)
-                except ValueError:
-                    media_id_int = media_id
-                
-                del_watchlist = db.users.update_many(
-                    {},
-                    {'$pull': {'watchlist': {'id': media_id_int}}}
-                )
-                messages.success(request, f'Đã xóa TV Show thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists và {del_progress.deleted_count} watch histories.')
-            except Exception as e:
-                messages.error(request, f'Lỗi khi xóa TV Show: {str(e)}')
-            return redirect('admin_dashboard:tv_shows')
-
-    try:
-        users = list(db.users.find({}, {'watchlist': 1}))
-        tv_map = {}
-        total_watchlist_count = 0
-        
-        for u in users:
-            for item in u.get('watchlist', []):
-                item_type = item.get('type', 'movie')
-                if item_type == 'tv':
-                    total_watchlist_count += 1
-                    show_id = str(item.get('id'))
-                    if show_id not in tv_map:
-                        tv_map[show_id] = {
-                            'id': show_id,
-                            'title': item.get('title'),
-                            'poster': item.get('poster_path'),
-                            'watchlist_count': 0,
-                            'progress_count': 0,
-                            'last_watched': None
-                        }
-                    tv_map[show_id]['watchlist_count'] += 1
-
-        progresses = list(db.watchprogresses.find({'isTVShow': True}))
-        for p in progresses:
-            show_id = str(p.get('contentId'))
-            if show_id not in tv_map:
-                tv_map[show_id] = {
-                    'id': show_id,
-                    'title': p.get('title', 'Phim bộ ' + show_id),
-                    'poster': p.get('poster', ''),
-                    'watchlist_count': 0,
-                    'progress_count': 0,
-                    'last_watched': None
-                }
-            tv_map[show_id]['progress_count'] += 1
-            p_last = p.get('lastWatched')
-            if p_last:
-                p_last_str = p_last.isoformat() if isinstance(p_last, datetime) else str(p_last)
-                if not tv_map[show_id]['last_watched'] or p_last_str > tv_map[show_id]['last_watched']:
-                    tv_map[show_id]['last_watched'] = p_last_str
-                    
-        tv_list = sorted(tv_map.values(), key=lambda x: x['watchlist_count'], reverse=True)
-        context = {
-            'tv_shows': tv_list,
-            'total_tv': len(tv_list),
-            'total_watchlist_count': total_watchlist_count,
-            'api_status': check_api_status()
-        }
-    except Exception as e:
-        context = {
-            'tv_shows': [],
-            'total_tv': 0,
-            'total_watchlist_count': 0,
-            'error': f'Lỗi MongoDB: {str(e)}',
-            'api_status': {'status': 'offline'}
-        }
-    return render(request, 'admin_dashboard/tv_shows/tv_shows_list.html', context)
+    return _media_catalog_list(request, is_tv=True)
 
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('comments.view')
 def comments_list(request):
     """Danh sách và kiểm duyệt bình luận"""
     page = int(request.GET.get('page', 1))
@@ -1180,12 +1637,15 @@ def comments_list(request):
             }}
         ])
         
-        comments = list(db.comments.aggregate(pipeline))
-        comments = clean_value(comments)
+        results = parallel_run({
+            'comments': lambda: list(db.comments.aggregate(pipeline)),
+            'total': lambda: db.comments.count_documents(query),
+        }, max_workers=2)
+        comments = clean_value(results['comments'])
         for c in comments:
             c['id'] = c.get('_id')
-        
-        total = db.comments.count_documents(query)
+
+        total = results['total']
         total_pages = max(1, -(-total // limit))
         
         context = {
@@ -1213,9 +1673,12 @@ def comments_list(request):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('rooms.view')
 def rooms_list(request):
     """Danh sách và quản lý phòng xem chung (Watch Rooms) từ Redis"""
     if request.method == 'POST' and request.POST.get('action') == 'delete':
+        if not _has_perm(request, 'rooms.delete'):
+            raise PermissionDenied('Permission rooms.delete required')
         room_id = request.POST.get('room_id')
         if room_id:
             try:
@@ -1301,25 +1764,61 @@ def rooms_list(request):
     return render(request, 'admin_dashboard/rooms/rooms_list.html', context)
 
 
+def _send_expo_push_batch(tokens, title, body, noti_type='version_updated'):
+    """Delegate Expo Push batch dispatch with automatic DeviceNotRegistered pruning."""
+    from .views.push_devices import send_expo_push_batch
+    res = send_expo_push_batch(tokens, title, body, noti_type=noti_type)
+    return res['sent'], res['error']
+
+
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('notifications.view')
 def notifications_list(request):
-    """Lịch sử thông báo và phát thông báo hệ thống"""
+    """Lịch sử thông báo, thống kê thiết bị Expo Push và phát thông báo hệ thống."""
     db = mongo_admin.db()
-    
+
     if request.method == 'POST' and request.POST.get('action') == 'broadcast':
-        noti_type = request.POST.get('type', 'version_updated')
+        profile = getattr(request.user, 'admin_profile', None)
+        if not (request.user.is_superuser or (profile and profile.has_perm('notifications.edit'))):
+            messages.error(request, 'Bạn không có quyền gửi thông báo hệ thống.')
+            return redirect('admin_dashboard:notifications')
+        noti_type = request.POST.get('type', 'version_updated').strip() or 'version_updated'
         title = request.POST.get('title', 'Thông báo hệ thống').strip()
         message = request.POST.get('message', '').strip()
-        
+        target_mode = request.POST.get('target_mode', 'all').strip()
+        target_input = request.POST.get('target_users', '').strip()
+        send_expo_push = request.POST.get('send_expo_push') == 'on'
+
         try:
-            users = list(db.users.find({}, {'_id': 1}))
+            user_query = {}
+            if target_mode == 'specific':
+                raw_tokens = [x.strip() for x in target_input.replace('\n', ',').split(',') if x.strip()]
+                oids = [ObjectId(x) for x in raw_tokens if ObjectId.is_valid(x)]
+                emails = [x.lower() for x in raw_tokens if not ObjectId.is_valid(x)]
+                or_parts = []
+                if oids:
+                    or_parts.append({'_id': {'$in': oids}})
+                if emails:
+                    or_parts.append({'email': {'$in': emails}})
+                if not or_parts:
+                    messages.warning(request, 'Vui lòng nhập ít nhất 1 Email hoặc User ID hợp lệ!')
+                    return redirect('admin_dashboard:notifications')
+                user_query = {'$or': or_parts}
+
+            users = list(db.users.find(user_query, {'_id': 1, 'pushTokens': 1}))
+            if not users:
+                messages.warning(request, 'Không tìm thấy người dùng nào khớp điều kiện gửi thông báo.')
+                return redirect('admin_dashboard:notifications')
+
+            now = datetime.utcnow()
             meta = {
-                'versionHash': 'SYSTEM_' + datetime.utcnow().strftime('%Y%m%d%H%M%S'),
-                'versionMessage': f"{title}: {message}"
+                'versionHash': 'SYSTEM_' + now.strftime('%Y%m%d%H%M%S'),
+                'versionMessage': f"{title}: {message}",
             }
-            
+
             notifications_to_insert = []
+            push_tokens = []
             for u in users:
                 notifications_to_insert.append({
                     'recipient': u['_id'],
@@ -1328,25 +1827,74 @@ def notifications_list(request):
                     'read': False,
                     'readAt': None,
                     'metadata': meta,
-                    'createdAt': datetime.utcnow(),
-                    'updatedAt': datetime.utcnow()
+                    'createdAt': now,
+                    'updatedAt': now,
                 })
-                
+                if send_expo_push and isinstance(u.get('pushTokens'), list):
+                    push_tokens.extend(u['pushTokens'])
+
             if notifications_to_insert:
                 batch_size = 500
                 for idx in range(0, len(notifications_to_insert), batch_size):
-                    db.notifications.insert_many(notifications_to_insert[idx : idx + batch_size])
-                    
-            messages.success(request, f'Đã phát thông báo thành công tới {len(users)} người dùng!')
+                    db.notifications.insert_many(notifications_to_insert[idx:idx + batch_size])
+
+            invalidate_swr('notifications_stats_v1', 'admin_sidebar_counts')
+
+            push_note = ''
+            if send_expo_push:
+                from .views.push_devices import send_expo_push_batch
+                push_res = send_expo_push_batch(push_tokens, title, message, noti_type=noti_type)
+                push_sent = push_res['sent']
+                pruned = push_res['pruned']
+                push_err = push_res['error']
+                if push_err:
+                    push_note = f' (Expo Push: {push_sent} thiết bị, cảnh báo: {push_err})'
+                else:
+                    push_note = f' + {push_sent} thiết bị Expo Push!'
+                if pruned:
+                    push_note += f' (Đã tự động dọn {pruned} token chết)'
+
+            AuditLog.log(request, 'broadcast_notification', 'notification', target_mode, {'users': len(users), 'expo_push': send_expo_push})
+            messages.success(request, f'Đã phát thông báo thành công tới {len(users)} người dùng{push_note}')
         except Exception as e:
             messages.error(request, f'Lỗi gửi thông báo: {str(e)}')
         return redirect('admin_dashboard:notifications')
-        
-    page = int(request.GET.get('page', 1))
+
+    page = max(1, int(request.GET.get('page', 1) or 1))
     limit = 20
-    
+    type_filter = request.GET.get('type', '').strip()
+    read_filter = request.GET.get('read', '').strip()
+    search = request.GET.get('search', '').strip()
+    force = request.GET.get('refresh') == '1'
+
     try:
-        pipeline = [
+        query = {}
+        if type_filter:
+            query['type'] = type_filter
+        if read_filter == 'true':
+            query['read'] = True
+        elif read_filter == 'false':
+            query['read'] = False
+        if search:
+            matched_users = list(db.users.find(
+                {'$or': [
+                    {'name': {'$regex': search, '$options': 'i'}},
+                    {'email': {'$regex': search, '$options': 'i'}},
+                ]},
+                {'_id': 1},
+            ).limit(100))
+            matched_ids = [u['_id'] for u in matched_users]
+            or_clause = [
+                {'metadata.versionMessage': {'$regex': search, '$options': 'i'}},
+                {'metadata.commentPreview': {'$regex': search, '$options': 'i'}},
+            ]
+            if matched_ids:
+                or_clause.append({'recipient': {'$in': matched_ids}})
+            if ObjectId.is_valid(search):
+                or_clause.append({'recipient': ObjectId(search)})
+            query['$or'] = or_clause
+
+        tail_stages = [
             {'$sort': {'createdAt': -1}},
             {'$skip': (page - 1) * limit},
             {'$limit': limit},
@@ -1367,32 +1915,89 @@ def notifications_list(request):
                 'createdAt': 1,
                 'recipient_name': '$recipient_user.name',
                 'recipient_email': '$recipient_user.email',
-            }}
+            }},
         ]
-        
-        notifications = list(db.notifications.aggregate(pipeline))
-        notifications = clean_value(notifications)
+
+        if query:
+            pipeline = [
+                {'$match': query},
+                {'$facet': {'meta': [{'$count': 'total'}], 'items': tail_stages}},
+            ]
+        else:
+            pipeline = tail_stages
+
+        def _fetch_notif_stats():
+            noti_agg = list(db.notifications.aggregate([
+                {'$group': {
+                    '_id': None,
+                    'total': {'$sum': 1},
+                    'unread': {'$sum': {'$cond': [{'$eq': ['$read', False]}, 1, 0]}},
+                }}
+            ]))
+            push_agg = list(db.users.aggregate([
+                {'$match': {'pushTokens.0': {'$exists': True}}},
+                {'$group': {
+                    '_id': None,
+                    'push_users': {'$sum': 1},
+                    'push_tokens': {'$sum': {'$size': '$pushTokens'}},
+                }}
+            ]))
+            na = noti_agg[0] if noti_agg else {}
+            pa = push_agg[0] if push_agg else {}
+            tot = na.get('total', 0) or 0
+            unr = na.get('unread', 0) or 0
+            return {
+                'total_all': tot,
+                'unread': unr,
+                'read': max(0, tot - unr),
+                'push_users': pa.get('push_users', 0) or 0,
+                'push_tokens': pa.get('push_tokens', 0) or 0,
+            }
+
+        results = parallel_run({
+            'data': lambda: list(db.notifications.aggregate(pipeline)),
+            'stats': lambda: cached_swr(
+                'notifications_stats_v1',
+                fresh_ttl=30,
+                stale_ttl=120,
+                fetcher=_fetch_notif_stats,
+                force=force,
+            ),
+        }, max_workers=2)
+
+        stats = results['stats']
+        if query:
+            facet = results['data'][0] if results['data'] else {}
+            meta = facet.get('meta', [])
+            total = meta[0]['total'] if meta else 0
+            raw_items = facet.get('items', [])
+        else:
+            total = stats['total_all']
+            raw_items = results['data']
+
+        notifications = clean_value(raw_items)
         for n in notifications:
             n['id'] = n.get('_id')
-        
-        total = db.notifications.count_documents({})
-        total_pages = max(1, -(-total // limit))
-        
+            n['recipient_id_str'] = str(n.get('recipient') or '')
+
+        pag = build_pagination_context(page, total, limit, request.GET)
         context = {
             'notifications': notifications,
-            'page': page,
+            'stats': stats,
             'total': total,
-            'total_pages': total_pages,
-            'api_status': check_api_status()
+            'type_filter': type_filter,
+            'read_filter': read_filter,
+            'search': search,
+            'api_status': check_api_status(),
+            **pag,
         }
     except Exception as e:
         context = {
-            'notifications': [],
-            'page': page,
-            'total': 0,
-            'total_pages': 1,
+            'notifications': [], 'stats': {}, 'page': page, 'total': 0,
+            'total_pages': 1, 'page_range': [1],
+            'type_filter': type_filter, 'read_filter': read_filter, 'search': search,
             'error': f'Lỗi MongoDB: {str(e)}',
-            'api_status': {'status': 'offline'}
+            'api_status': {'status': 'offline'},
         }
     return render(request, 'admin_dashboard/notifications/notifications_list.html', context)
 
@@ -1466,22 +2071,40 @@ def _scan_all_tmdb_keys():
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('cache.view')
 def cache_management(request):
     """Upstash Redis TMDB cache viewer — shell page, data loads via AJAX."""
     return render(request, 'admin_dashboard/cache/cache.html')
 
 
+def _fetch_cache_snapshot():
+    """Fetch TMDB Redis keys and Redis INFO concurrently."""
+    return parallel_run({
+        'keys': _scan_all_tmdb_keys,
+        'info': lambda: _upstash(['INFO']),
+    }, max_workers=2)
+
+
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('cache.view')
 def api_cache_list(request):
     """AJAX: paginated cache key listing. Only fetches TTL for visible page."""
     page = max(int(request.GET.get('page', 1)), 1)
     limit = 10
     cat_filter = request.GET.get('category', '')
     search = request.GET.get('q', '').lower()
+    force = request.GET.get('refresh') == '1'
 
     try:
-        all_keys = _scan_all_tmdb_keys()
+        snapshot = cached_swr(
+            'api_cache_scan_v1',
+            fresh_ttl=30,
+            stale_ttl=120,
+            fetcher=_fetch_cache_snapshot,
+            force=force,
+        )
+        all_keys = snapshot.get('keys')
         if all_keys is None:
             return JsonResponse({'success': False, 'error': 'Upstash Redis not configured'})
 
@@ -1521,8 +2144,8 @@ def api_cache_list(request):
                 for item in page_keys:
                     item['ttl'] = -1
 
-        # Fetch Upstash INFO for stats
-        info_raw = _upstash(['INFO'])
+        # Reuse cached Upstash INFO stats
+        info_raw = snapshot.get('info')
         stats = {}
         if info_raw:
             for line in info_raw.splitlines():
@@ -1552,18 +2175,23 @@ def api_cache_list(request):
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('cache.view')
 @require_http_methods(["POST"])
 def api_cache_action(request):
     """Delete a single key or flush all tmdb:* cache."""
     try:
         body = json.loads(request.body)
         action = body.get('action')
+        req_perm = 'cache.view' if action == 'get' else ('cache.delete' if action in ('delete', 'flush') else 'cache.edit')
+        if not _has_perm(request, req_perm):
+            return JsonResponse({'success': False, 'error': f'Permission {req_perm} required'}, status=403)
 
         if action == 'delete':
             key = body.get('key', '')
             if not key.startswith('tmdb:'):
                 return JsonResponse({'success': False, 'error': 'Invalid key'}, status=400)
             _upstash(['DEL', key])
+            invalidate_swr('api_cache_scan_v1')
             return JsonResponse({'success': True, 'message': f'Deleted {key}'})
 
         elif action == 'flush':
@@ -1574,11 +2202,13 @@ def api_cache_action(request):
                 if result is None:
                     break
                 cursor = str(result[0])
-                for k in result[1]:
-                    _upstash(['DEL', k])
-                    deleted += 1
+                batch = result[1]
+                if batch:
+                    _upstash_pipeline([['DEL', k] for k in batch])
+                    deleted += len(batch)
                 if cursor == '0':
                     break
+            invalidate_swr('api_cache_scan_v1')
             return JsonResponse({'success': True, 'message': f'Flushed {deleted} keys'})
 
         elif action == 'get':

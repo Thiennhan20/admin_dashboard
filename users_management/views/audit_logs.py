@@ -2,6 +2,7 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 
+from users_management.decorators import require_permission
 from users_management.models import AuditLog
 from users_management.views_legacy import check_admin_access
 
@@ -10,6 +11,7 @@ __all__ = ['audit_logs_list']
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
+@require_permission('audit_logs.view')
 def audit_logs_list(request):
     page = int(request.GET.get('page', 1))
     limit = 30

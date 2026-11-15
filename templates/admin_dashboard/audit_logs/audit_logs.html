@@ -6,27 +6,35 @@
 <div class="card mb-4">
     <div class="card-header"><h6 class="mb-0"><i class="fas fa-search me-2"></i><span data-i18n="au.filter_title">Filter Logs</span></h6></div>
     <div class="card-body">
-        <form method="GET"><div class="row g-3">
-            <div class="col-md-5"><label class="form-label" data-i18n="au.form_admin">Admin User</label><input type="text" class="form-control" name="admin" value="{{ admin_filter }}" placeholder="Search by admin username..." data-i18n-placeholder="au.ph_admin"></div>
-            <div class="col-md-5"><label class="form-label" data-i18n="au.form_action">Action</label><input type="text" class="form-control" name="action" value="{{ action_filter }}" placeholder="Search by action..." data-i18n-placeholder="au.ph_action" list="actionList">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-12 col-md-6 col-xl-4">
+                <label class="form-label" data-i18n="au.form_admin">Admin User</label>
+                <input type="text" class="form-control" name="admin" value="{{ admin_filter }}" placeholder="Search by admin username..." data-i18n-placeholder="au.ph_admin">
+            </div>
+            <div class="col-12 col-md-6 col-xl-5">
+                <label class="form-label" data-i18n="au.form_action">Action</label>
+                <input type="text" class="form-control" name="action" value="{{ action_filter }}" placeholder="Search by action..." data-i18n-placeholder="au.ph_action" list="actionList">
                 <datalist id="actionList">{% for a in distinct_actions %}<option value="{{ a }}">{% endfor %}</datalist>
             </div>
-            <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i><span data-i18n="au.btn_filter">Filter</span></button></div>
-        </div></form>
+            <div class="col-12 col-xl-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary filter-action-btn flex-fill"><i class="fas fa-filter"></i><span data-i18n="au.btn_filter">Filter</span></button>
+                <a href="{% url 'admin_dashboard:audit_logs' %}" class="btn btn-outline-secondary filter-action-btn flex-fill"><i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear</span></a>
+            </div>
+        </form>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-scroll me-2"></i><span data-i18n="nav.auditLogs">Audit Logs</span> ({{ total }})</h6>
         <div class="dropdown d-inline-block">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-download me-1"></i><span data-i18n="common.btn_export">Export Data</span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--panel); border-color: var(--line);">
-                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=csv"><i class="fas fa-file-csv me-2 text-primary"></i>CSV</a></li>
-                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=excel"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xls)</a></li>
-                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF / In</a></li>
+            <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu shadow" aria-labelledby="exportDropdown">
+                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=csv"><i class="fas fa-file-csv fa-fw text-primary"></i><span data-i18n="common.csv">CSV</span></a></li>
+                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=excel"><i class="fas fa-file-excel fa-fw text-success"></i><span data-i18n="common.excel">Excel (.xls)</span></a></li>
+                <li><a class="dropdown-item" href="{% url 'admin_dashboard:api_export' 'audit_logs' %}?format=pdf" target="_blank"><i class="fas fa-file-pdf fa-fw text-danger"></i><span data-i18n="common.pdf">In PDF</span></a></li>
             </ul>
         </div>
     </div>
@@ -39,7 +47,7 @@
                 <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.action }}</span></td>
                 <td><small>{{ log.target_type }}{% if log.target_id %} <code>{{ log.target_id|truncatechars:15 }}</code>{% endif %}</small></td>
                 <td><code class="small">{{ log.ip_address|default:"—" }}</code></td>
-                <td><small class="text-muted">{{ log.timestamp|timesince }} ago</small></td>
+                <td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ log.timestamp|timesince }}" data-with-ago="1">{{ log.timestamp|timesince }} trước</span></small></td>
             </tr>{% endfor %}</tbody>
         </table></div>
         {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-scroll fa-3x mb-3 d-block opacity-25"></i><span data-i18n="au.no_logs">No audit logs found.</span></div>{% endif %}
@@ -69,12 +77,12 @@ window.AdminUI.addTranslations({
     vi: {
         'au.filter_title': 'Lọc lịch sử',
         'au.form_admin': 'Quản trị viên',
-        'au.ph_admin': 'Tìm tên admin...',
+        'au.ph_admin': 'Tìm tên quản trị viên...',
         'au.form_action': 'Hành động',
         'au.ph_action': 'Tìm hành động...',
         'au.btn_filter': 'Lọc',
         'au.btn_export': 'Xuất CSV',
-        'au.col_admin': 'Admin',
+        'au.col_admin': 'Quản trị viên',
         'au.col_action': 'Hành động',
         'au.col_target': 'Đối tượng',
         'au.col_ip': 'Địa chỉ IP',

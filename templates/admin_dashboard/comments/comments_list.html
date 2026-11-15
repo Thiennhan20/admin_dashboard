@@ -38,31 +38,30 @@
         </h6>
     </div>
     <div class="card-body">
-        <form method="GET" id="filterForm">
-            <div class="row g-3">
-                <div class="col-lg-6 col-md-6">
-                    <label for="search" class="form-label" data-i18n="comments.searchLabel">Search Content</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               value="{{ search }}" placeholder="Search comment text..." data-i18n-placeholder="comments.searchPlaceholder">
-                    </div>
+        <form method="GET" id="filterForm" class="filter-inline-grid">
+            <div class="filter-field">
+                <label for="search" class="form-label" data-i18n="comments.searchLabel">Search Content</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Search comment text..." data-i18n-placeholder="comments.searchPlaceholder">
                 </div>
-                <div class="col-lg-4 col-md-6">
-                    <label for="status" class="form-label" data-i18n="comments.statusLabel">Status</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="" data-i18n="comments.optionAll">All Comments</option>
-                        <option value="active" {% if status_filter == 'active' %}selected{% endif %} data-i18n="comments.optionActive">Active Only</option>
-                        <option value="deleted" {% if status_filter == 'deleted' %}selected{% endif %} data-i18n="comments.optionModerated">Moderated/Hidden Only</option>
-                    </select>
-                </div>
-                <div class="col-lg-2 col-md-12 d-flex align-items-end">
-                    <div class="d-grid gap-2 w-100">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-filter me-1"></i><span data-i18n="comments.applyFilter">Apply Filter</span>
-                        </button>
-                    </div>
-                </div>
+            </div>
+            <div class="filter-field">
+                <label for="status" class="form-label" data-i18n="comments.statusLabel">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="" data-i18n="comments.optionAll">All Comments</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %} data-i18n="comments.optionActive">Active Only</option>
+                    <option value="deleted" {% if status_filter == 'deleted' %}selected{% endif %} data-i18n="comments.optionModerated">Moderated/Hidden Only</option>
+                </select>
+            </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn btn-primary filter-action-btn">
+                    <i class="fas fa-filter"></i><span data-i18n="comments.applyFilter">Apply Filter</span>
+                </button>
+                <a href="{% url 'admin_dashboard:comments' %}" class="btn btn-outline-secondary filter-action-btn">
+                    <i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear</span>
+                </a>
             </div>
         </form>
     </div>
@@ -72,7 +71,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">
-            <i class="fas fa-list me-2"></i><span data-i18n="comments.listTitle">Comments</span> (Total: {{ total }})
+            <i class="fas fa-list me-2"></i><span data-i18n="comments.listTitle">Comments</span> ({{ total }})
         </h6>
     </div>
     <div class="card-body p-0">
@@ -94,7 +93,7 @@
                         {% for comment in comments %}
                         <tr id="comment-row-{{ comment.id }}">
                             <td>
-                                <div class="fw-semibold">{{ comment.user.name|default:"Unknown User" }}</div>
+                                <div class="fw-semibold">{% if comment.user.name %}{{ comment.user.name }}{% else %}<span data-i18n="comments.unknownUser">Unknown User</span>{% endif %}</div>
                                 <small class="text-muted">{{ comment.user.email|default:"" }}</small>
                             </td>
                             <td>
@@ -104,7 +103,7 @@
                             </td>
                             <td>
                                 <div>
-                                    <span class="badge bg-info bg-opacity-10 text-info text-capitalize">{{ comment.type }}</span>
+                                    <span class="badge bg-info bg-opacity-10 text-info" data-i18n="comments.type_{{ comment.type }}">{{ comment.type }}</span>
                                     <small class="text-muted ms-1">ID: {{ comment.movieId }}</small>
                                 </div>
                             </td>
@@ -126,7 +125,7 @@
                                 </span>
                             </td>
                             <td class="text-end">
-                                <div class="btn-group">
+                                <div class="table-actions">
                                     <button onclick="toggleComment('{{ comment.id }}', '{{ comment.isDeleted }}' !== 'True')" 
                                             id="btn-toggle-{{ comment.id }}"
                                             class="btn btn-sm {% if comment.isDeleted %}btn-outline-success{% else %}btn-outline-warning{% endif %}">
@@ -137,7 +136,7 @@
                                         {% endif %}
                                     </button>
                                     <button onclick="deleteComment('{{ comment.id }}')" 
-                                            class="btn btn-sm btn-outline-danger ms-1">
+                                            class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="comments.btnDeleteTitle">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
@@ -171,7 +170,7 @@
         {% else %}
             <div class="text-center py-5 text-muted">
                 <div class="mb-4">
-                    <i class="fas fa-comments fa-4x text-light-subtle"></i>
+                    <i class="fas fa-comments fa-4x text-muted opacity-50"></i>
                 </div>
                 <h5 data-i18n="comments.emptyTitle">No Comments Found</h5>
                 <p class="small mb-0" data-i18n="comments.emptyDesc">No user comments match the current filters.</p>
@@ -219,7 +218,12 @@
             'comments.alertRestored': 'Comment has been restored.',
             'comments.alertDeleted': 'Comment permanently deleted.',
             'comments.errorPrefix': 'Error:',
-            'comments.networkError': 'Network error:'
+            'comments.networkError': 'Network error:',
+            'comments.unknownUser': 'Unknown User',
+            'comments.type_movie': 'Movie',
+            'comments.type_tv': 'TV Show',
+            'comments.type_tvshow': 'TV Show',
+            'comments.btnDeleteTitle': 'Delete'
         },
         vi: {
             'comments.title': 'Kiểm duyệt bình luận người dùng',
@@ -253,7 +257,12 @@
             'comments.alertRestored': 'Bình luận đã được khôi phục.',
             'comments.alertDeleted': 'Bình luận đã bị xóa vĩnh viễn.',
             'comments.errorPrefix': 'Lỗi:',
-            'comments.networkError': 'Lỗi mạng:'
+            'comments.networkError': 'Lỗi mạng:',
+            'comments.unknownUser': 'Người dùng không rõ',
+            'comments.type_movie': 'Phim lẻ',
+            'comments.type_tv': 'Phim bộ',
+            'comments.type_tvshow': 'Phim bộ',
+            'comments.btnDeleteTitle': 'Xóa'
         }
     });
 
@@ -275,15 +284,15 @@
                 const btn = document.getElementById(`btn-toggle-${commentId}`);
                 
                 if (hide) {
-                    badge.innerHTML = `<span class="badge bg-warning text-dark"><i class="fas fa-eye-slash me-1"></i>${t('comments.statusHidden') || 'Hidden'}</span>`;
+                    badge.innerHTML = `<span class="badge bg-warning text-dark"><i class="fas fa-eye-slash me-1"></i><span data-i18n="comments.statusHidden">${t('comments.statusHidden') || 'Hidden'}</span></span>`;
                     btn.className = 'btn btn-sm btn-outline-success';
-                    btn.innerHTML = `<i class="fas fa-eye me-1"></i>${t('comments.btnRestore') || 'Restore'}`;
+                    btn.innerHTML = `<i class="fas fa-eye me-1"></i><span data-i18n="comments.btnRestore">${t('comments.btnRestore') || 'Restore'}</span>`;
                     btn.setAttribute('onclick', `toggleComment('${commentId}', false)`);
                     showAlert(t('comments.alertHidden') || 'Comment has been hidden.', 'warning');
                 } else {
-                    badge.innerHTML = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>${t('comments.statusActive') || 'Active'}</span>`;
+                    badge.innerHTML = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i><span data-i18n="comments.statusActive">${t('comments.statusActive') || 'Active'}</span></span>`;
                     btn.className = 'btn btn-sm btn-outline-warning';
-                    btn.innerHTML = `<i class="fas fa-eye-slash me-1"></i>${t('comments.btnHide') || 'Hide'}`;
+                    btn.innerHTML = `<i class="fas fa-eye-slash me-1"></i><span data-i18n="comments.btnHide">${t('comments.btnHide') || 'Hide'}</span>`;
                     btn.setAttribute('onclick', `toggleComment('${commentId}', true)`);
                     showAlert(t('comments.alertRestored') || 'Comment has been restored.', 'success');
                 }

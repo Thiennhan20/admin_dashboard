@@ -1,5 +1,5 @@
 {% extends 'admin_dashboard/base.html' %}
-{% load static %}
+{% load static admin_tags %}
 
 {% block title %}Chi tiết Admin - {{ admin_user.username }}{% endblock %}
 {% block page_title %}Chi tiết Admin{% endblock %}
@@ -13,7 +13,7 @@
     }
     
     .profile-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
         color: white;
         border-radius: 15px;
         padding: 2rem;
@@ -86,14 +86,17 @@
     
     .info-card {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-card);
         margin-bottom: 2rem;
         overflow: hidden;
     }
     
     .info-card-header {
-        background: var(--control-hover);
+        background: var(--control);
         padding: 1.5rem;
         border-bottom: 1px solid var(--line);
     }
@@ -143,8 +146,11 @@
     
     .action-buttons {
         background: var(--panel);
+        backdrop-filter: var(--glass-card-blur);
+        -webkit-backdrop-filter: var(--glass-card-blur);
+        border: 1px solid var(--line);
         border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-card);
         padding: 1.5rem;
     }
     
@@ -152,44 +158,65 @@
         border-radius: 10px;
         padding: 0.75rem 1.5rem;
         font-weight: 600;
-        transition: all 0.3s ease;
-        border: 2px solid;
+        transition: all 0.25s ease;
+        border-width: 1px;
     }
-    
+
+    .btn-action:disabled,
+    .btn-action.disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+    }
+
     .btn-edit {
-        background: linear-gradient(135deg, #ffc107, #fd7e14);
-        border-color: #ffc107;
-        color: white;
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        --bs-btn-disabled-color: rgba(255, 255, 255, 0.88);
+        background: linear-gradient(135deg, #b45309, #c2410c);
+        border-color: #b45309;
+        color: #ffffff;
     }
-    
-    .btn-edit:hover {
+
+    .btn-edit:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
-        color: white;
+        box-shadow: 0 4px 15px rgba(194, 65, 12, 0.35);
+        filter: brightness(1.08);
+        color: #ffffff;
     }
-    
+
     .btn-delete {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        border-color: #dc3545;
-        color: white;
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        --bs-btn-disabled-color: rgba(255, 255, 255, 0.88);
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        border-color: #dc2626;
+        color: #ffffff;
     }
-    
-    .btn-delete:hover {
+
+    .btn-delete:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-        color: white;
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.35);
+        filter: brightness(1.06);
+        color: #ffffff;
     }
-    
+
     .btn-back {
-        background: linear-gradient(135deg, #6c757d, #5a6268);
-        border-color: #6c757d;
-        color: white;
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        --bs-btn-disabled-color: rgba(255, 255, 255, 0.88);
+        background: linear-gradient(135deg, #64748b, #475569);
+        border-color: #64748b;
+        color: #ffffff;
     }
-    
-    .btn-back:hover {
+
+    .btn-back:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-        color: white;
+        box-shadow: 0 4px 15px rgba(71, 85, 105, 0.35);
+        filter: brightness(1.08);
+        color: #ffffff;
     }
     
     .activity-timeline {
@@ -304,7 +331,7 @@
                 <div class="col-md-4 text-md-end">
                     <div class="mb-2">
                         <span class="role-badge">
-                            <i class="fas fa-crown"></i> {{ admin_user.admin_profile.role|title }}
+                            <i class="fas fa-crown"></i> <span data-i18n="role.{{ admin_user.admin_profile.role }}">{{ admin_user.admin_profile.role|title }}</span>
                         </span>
                     </div>
                     <div>
@@ -371,7 +398,7 @@
                             </div>
                             <div class="info-content">
                                 <div class="info-label" data-i18n="adDetail.label_role">Vai trò</div>
-                                <p class="info-value">{{ admin_user.admin_profile.role|title }}</p>
+                                <p class="info-value"><span data-i18n="role.{{ admin_user.admin_profile.role }}">{{ admin_user.admin_profile.role|title }}</span></p>
                             </div>
                         </div>
                         
@@ -446,71 +473,69 @@
                                 <p class="info-value">{{ admin_user.admin_profile.updated_at|date:"d/m/Y H:i" }}</p>
                             </div>
                         </div>
+
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-shield-halved"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label" data-i18n="adDetail.tfa_label">Xác thực 2FA</div>
+                                <p class="info-value">
+                                    {% if admin_user.admin_profile.totp_enabled %}
+                                        <span class="badge bg-success"><i class="fas fa-lock me-1"></i> <span data-i18n="adDetail.tfa_on">Đang bật</span></span>
+                                    {% else %}
+                                        <span class="badge bg-secondary" data-i18n="adDetail.tfa_off">Chưa bật</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Permissions -->
+                <!-- Effective RBAC Matrix -->
                 <div class="info-card">
-                    <div class="info-card-header">
+                    <div class="info-card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="fas fa-key text-primary"></i> <span data-i18n="adDetail.section_permissions">Quyền hạn theo vai trò</span>
+                            <i class="fas fa-key text-primary"></i> <span data-i18n="adDetail.section_permissions">Quyền hạn thực tế</span>
                         </h5>
+                        {% if admin_user.admin_profile.permissions %}
+                        <span class="badge bg-warning text-dark" data-i18n="adDetail.has_overrides">Có tùy chỉnh riêng</span>
+                        {% endif %}
                     </div>
-                    <div class="info-card-body">
-                        <div class="permissions-grid">
-                            {% if admin_user.admin_profile.role == 'super_admin' %}
-                                <div class="permission-item">
-                                    <div class="permission-icon">
-                                        <i class="fas fa-users-cog"></i>
-                                    </div>
-                                    <div>
-                                        <strong data-i18n="adDetail.perm_admin">Quản lý Admin</strong>
-                                        <br><small class="text-muted" data-i18n="adDetail.perm_admin_desc">Tạo, sửa, xóa admin</small>
-                                    </div>
-                                </div>
-                            {% endif %}
-                            
-                            <div class="permission-item">
-                                <div class="permission-icon">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div>
-                                    <strong data-i18n="adDetail.perm_users">Quản lý Users</strong>
-                                    <br><small class="text-muted" data-i18n="adDetail.perm_users_desc">Xem, sửa thông tin users</small>
-                                </div>
-                            </div>
-                            
-                            <div class="permission-item">
-                                <div class="permission-icon">
-                                    <i class="fas fa-list"></i>
-                                </div>
-                                <div>
-                                    <strong data-i18n="adDetail.perm_watchlist">Quản lý Watchlist</strong>
-                                    <br><small class="text-muted" data-i18n="adDetail.perm_watchlist_desc">Xem, sửa watchlist</small>
-                                </div>
-                            </div>
-                            
-                            {% if admin_user.admin_profile.role != 'moderator' %}
-                                <div class="permission-item">
-                                    <div class="permission-icon">
-                                        <i class="fas fa-trash"></i>
-                                    </div>
-                                    <div>
-                                        <strong data-i18n="adDetail.perm_delete_data">Xóa dữ liệu</strong>
-                                        <br><small class="text-muted" data-i18n="adDetail.perm_delete_data_desc">Xóa users và watchlist</small>
-                                    </div>
-                                </div>
-                            {% endif %}
-                            
-                            <div class="permission-item">
-                                <div class="permission-icon">
-                                    <i class="fas fa-chart-bar"></i>
-                                </div>
-                                <div>
-                                    <strong data-i18n="adDetail.perm_stats">Xem thống kê</strong>
-                                    <br><small class="text-muted" data-i18n="adDetail.perm_stats_desc">Dashboard và báo cáo</small>
-                                </div>
-                            </div>
+                    <div class="info-card-body p-0">
+                        <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="rbac.col_module">Chức năng</th>
+                                        <th class="text-center" data-i18n="rbac.act_view">Xem</th>
+                                        <th class="text-center" data-i18n="rbac.act_edit">Sửa</th>
+                                        <th class="text-center" data-i18n="rbac.act_delete">Xóa</th>
+                                        <th class="text-center" data-i18n="rbac.act_export">Xuất</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in rbac_matrix %}
+                                    <tr data-module="{{ row.module }}">
+                                        <td>
+                                            <span class="fw-semibold" data-i18n="rbac.mod_{{ row.module }}">{{ row.label }}</span>
+                                        </td>
+                                        {% for act in row.actions %}
+                                        <td class="text-center">
+                                            {% if act.effective %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-minus text-muted opacity-50"></i>
+                                            {% endif %}
+                                            {% if act.is_overridden %}
+                                                <span class="badge bg-warning text-dark" style="font-size: 9px;" data-i18n="rbac.custom_badge">Tùy chỉnh</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -524,21 +549,36 @@
                         <i class="fas fa-tools text-primary"></i> <span data-i18n="adDetail.section_actions">Thao tác</span>
                     </h5>
                     
+                    {% has_perm 'admins.edit' as can_edit_admin %}
+                    {% has_perm 'admins.delete' as can_delete_admin %}
                     <div class="d-grid gap-3">
+                        {% if can_edit_admin %}
                         <a href="{% url 'admin_dashboard:admin_edit' admin_user.id %}" 
                            class="btn btn-edit btn-action">
-                            <i class="fas fa-edit"></i> <span data-i18n="adDetail.btn_edit">Chỉnh sửa Admin</span>
+                            <i class="fas fa-edit"></i> <span data-i18n="adDetail.btn_edit">Chỉnh sửa Quản trị viên</span>
                         </a>
+                        {% endif %}
+
+                        {% if actor_is_super and admin_user.admin_profile.totp_enabled %}
+                        <form id="reset2faForm" method="POST" action="{% url 'admin_dashboard:admin_reset_2fa' admin_user.id %}">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-warning btn-action w-100" onclick="confirmReset2FA('{{ admin_user.username|escapejs }}')">
+                                <i class="fas fa-unlock"></i> <span data-i18n="adDetail.btn_reset_2fa">Đặt lại 2FA</span>
+                            </button>
+                        </form>
+                        {% endif %}
                         
-                        {% if admin_user.id != request.user.id %}
-                            <button class="btn btn-delete btn-action" 
-                                    onclick="deleteAdmin('{{ admin_user.id }}', '{{ admin_user.username }}')">
-                                <i class="fas fa-trash"></i> <span data-i18n="adDetail.btn_delete">Xóa Admin</span>
-                            </button>
-                        {% else %}
-                            <button class="btn btn-secondary btn-action" disabled>
-                                <i class="fas fa-lock"></i> <span data-i18n="adDetail.btn_cannot_delete_self">Không thể xóa chính mình</span>
-                            </button>
+                        {% if can_delete_admin %}
+                            {% if admin_user.id != request.user.id %}
+                                <button class="btn btn-delete btn-action" 
+                                        onclick="deleteAdmin('{{ admin_user.id }}', '{{ admin_user.username }}')">
+                                    <i class="fas fa-trash"></i> <span data-i18n="adDetail.btn_delete">Xóa Admin</span>
+                                </button>
+                            {% else %}
+                                <button class="btn btn-secondary btn-action" disabled>
+                                    <i class="fas fa-lock"></i> <span data-i18n="adDetail.btn_cannot_delete_self">Không thể xóa chính mình</span>
+                                </button>
+                            {% endif %}
                         {% endif %}
                         
                         <a href="{% url 'admin_dashboard:admin_list' %}" 
@@ -560,7 +600,7 @@
                             <div class="mb-3">
                                 <h3 class="text-primary mb-1">
                                     {% if admin_user.last_login %}
-                                        {{ admin_user.last_login|timesince }}
+                                        <span class="i18n-timesince" data-raw-timesince="{{ admin_user.last_login|timesince }}">{{ admin_user.last_login|timesince }}</span>
                                     {% else %}
                                         <span data-i18n="adDetail.never_logged_in">Chưa bao giờ</span>
                                     {% endif %}
@@ -569,7 +609,7 @@
                             </div>
                             
                             <div class="mb-3">
-                                <h3 class="text-success mb-1">{{ admin_user.date_joined|timesince }}</h3>
+                                <h3 class="text-success mb-1"><span class="i18n-timesince" data-raw-timesince="{{ admin_user.date_joined|timesince }}">{{ admin_user.date_joined|timesince }}</span></h3>
                                 <small class="text-muted" data-i18n="adDetail.stat_member_since">Thành viên từ</small>
                             </div>
                             
@@ -614,7 +654,17 @@ window.AdminUI.addTranslations({
         'adDetail.never_login': 'Never logged in',
         'adDetail.label_profile_created': 'Profile Created At',
         'adDetail.label_updated': 'Last Updated',
-        'adDetail.section_permissions': 'Role Permissions',
+        'adDetail.tfa_label': '2FA Auth',
+        'adDetail.tfa_on': 'Enabled',
+        'adDetail.tfa_off': 'Disabled',
+        'adDetail.section_permissions': 'Effective Permissions',
+        'adDetail.has_overrides': 'Has Custom Overrides',
+        'rbac.col_module': 'Module',
+        'rbac.act_view': 'View',
+        'rbac.act_edit': 'Edit',
+        'rbac.act_delete': 'Delete',
+        'rbac.act_export': 'Export',
+        'rbac.custom_badge': 'Custom',
         'adDetail.perm_admin': 'Manage Admins',
         'adDetail.perm_admin_desc': 'Create, edit, delete admins',
         'adDetail.perm_users': 'Manage Users',
@@ -627,6 +677,9 @@ window.AdminUI.addTranslations({
         'adDetail.perm_stats_desc': 'Dashboard and reports',
         'adDetail.section_actions': 'Actions',
         'adDetail.btn_edit': 'Edit Admin',
+        'adDetail.btn_reset_2fa': 'Reset 2FA',
+        'adDetail.reset2fa_title': 'Reset 2FA Authentication',
+        'adDetail.reset2fa_body': 'Disable & reset 2FA for administrator "{username}"?',
         'adDetail.btn_delete': 'Delete Admin',
         'adDetail.btn_cannot_delete_self': 'Cannot delete yourself',
         'adDetail.btn_back_list': 'Back to List',
@@ -637,7 +690,7 @@ window.AdminUI.addTranslations({
         'adDetail.stat_staff_status': 'Staff Status'
     },
     vi: {
-        'adDetail.breadcrumb_admin_list': 'Quản lý Admin',
+        'adDetail.breadcrumb_admin_list': 'Quản lý Quản trị viên',
         'adDetail.btn_back': 'Quay lại',
         'adDetail.status_active': 'Đang hoạt động',
         'adDetail.status_inactive': 'Tạm khóa',
@@ -651,33 +704,54 @@ window.AdminUI.addTranslations({
         'adDetail.label_created_at': 'Ngày tạo',
         'adDetail.label_last_login': 'Lần đăng nhập cuối',
         'adDetail.never_login': 'Chưa đăng nhập',
-        'adDetail.label_profile_created': 'Profile tạo lúc',
+        'adDetail.label_profile_created': 'Hồ sơ tạo lúc',
         'adDetail.label_updated': 'Cập nhật cuối',
-        'adDetail.section_permissions': 'Quyền hạn theo vai trò',
-        'adDetail.perm_admin': 'Quản lý Admin',
-        'adDetail.perm_admin_desc': 'Tạo, sửa, xóa admin',
-        'adDetail.perm_users': 'Quản lý Users',
-        'adDetail.perm_users_desc': 'Xem, sửa thông tin users',
-        'adDetail.perm_watchlist': 'Quản lý Watchlist',
-        'adDetail.perm_watchlist_desc': 'Xem, sửa watchlist',
+        'adDetail.tfa_label': 'Xác thực 2FA',
+        'adDetail.tfa_on': 'Đang bật',
+        'adDetail.tfa_off': 'Chưa bật',
+        'adDetail.section_permissions': 'Quyền hạn thực tế',
+        'adDetail.has_overrides': 'Có tùy chỉnh riêng',
+        'rbac.col_module': 'Chức năng',
+        'rbac.act_view': 'Xem',
+        'rbac.act_edit': 'Sửa',
+        'rbac.act_delete': 'Xóa',
+        'rbac.act_export': 'Xuất',
+        'rbac.custom_badge': 'Tùy chỉnh',
+        'adDetail.perm_admin': 'Quản lý Quản trị viên',
+        'adDetail.perm_admin_desc': 'Tạo, sửa, xóa quản trị viên',
+        'adDetail.perm_users': 'Quản lý Người dùng',
+        'adDetail.perm_users_desc': 'Xem, sửa thông tin người dùng',
+        'adDetail.perm_watchlist': 'Quản lý Danh sách yêu thích',
+        'adDetail.perm_watchlist_desc': 'Xem, sửa danh sách yêu thích',
         'adDetail.perm_delete_data': 'Xóa dữ liệu',
-        'adDetail.perm_delete_data_desc': 'Xóa users và watchlist',
+        'adDetail.perm_delete_data_desc': 'Xóa người dùng và danh sách yêu thích',
         'adDetail.perm_stats': 'Xem thống kê',
-        'adDetail.perm_stats_desc': 'Dashboard và báo cáo',
+        'adDetail.perm_stats_desc': 'Bảng điều khiển và báo cáo',
         'adDetail.section_actions': 'Thao tác',
-        'adDetail.btn_edit': 'Chỉnh sửa Admin',
-        'adDetail.btn_delete': 'Xóa Admin',
+        'adDetail.btn_edit': 'Chỉnh sửa Quản trị viên',
+        'adDetail.btn_reset_2fa': 'Đặt lại 2FA',
+        'adDetail.reset2fa_title': 'Đặt lại xác thực 2FA',
+        'adDetail.reset2fa_body': 'Bạn có chắc muốn tắt và đặt lại 2FA cho quản trị viên "{username}"?',
+        'adDetail.btn_delete': 'Xóa Quản trị viên',
         'adDetail.btn_cannot_delete_self': 'Không thể xóa chính mình',
         'adDetail.btn_back_list': 'Quay lại danh sách',
         'adDetail.section_stats': 'Thống kê nhanh',
         'adDetail.never_logged_in': 'Chưa bao giờ',
         'adDetail.stat_last_login': 'Đăng nhập lần cuối',
         'adDetail.stat_member_since': 'Thành viên từ',
-        'adDetail.stat_staff_status': 'Staff Status'
+        'adDetail.stat_staff_status': 'Trạng thái nhân viên'
     }
 });
 </script>
 <script>
+function confirmReset2FA(username) {
+    const t = window.AdminUI.t;
+    confirmAction(
+        t('adDetail.reset2fa_title') || 'Đặt lại xác thực 2FA',
+        (t('adDetail.reset2fa_body', {username}) || `Bạn có chắc muốn tắt và đặt lại 2FA cho "${username}"?`),
+        () => document.getElementById('reset2faForm')?.submit()
+    );
+}
 // Delete admin function
 function deleteAdmin(adminId, username) {
     const t = window.AdminUI.t;
