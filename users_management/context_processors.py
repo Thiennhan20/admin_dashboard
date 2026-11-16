@@ -10,6 +10,7 @@ def _fetch_sidebar_counts():
     sidebar_counts = {
         'users': 0,
         'comments': 0,
+        'reports': 0,
         'watch_progress': 0,
         'stream_history': 0,
         'rooms': 0,
@@ -46,8 +47,10 @@ def _fetch_sidebar_counts():
         tasks.update({
             'notif_users': safe(lambda: db.users.count_documents({'createdAt': {'$gte': cutoff}}), 0),
             'notif_comments': safe(lambda: db.comments.count_documents({'createdAt': {'$gte': cutoff}}), 0),
+            'notif_reports': safe(lambda: db.userreports.count_documents({'status': 'pending'}), 0),
             'users': safe(lambda: db.users.estimated_document_count(), 0),
             'comments': safe(lambda: db.comments.estimated_document_count(), 0),
+            'reports': safe(lambda: db.userreports.count_documents({'status': {'$in': ['pending', 'reviewing']}}), 0),
             'watch_progress': safe(lambda: db.watchprogresses.estimated_document_count(), 0),
             'stream_history': safe(lambda: db.streamhistories.estimated_document_count(), 0),
             'game_profiles': safe(lambda: db.gameprofiles.estimated_document_count(), 0),
@@ -57,7 +60,7 @@ def _fetch_sidebar_counts():
         })
 
     results = parallel_run(tasks, max_workers=6)
-    notif_count = results.get('notif_users', 0) + results.get('notif_comments', 0)
+    notif_count = results.get('notif_users', 0) + results.get('notif_comments', 0) + results.get('notif_reports', 0)
     for k in sidebar_counts:
         sidebar_counts[k] = results.get(k, 0)
 

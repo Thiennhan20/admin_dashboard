@@ -1,6 +1,8 @@
 """Comprehensive unit and integration tests for Admin Panel security, RBAC, 2FA, Push Devices, Sessions, Backup/Restore, and Scheduled Tasks."""
 from copy import deepcopy
 from datetime import datetime, timedelta
+import hashlib
+import hmac
 import io
 import json
 from pathlib import Path
@@ -24,13 +26,16 @@ from users_management.models import (
     AdminProfile,
     AuditLog,
     BackupLog,
+    ErrorLog,
     ScheduledTask,
     TaskRunLog,
     WebhookEndpoint,
+    WebhookLog,
 )
 from users_management.rate_limit import (
     check_rate_limit,
     clear_failures,
+    consume_action_rate_limit,
     record_failure,
     reset_memory_rate_limits,
 )
@@ -50,6 +55,7 @@ from users_management.views.backup import (
 )
 from users_management.views.push_devices import send_expo_push_batch
 from users_management.views.scheduled_tasks import run_due_scheduled_tasks
+from users_management.webhook_dispatcher import dispatch_webhook_event
 
 
 def _match_query(doc, query):
@@ -61,14 +67,27 @@ def _match_query(doc, query):
             if not any(_match_query(doc, branch) for branch in expected):
                 return False
             continue
-        if key == 'pushTokens.0':
+        if key in ('pushTokens.0', 'watchlist.0'):
+            field_name = key.split('.', 1)[0]
             exists_want = bool((expected or {}).get('$exists', False))
-            has_elem = isinstance(doc.get('pushTokens'), list) and len(doc['pushTokens']) > 0
+            has_elem = isinstance(doc.get(field_name), list) and len(doc[field_name]) > 0
             if exists_want != has_elem:
                 return False
             continue
 
-        val = doc.get(key)
+        if key in doc:
+            val = doc.get(key)
+        elif '.' in key:
+            cur = doc
+            for part in key.split('.'):
+                if isinstance(cur, dict) and part in cur:
+                    cur = cur[part]
+                else:
+                    cur = None
+                    break
+            val = cur
+        else:
+            val = None
         if isinstance(expected, dict):
             if '$in' in expected:
                 hay = val if isinstance(val, list) else [val]
@@ -80,6 +99,9 @@ def _match_query(doc, query):
             if '$lt' in expected:
                 if not (val is not None and val < expected['$lt']):
                     return False
+            if '$lte' in expected:
+                if not (val is not None and val <= expected['$lte']):
+                    return False
             if '$gte' in expected:
                 if not (val is not None and val >= expected['$gte']):
                     return False
@@ -89,6 +111,10 @@ def _match_query(doc, query):
             if '$exists' in expected:
                 exists = key in doc
                 if bool(expected['$exists']) != exists:
+                    return False
+            if '$regex' in expected:
+                flags = re.IGNORECASE if 'i' in str(expected.get('$options', '')) else 0
+                if val is None or not re.search(expected['$regex'], str(val), flags):
                     return False
         else:
             if isinstance(val, list) and not isinstance(expected, list):
@@ -164,10 +190,24 @@ class FakeCollection:
                     seen.append(val)
         return seen
 
+    def delete_one(self, query):
+        for idx, d in enumerate(self.docs):
+            if _match_query(d, query):
+                del self.docs[idx]
+                return SimpleNamespace(deleted_count=1)
+        return SimpleNamespace(deleted_count=0)
+
     def delete_many(self, query):
         before = len(self.docs)
         self.docs = [d for d in self.docs if not _match_query(d, query)]
         return SimpleNamespace(deleted_count=before - len(self.docs))
+
+    def insert_one(self, doc):
+        item = deepcopy(doc)
+        if '_id' not in item:
+            item['_id'] = ObjectId()
+        self.docs.append(item)
+        return SimpleNamespace(inserted_id=item['_id'])
 
     def insert_many(self, docs, ordered=False):
         ids = []
@@ -208,6 +248,10 @@ class FakeCollection:
                         if len(new_arr) != len(arr):
                             d[field] = new_arr
                             changed = True
+            if '$inc' in update:
+                for k, delta in update['$inc'].items():
+                    d[k] = (d.get(k) or 0) + delta
+                    changed = True
             if changed:
                 modified += 1
             if not multi:
@@ -258,12 +302,57 @@ class FakeCollection:
         )
 
     def aggregate(self, pipeline):
-        # Support pushTokens aggregations tested across views & context processor
+        # Support pushTokens, watchlist, and analytics aggregations tested across views
         has_facet = any('$facet' in st for st in pipeline)
         has_malformed_count = any('$count' in st and st['$count'] == 'malformed' for st in pipeline)
         has_malformed_group = any('$group' in st and 'tokens' in st['$group'] for st in pipeline)
         has_kpi_group = any('$group' in st and 'users_count' in st['$group'] for st in pipeline)
         has_sidebar_group = any('$group' in st and 'total' in st['$group'] for st in pipeline)
+
+        if any(st.get('$unwind') == '$watchlist' for st in pipeline):
+            wl_rows = []
+            for u in self.docs:
+                for item in (u.get('watchlist') or []):
+                    wl_rows.append({
+                        '_id': u['_id'],
+                        'name': u.get('name', ''),
+                        'email': u.get('email', ''),
+                        'watchlist': deepcopy(item),
+                    })
+            if has_facet:
+                counts_by_id = {}
+                type_counts = {}
+                for row in wl_rows:
+                    wl = row['watchlist'] or {}
+                    wid = wl.get('id')
+                    if wid is not None:
+                        bucket = counts_by_id.setdefault(wid, {'_id': wid, 'title': wl.get('title', ''), 'count': 0})
+                        bucket['count'] += 1
+                    wtype = wl.get('type') or 'unknown'
+                    type_counts[wtype] = type_counts.get(wtype, 0) + 1
+                top_wl = sorted(counts_by_id.values(), key=lambda x: x['count'], reverse=True)[:10]
+                types_list = [{'_id': k, 'count': v} for k, v in type_counts.items()]
+                return [{'top_watchlisted': top_wl, 'content_types': types_list}]
+            return wl_rows
+
+        if has_facet and any('heatmap' in (st.get('$facet') or {}) for st in pipeline):
+            by_hour = {}
+            per_day = {}
+            heatmap = {}
+            for doc in self.docs:
+                ts = doc.get('createdAt')
+                if isinstance(ts, datetime):
+                    by_hour[ts.hour] = by_hour.get(ts.hour, 0) + 1
+                    d_str = ts.strftime('%Y-%m-%d')
+                    per_day[d_str] = per_day.get(d_str, 0) + 1
+                    dow = ((ts.weekday() + 1) % 7) + 1
+                    hk = (dow, ts.hour)
+                    heatmap[hk] = heatmap.get(hk, 0) + 1
+            return [{
+                'by_hour': [{'_id': h, 'count': c} for h, c in sorted(by_hour.items())],
+                'per_day': [{'_id': d, 'count': c} for d, c in sorted(per_day.items())],
+                'heatmap': [{'_id': {'dow': d, 'hour': h}, 'count': c} for (d, h), c in heatmap.items()],
+            }]
 
         token_rows = []
         for u in self.docs:
@@ -1089,6 +1178,24 @@ class SingleLanguageI18nContractTests(BaseAdminTestCase):
             'streamhistories': [{'_id': ObjectId(), 'userId': uid, 'movieId': '101', 'title': 'Demo Film', 'mediaType': 'movie', 'links': [{'url': 'https://cdn.example/1.m3u8'}], 'createdAt': now}],
             'gameprofiles': [{'_id': ObjectId(), 'userId': uid, 'elo': 1200, 'wins': 5, 'losses': 2, 'updatedAt': now}],
             'gamehistories': [{'_id': ObjectId(), 'roomTitle': 'Match 1', 'winner': 'Alice', 'createdAt': now}],
+            'userreports': [{
+                '_id': ObjectId(),
+                'reporterId': ObjectId(),
+                'reporterName': 'Bob',
+                'targetType': 'comment',
+                'targetId': ObjectId(),
+                'reportedUserId': uid,
+                'reportedUserName': 'Alice',
+                'movieId': 101,
+                'contentType': 'movie',
+                'targetDetail': 'Reported text sample',
+                'reasonCategory': 'spam',
+                'details': 'Advertising link',
+                'reason': 'Spam / Advertising: Advertising link',
+                'status': 'pending',
+                'actionTaken': 'none',
+                'createdAt': now,
+            }],
         })
 
         ScheduledTask.objects.create(name='Nightly Backup', task_type='backup_db', interval_minutes=1440)
@@ -1147,5 +1254,637 @@ class SingleLanguageI18nContractTests(BaseAdminTestCase):
             wh_html = wh_resp.content.decode('utf-8')
             self.assertIn('class="flash-message-text"', wh_html)
             self.assertIn('Đã tạo Webhook thành công!', wh_html)
+
+
+class UserReportModerationTests(BaseAdminTestCase):
+    def _seed_mongo(self):
+        now = datetime.utcnow()
+        reporter_id = ObjectId()
+        reporter2_id = ObjectId()
+        author_id = ObjectId()
+        parent_comment_id = ObjectId()
+        reply_comment_id = ObjectId()
+        report1_id = ObjectId()
+        report2_id = ObjectId()
+        session_id = ObjectId()
+        notif_id = ObjectId()
+
+        return {
+            'ids': {
+                'reporter': reporter_id,
+                'reporter2': reporter2_id,
+                'author': author_id,
+                'parent': parent_comment_id,
+                'reply': reply_comment_id,
+                'report1': report1_id,
+                'report2': report2_id,
+            },
+            'db': FakeDatabase({
+                'users': [
+                    {'_id': author_id, 'name': 'ToxicAuthor', 'email': 'toxic@example.com', 'isBanned': False, 'createdAt': now},
+                    {'_id': reporter_id, 'name': 'ReporterOne', 'email': 'rep1@example.com', 'isBanned': False, 'createdAt': now},
+                ],
+                'sessions': [
+                    {'_id': session_id, 'userId': author_id, 'device': 'Chrome', 'createdAt': now, 'lastActive': now, 'expiresAt': now + timedelta(days=1)},
+                ],
+                'comments': [
+                    {
+                        '_id': parent_comment_id,
+                        'movieId': 550,
+                        'type': 'movie',
+                        'userId': reporter_id,
+                        'content': 'Root discussion comment',
+                        'replies': [reply_comment_id],
+                        'replyCount': 1,
+                        'isDeleted': False,
+                        'createdAt': now,
+                    },
+                    {
+                        '_id': reply_comment_id,
+                        'movieId': 550,
+                        'type': 'movie',
+                        'userId': author_id,
+                        'parentId': parent_comment_id,
+                        'content': 'Buy crypto now spam link',
+                        'isDeleted': False,
+                        'createdAt': now,
+                    },
+                ],
+                'notifications': [
+                    {
+                        '_id': notif_id,
+                        'recipient': reporter_id,
+                        'type': 'comment_replied',
+                        'metadata': {'commentId': reply_comment_id, 'parentCommentId': parent_comment_id},
+                        'createdAt': now,
+                    },
+                ],
+                'userreports': [
+                    {
+                        '_id': report1_id,
+                        'reporterId': reporter_id,
+                        'reporterName': 'ReporterOne',
+                        'targetType': 'comment',
+                        'targetId': reply_comment_id,
+                        'parentCommentId': parent_comment_id,
+                        'reportedUserId': author_id,
+                        'reportedUserName': 'ToxicAuthor',
+                        'movieId': 550,
+                        'contentType': 'movie',
+                        'targetDetail': 'Buy crypto now spam link',
+                        'commentSnapshot': {'content': 'Buy crypto now spam link', 'authorName': 'ToxicAuthor'},
+                        'reasonCategory': 'spam',
+                        'details': 'Crypto scam link',
+                        'reason': 'Spam / Advertising: Crypto scam link',
+                        'status': 'pending',
+                        'actionTaken': 'none',
+                        'createdAt': now,
+                    },
+                    {
+                        '_id': report2_id,
+                        'reporterId': reporter2_id,
+                        'reporterName': 'ReporterTwo',
+                        'targetType': 'comment',
+                        'targetId': reply_comment_id,
+                        'parentCommentId': parent_comment_id,
+                        'reportedUserId': author_id,
+                        'reportedUserName': 'ToxicAuthor',
+                        'movieId': 550,
+                        'contentType': 'movie',
+                        'targetDetail': 'Buy crypto now spam link',
+                        'commentSnapshot': {'content': 'Buy crypto now spam link', 'authorName': 'ToxicAuthor'},
+                        'reasonCategory': 'spam',
+                        'details': 'Spam comment',
+                        'reason': 'Spam / Advertising: Spam comment',
+                        'status': 'pending',
+                        'actionTaken': 'none',
+                        'createdAt': now,
+                    },
+                ],
+            }),
+        }
+
+    def test_reports_list_notifications_hide_restore_delete_and_ban(self):
+        seeded = self._seed_mongo()
+        fake_db = seeded['db']
+        ids = seeded['ids']
+
+        mod_user, _ = self._create_admin('mod1', role='moderator', permissions={
+            'reports.view': True,
+            'reports.edit': True,
+            'comments.edit': True,
+            'comments.delete': True,
+            'users.edit': True,
+        })
+        self.client.force_login(mod_user)
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            # 1. List renders MongoDB userreports + hydrated content + badge + notification bell
+            resp = self.client.get(reverse('admin_dashboard:reports'))
+            self.assertEqual(resp.status_code, 200)
+            html = resp.content.decode('utf-8')
+            self.assertIn('Buy crypto now spam link', html)
+            self.assertIn('ToxicAuthor', html)
+            self.assertIn('2 <span data-i18n="rep.reports_count">', html)
+
+            # Search filter works
+            search_resp = self.client.get(reverse('admin_dashboard:reports'), {'search': 'Crypto scam'})
+            self.assertEqual(search_resp.status_code, 200)
+            self.assertEqual(len(search_resp.context['reports']), 1)
+
+            # Admin notification bell includes pending reports
+            bell = self.client.get(reverse('admin_dashboard:api_admin_notifications')).json()
+            self.assertTrue(bell['success'])
+            self.assertEqual(bell['pending_reports'], 2)
+            self.assertTrue(any(ev['type'] == 'report' for ev in bell['events']))
+
+            # 2. Reviewing transitions status only
+            act_url = reverse('admin_dashboard:report_action', args=[str(ids['report1'])])
+            r_rev = self.client.post(act_url, {'action': 'reviewing'})
+            self.assertEqual(r_rev.status_code, 302)
+            self.assertEqual(fake_db.userreports.find_one({'_id': ids['report1']})['status'], 'reviewing')
+
+            # 3. Hide comment resolves report + sibling report and updates parent replyCount
+            r_hide = self.client.post(act_url, {
+                'action': 'hide_comment',
+                'note': 'Hidden due to spam',
+                'apply_siblings': '1',
+            })
+            self.assertEqual(r_hide.status_code, 302)
+            self.assertTrue(fake_db.comments.find_one({'_id': ids['reply']})['isDeleted'])
+            self.assertEqual(fake_db.comments.find_one({'_id': ids['parent']})['replyCount'], 0)
+            self.assertEqual(fake_db.userreports.find_one({'_id': ids['report1']})['status'], 'resolved')
+            self.assertEqual(fake_db.userreports.find_one({'_id': ids['report2']})['status'], 'resolved')
+            self.assertEqual(fake_db.userreports.find_one({'_id': ids['report1']})['actionTaken'], 'comment_hidden')
+
+            # 4. Restore comment brings replyCount back to 1
+            r_rest = self.client.post(act_url, {'action': 'restore_comment'})
+            self.assertEqual(r_rest.status_code, 302)
+            self.assertFalse(fake_db.comments.find_one({'_id': ids['reply']})['isDeleted'])
+            self.assertEqual(fake_db.comments.find_one({'_id': ids['parent']})['replyCount'], 1)
+
+            # 5. Ban author hides comment, bans user, and revokes sessions
+            r_ban = self.client.post(act_url, {
+                'action': 'ban_author',
+                'ban_reason': 'Spam bot',
+                'hide_comment': '1',
+            })
+            self.assertEqual(r_ban.status_code, 302)
+            self.assertTrue(fake_db.users.find_one({'_id': ids['author']})['isBanned'])
+            self.assertEqual(fake_db.sessions.count_documents({'userId': ids['author']}), 0)
+            self.assertTrue(fake_db.comments.find_one({'_id': ids['reply']})['isDeleted'])
+
+            # 6. Delete comment removes comment & related notification and decrements parent replyCount
+            r_del = self.client.post(act_url, {'action': 'delete_comment'})
+            self.assertEqual(r_del.status_code, 302)
+            self.assertIsNone(fake_db.comments.find_one({'_id': ids['reply']}))
+            self.assertEqual(fake_db.comments.find_one({'_id': ids['parent']})['replyCount'], 0)
+            self.assertEqual(fake_db.notifications.count_documents({}), 0)
+
+    def test_report_action_permission_guards(self):
+        seeded = self._seed_mongo()
+        fake_db = seeded['db']
+        ids = seeded['ids']
+
+        limited_mod, _ = self._create_admin('mod_limited', role='moderator', permissions={
+            'reports.view': True,
+            'reports.edit': True,
+            'comments.edit': False,
+            'comments.delete': False,
+            'users.edit': False,
+        })
+        self.client.force_login(limited_mod)
+        act_url = reverse('admin_dashboard:report_action', args=[str(ids['report1'])])
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            self.assertEqual(self.client.post(act_url, {'action': 'hide_comment'}).status_code, 403)
+            self.assertEqual(self.client.post(act_url, {'action': 'delete_comment'}).status_code, 403)
+            self.assertEqual(self.client.post(act_url, {'action': 'ban_author'}).status_code, 403)
+            # Basic dismiss still allowed with reports.edit
+            self.assertEqual(self.client.post(act_url, {'action': 'dismissed'}).status_code, 302)
+
+
+class GroupAAndCFeatureTests(BaseAdminTestCase):
+    """Coverage for Nhóm A (UX/safety/exports/avatars) & Nhóm C (Email/Webhooks/RateLimit/2FA/Monitoring/Analytics/Logs)."""
+
+    def test_a1_watchlist_export_csv_excel_pdf_and_perm_guard(self):
+        now = datetime.utcnow()
+        uid = ObjectId()
+        fake_db = FakeDatabase({
+            'users': [{
+                '_id': uid,
+                'name': 'Watch User',
+                'email': 'watch@example.com',
+                'watchlist': [
+                    {'id': 550, 'title': 'Fight Club', 'type': 'movie', 'poster_path': '/fc.jpg'},
+                    {'id': 1396, 'title': 'Breaking Bad', 'type': 'tv', 'poster_path': '/bb.jpg'},
+                ],
+                'createdAt': now,
+            }],
+        })
+
+        viewer, _ = self._create_admin('wl_viewer', role='viewer')
+        super_admin, _ = self._create_admin('wl_super', role='super_admin', is_superuser=True)
+        url = reverse('admin_dashboard:api_export', args=['watchlist'])
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            self.client.force_login(viewer)
+            self.assertEqual(self.client.get(url).status_code, 403)
+
+            self.client.force_login(super_admin)
+            r_csv = self.client.get(f'{url}?format=csv')
+            self.assertEqual(r_csv.status_code, 200)
+            csv_body = b''.join(r_csv.streaming_content).decode('utf-8-sig')
+            self.assertIn('Watch User', csv_body)
+            self.assertIn('Fight Club', csv_body)
+            self.assertIn('Breaking Bad', csv_body)
+
+            r_xls = self.client.get(f'{url}?format=excel')
+            self.assertEqual(r_xls.status_code, 200)
+            self.assertIn('Fight Club', r_xls.content.decode('utf-8'))
+
+            r_pdf = self.client.get(f'{url}?format=pdf')
+            self.assertEqual(r_pdf.status_code, 200)
+            self.assertIn('Breaking Bad', r_pdf.content.decode('utf-8'))
+
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    def test_a2_bulk_comments_and_notifications_plus_ui(self, _mock_rooms):
+        now = datetime.utcnow()
+        uid = ObjectId()
+        cid1, cid2 = ObjectId(), ObjectId()
+        nid1, nid2 = ObjectId(), ObjectId()
+        fake_db = FakeDatabase({
+            'users': [{'_id': uid, 'name': 'Alice', 'email': 'a@example.com', 'createdAt': now}],
+            'comments': [
+                {'_id': cid1, 'userId': uid, 'movieId': '10', 'type': 'movie', 'content': 'Spam 1', 'isDeleted': False, 'createdAt': now},
+                {'_id': cid2, 'userId': uid, 'movieId': '10', 'type': 'movie', 'content': 'Spam 2', 'isDeleted': False, 'createdAt': now},
+            ],
+            'notifications': [
+                {'_id': nid1, 'recipient': uid, 'type': 'system_broadcast', 'read': False, 'createdAt': now},
+                {'_id': nid2, 'recipient': uid, 'type': 'system_broadcast', 'read': False, 'createdAt': now},
+            ],
+        })
+        super_admin, _ = self._create_admin('bulk_super', role='super_admin', is_superuser=True)
+        self.client.force_login(super_admin)
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            cm_html = self.client.get(reverse('admin_dashboard:comments')).content.decode('utf-8')
+            self.assertIn('commentsBulkBar', cm_html)
+            self.assertIn('comment-checkbox', cm_html)
+
+            nf_html = self.client.get(reverse('admin_dashboard:notifications')).content.decode('utf-8')
+            self.assertIn('notifBulkBar', nf_html)
+            self.assertIn('noti-checkbox', nf_html)
+
+            bulk_url = reverse('admin_dashboard:api_bulk_action')
+            r_hide = self.client.post(
+                bulk_url,
+                data=json.dumps({'collection': 'comments', 'action': 'hide', 'ids': [str(cid1), str(cid2)]}),
+                content_type='application/json',
+            )
+            self.assertEqual(r_hide.status_code, 200)
+            self.assertEqual(r_hide.json()['count'], 2)
+            self.assertTrue(fake_db.comments.find_one({'_id': cid1})['isDeleted'])
+
+            r_read = self.client.post(
+                bulk_url,
+                data=json.dumps({'collection': 'notifications', 'action': 'read', 'ids': [str(nid1)]}),
+                content_type='application/json',
+            )
+            self.assertEqual(r_read.status_code, 200)
+            self.assertTrue(r_read.json()['success'])
+            self.assertTrue(fake_db.notifications.find_one({'_id': nid1})['read'])
+            self.assertFalse(fake_db.notifications.find_one({'_id': nid2})['read'])
+
+            r_del = self.client.post(
+                bulk_url,
+                data=json.dumps({'collection': 'comments', 'action': 'delete', 'ids': [str(cid2)]}),
+                content_type='application/json',
+            )
+            self.assertEqual(r_del.status_code, 200)
+            self.assertIsNone(fake_db.comments.find_one({'_id': cid2}))
+
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    @patch('users_management.views_legacy._upstash_rooms', return_value=1)
+    def test_a3_audit_logs_on_room_close_and_media_delete_plus_ui_guards(self, _mock_rooms_redis, _mock_rooms):
+        now = datetime.utcnow()
+        uid = ObjectId()
+        fake_db = FakeDatabase({
+            'users': [{'_id': uid, 'name': 'UserA', 'email': 'ua@example.com', 'watchlist': [{'id': 550, 'title': 'Movie 550', 'type': 'movie'}], 'createdAt': now}],
+            'watchprogresses': [{'_id': ObjectId(), 'userId': uid, 'contentId': '550', 'isTVShow': False}],
+            'comments': [{'_id': ObjectId(), 'userId': uid, 'movieId': 550, 'type': 'movie', 'content': 'c'}],
+            'streamhistories': [],
+        })
+        super_admin, _ = self._create_admin('a3_super', role='super_admin', is_superuser=True)
+        self.client.force_login(super_admin)
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            r_room = self.client.post(reverse('admin_dashboard:rooms'), {'action': 'delete', 'room_id': 'ROOM-XYZ1'})
+            self.assertEqual(r_room.status_code, 302)
+            self.assertTrue(AuditLog.objects.filter(action='close_room', target_id='ROOM-XYZ1').exists())
+
+            r_movie = self.client.post(reverse('admin_dashboard:movies'), {'action': 'delete_media', 'media_id': '550', 'is_tv': 'false'})
+            self.assertEqual(r_movie.status_code, 302)
+            self.assertTrue(AuditLog.objects.filter(action='delete_movie', target_id='550').exists())
+
+            cache_html = self.client.get(reverse('admin_dashboard:cache')).content.decode('utf-8')
+            self.assertIn("requireText: 'FLUSH'", cache_html)
+            users_html = self.client.get(reverse('admin_dashboard:users_list')).content.decode('utf-8')
+            self.assertIn("requireText: 'DELETE'", users_html)
+
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    def test_a4_admin_avatar_update_validation_and_clear(self, _mock_rooms):
+        super_admin, profile = self._create_admin('avatar_admin', role='super_admin', is_superuser=True)
+        self.client.force_login(super_admin)
+        prof_url = reverse('admin_dashboard:admin_profile')
+
+        # Reject javascript: scheme
+        self.client.post(prof_url, {'action': 'update_profile', 'avatar': 'javascript:alert(1)'})
+        profile.refresh_from_db()
+        self.assertEqual(profile.avatar, '')
+
+        # Reject oversized payload
+        oversized = 'data:image/png;base64,' + ('A' * 400050)
+        self.client.post(prof_url, {'action': 'update_profile', 'avatar': oversized})
+        profile.refresh_from_db()
+        self.assertEqual(profile.avatar, '')
+
+        # Accept valid HTTPS avatar URL & render in topbar
+        valid_url = 'https://cdn.example.com/avatar.png'
+        r_ok = self.client.post(prof_url, {'action': 'update_profile', 'avatar': valid_url, 'email': 'avatar@example.com'}, follow=True)
+        profile.refresh_from_db()
+        self.assertEqual(profile.avatar, valid_url)
+        self.assertIn(f'<img src="{valid_url}"', r_ok.content.decode('utf-8'))
+
+        # Clear avatar
+        self.client.post(prof_url, {'action': 'update_profile', 'avatar': ''})
+        profile.refresh_from_db()
+        self.assertEqual(profile.avatar, '')
+
+    @override_settings(
+        EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+        EMAIL_HOST='smtp.example.com',
+        DEFAULT_FROM_EMAIL='noreply@example.com',
+        ADMIN_REPORT_EMAIL='ops@example.com',
+    )
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    def test_c1_weekly_report_smtp_delivery_and_email_template_ui(self, _mock_rooms):
+        from django.core import mail
+        from users_management.views.scheduled_tasks import _run_weekly_report
+
+        now = datetime.utcnow()
+        fake_db = FakeDatabase({
+            'users': [{'_id': ObjectId(), 'name': 'U1', 'email': 'u1@example.com', 'createdAt': now}],
+            'comments': [],
+            'streamhistories': [],
+            'sessions': [],
+        })
+        super_admin, _ = self._create_admin('email_super', role='super_admin', is_superuser=True)
+        self.client.force_login(super_admin)
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            mail.outbox.clear()
+            msg = _run_weekly_report()
+            self.assertIn('email_sent=1', msg)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(mail.outbox[0].to, ['ops@example.com'])
+            self.assertIn('Weekly Operations Report', mail.outbox[0].body)
+
+            email_page = self.client.get(reverse('admin_dashboard:email')).content.decode('utf-8')
+            self.assertIn('emailTemplateSelect', email_page)
+            self.assertIn('smtp.example.com', email_page)
+
+            mail.outbox.clear()
+            self.client.post(reverse('admin_dashboard:email'), {
+                'action': 'send',
+                'recipient_type': 'single',
+                'recipient_email': 'member@example.com',
+                'subject': 'Hello',
+                'body': 'Notice text',
+            })
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(mail.outbox[0].to, ['member@example.com'])
+
+    @patch('users_management.webhook_dispatcher.requests.post')
+    @patch('users_management.services.socket.getaddrinfo', return_value=[(2, 1, 6, '', ('93.184.216.34', 443))])
+    def test_c2_webhook_dispatcher_hmac_slack_discord_and_ssrf_block(self, _mock_dns, mock_post):
+        mock_post.return_value = MagicMock(status_code=200, text='ok')
+        admin_user, _ = self._create_admin('wh_admin', role='super_admin', is_superuser=True)
+
+        ep_std = WebhookEndpoint.objects.create(
+            name='Standard HMAC',
+            url='https://hooks.example.com/events',
+            events=['user.banned'],
+            secret='super-secret-key',
+            is_active=True,
+            created_by=admin_user,
+        )
+        ep_slack = WebhookEndpoint.objects.create(
+            name='Slack Hook',
+            url='https://hooks.slack.com/services/T0/B0/XX',
+            events=['user.banned'],
+            is_active=True,
+            created_by=admin_user,
+        )
+        ep_discord = WebhookEndpoint.objects.create(
+            name='Discord Hook',
+            url='https://discord.com/api/webhooks/12345/abcdef',
+            events=['user.banned'],
+            is_active=True,
+            created_by=admin_user,
+        )
+        ep_ssrf = WebhookEndpoint.objects.create(
+            name='Localhost SSRF',
+            url='http://127.0.0.1:8080/internal',
+            events=['user.banned'],
+            is_active=True,
+            created_by=admin_user,
+        )
+
+        delivered = dispatch_webhook_event('user.banned', {'user_id': 'u99', 'reason': 'spam'}, sync=True)
+        self.assertEqual(delivered, 4)
+        self.assertEqual(mock_post.call_count, 3)  # SSRF blocked before HTTP call
+
+        # Verify HMAC signature on standard webhook log
+        log_std = WebhookLog.objects.get(endpoint=ep_std)
+        self.assertEqual(log_std.response_status, 200)
+        std_call = [c for c in mock_post.call_args_list if c.args[0] == ep_std.url][0]
+        sig_header = std_call.kwargs['headers'].get('X-Webhook-Signature')
+        expected_encoded = json.dumps(std_call.kwargs['json'], separators=(',', ':'), default=str).encode('utf-8')
+        expected_sig = hmac.new(b'super-secret-key', expected_encoded, hashlib.sha256).hexdigest()
+        self.assertEqual(sig_header, expected_sig)
+
+        # Verify Slack & Discord formatting
+        slack_call = [c for c in mock_post.call_args_list if 'hooks.slack.com' in c.args[0]][0]
+        self.assertIn('text', slack_call.kwargs['json'])
+        discord_call = [c for c in mock_post.call_args_list if 'discord.com' in c.args[0]][0]
+        self.assertIn('content', discord_call.kwargs['json'])
+
+        # Verify SSRF log error without outbound call
+        log_ssrf = WebhookLog.objects.get(endpoint=ep_ssrf)
+        self.assertEqual(log_ssrf.response_status, 0)
+        self.assertIn('Blocked unsafe URL', log_ssrf.response_body)
+
+        # Verify UI blocks creating SSRF webhook
+        self.client.force_login(admin_user)
+        self.client.post(reverse('admin_dashboard:webhooks'), {
+            'action': 'create',
+            'name': 'Bad Metadata Hook',
+            'url': 'http://169.254.169.254/latest/meta-data/',
+            'is_active': 'on',
+        })
+        self.assertFalse(WebhookEndpoint.objects.filter(name='Bad Metadata Hook').exists())
+
+    @override_settings(
+        ENFORCE_SUPERADMIN_2FA=True,
+        ADMIN_RATE_LIMITS={'admin_sensitive': {'ip_max': 2, 'account_max': 2, 'window_seconds': 60}},
+    )
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    def test_c3_sensitive_action_rate_limit_and_superadmin_2fa_enforcement(self, _mock_rooms):
+        now = datetime.utcnow()
+        cid = ObjectId()
+        fake_db = FakeDatabase({
+            'comments': [{'_id': cid, 'content': 'hi', 'isDeleted': False, 'createdAt': now}],
+        })
+        super_admin, profile = self._create_admin('c3_super', role='super_admin', is_superuser=True, password='SuperPass!2026')
+
+        # 1. Interactive login without 2FA triggers mandatory 2FA fence
+        r_login = self.client.post(reverse('admin_dashboard:login'), {
+            'username': 'c3_super',
+            'password': 'SuperPass!2026',
+        })
+        self.assertRedirects(r_login, reverse('admin_dashboard:admin_profile'), fetch_redirect_response=False)
+        self.assertTrue(self.client.session.get('_require_2fa_setup'))
+
+        # Accessing dashboard or JSON APIs while fence is active is blocked
+        r_dash = self.client.get(reverse('admin_dashboard:system_settings'))
+        self.assertRedirects(r_dash, reverse('admin_dashboard:admin_profile'), fetch_redirect_response=False)
+        r_api = self.client.post(
+            reverse('admin_dashboard:api_bulk_action'),
+            data=json.dumps({'collection': 'comments', 'action': 'hide', 'ids': [str(cid)]}),
+            content_type='application/json',
+        )
+        self.assertEqual(r_api.status_code, 403)
+
+        # 2. Complete 2FA setup clears fence & unlocks dashboard
+        self.client.post(reverse('admin_dashboard:profile_2fa_setup'))
+        secret = self.client.session['_2fa_setup_secret']
+        r_enable = self.client.post(reverse('admin_dashboard:profile_2fa_enable'), {'otp_code': get_totp_code(secret)})
+        self.assertRedirects(r_enable, reverse('admin_dashboard:admin_profile'), fetch_redirect_response=False)
+        self.assertFalse(self.client.session.get('_require_2fa_setup', False))
+        profile.refresh_from_db()
+        self.assertTrue(profile.totp_enabled)
+
+        # 3. Super Admin cannot disable 2FA
+        self.client.post(reverse('admin_dashboard:profile_2fa_disable'), {'current_password': 'SuperPass!2026'})
+        profile.refresh_from_db()
+        self.assertTrue(profile.totp_enabled)
+
+        # 4. Sensitive mutation rate limit returns 429 on 3rd attempt
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db):
+            bulk_url = reverse('admin_dashboard:api_bulk_action')
+            payload = json.dumps({'collection': 'comments', 'action': 'hide', 'ids': [str(cid)]})
+            self.assertEqual(self.client.post(bulk_url, data=payload, content_type='application/json').status_code, 200)
+            self.assertEqual(self.client.post(bulk_url, data=payload, content_type='application/json').status_code, 200)
+            r_429 = self.client.post(bulk_url, data=payload, content_type='application/json')
+            self.assertEqual(r_429.status_code, 429)
+
+    @patch('users_management.services.public_rooms', return_value=([], None))
+    @patch('users_management.views.monitoring._check_nodejs_health', return_value={'status': 'online', 'response_ms': 12})
+    @patch('users_management.views.monitoring._check_redis_cache_health', return_value={'status': 'online', 'response_ms': 5})
+    @patch('users_management.views.monitoring._check_redis_rooms_health', return_value={'status': 'online', 'response_ms': 6})
+    @patch('users_management.views.monitoring._check_postgresql_health', return_value={'status': 'online', 'response_ms': 2})
+    def test_c4_temp_ban_monitoring_analytics_logs_and_bell(self, _pg, _rr, _rc, _nj, _mock_rooms):
+        from users_management.views.scheduled_tasks import _run_cleanup_tokens
+
+        now = datetime.utcnow()
+        uid = ObjectId()
+        other_uid = ObjectId()
+        fake_db = FakeDatabase({
+            'users': [{
+                '_id': uid, 'name': 'MetricUser', 'email': 'metric@example.com',
+                'isBanned': False, 'isEmailVerified': True, 'authType': 'email',
+                'watchlist': [{'id': 1, 'title': 'Demo', 'type': 'movie'}],
+                'createdAt': now,
+            }],
+            'sessions': [
+                {'_id': ObjectId(), 'userId': uid, 'device': 'Chrome', 'lastActive': now, 'expiresAt': now + timedelta(days=1)},
+                {'_id': ObjectId(), 'userId': other_uid, 'device': 'Safari', 'lastActive': now, 'expiresAt': now + timedelta(days=1)},
+            ],
+            'comments': [{'_id': ObjectId(), 'userId': uid, 'movieId': '1', 'type': 'movie', 'content': 'nice', 'createdAt': now}],
+            'watchprogresses': [{'_id': ObjectId(), 'userId': uid, 'contentId': '1', 'lastWatched': now}],
+            'notifications': [],
+            'streamhistories': [],
+            'userreports': [],
+            'passwordresettokens': [],
+        })
+        super_admin, _ = self._create_admin('c4_super', role='super_admin', is_superuser=True)
+        self.client.force_login(super_admin)
+
+        with patch.object(mongo_admin, 'uri', 'mongodb://fake'), patch.object(mongo_admin, 'db', return_value=fake_db), patch.object(mongo_admin, 'ping', return_value={'ok': 1}):
+            # 1. Temp ban (24h) + expiration cleanup
+            r_ban = self.client.post(
+                reverse('admin_dashboard:api_user_ban'),
+                data=json.dumps({'user_id': str(uid), 'action': 'ban', 'reason': 'Temp cooldown', 'duration_hours': 24}),
+                content_type='application/json',
+            )
+            self.assertEqual(r_ban.status_code, 200)
+            self.assertIsNotNone(r_ban.json()['banExpiresAt'])
+            user_doc = fake_db.users.find_one({'_id': uid})
+            self.assertTrue(user_doc['isBanned'])
+            self.assertIsNotNone(user_doc['banExpiresAt'])
+            self.assertEqual(fake_db.sessions.count_documents({'userId': uid}), 0)
+
+            # Move expiry into the past and verify cleanup unbans user
+            fake_db.users.update_one({'_id': uid}, {'$set': {'banExpiresAt': now - timedelta(minutes=5)}})
+            cleanup_msg = _run_cleanup_tokens()
+            self.assertIn('auto-unbanned 1', cleanup_msg)
+            self.assertFalse(fake_db.users.find_one({'_id': uid})['isBanned'])
+
+            # 2. Monitoring health check persists snapshot in admin_health_logs
+            r_health = self.client.get(reverse('admin_dashboard:api_health_check'))
+            self.assertEqual(r_health.status_code, 200)
+            h_payload = r_health.json()
+            self.assertTrue(h_payload['success'])
+            self.assertEqual(len(h_payload['history']), 1)
+            self.assertEqual(fake_db.admin_health_logs.count_documents({}), 1)
+
+            # 3. Analytics returns KPIs (DAU/WAU/MAU/WoW) and 7x24 heatmap
+            r_an = self.client.get(reverse('admin_dashboard:api_analytics') + '?refresh=1')
+            self.assertEqual(r_an.status_code, 200)
+            an_payload = r_an.json()
+            self.assertTrue(an_payload['success'])
+            self.assertEqual(an_payload['kpis']['dau'], 2)
+            self.assertEqual(an_payload['kpis']['active_sessions'], 1)
+            self.assertEqual(len(an_payload['heatmap']), 7)
+            self.assertEqual(len(an_payload['heatmap'][0]), 24)
+            mon_idx = ((((now.weekday() + 1) % 7) + 1) - 2) % 7
+            self.assertGreaterEqual(an_payload['heatmap'][mon_idx][now.hour], 1)
+
+            # 4. Audit Logs & Error Logs date filtering + trend
+            AuditLog.objects.create(admin_user=super_admin, admin_username='alpha_admin', action='aa_first', target_type='test')
+            ErrorLog.objects.create(level='critical', message='Database timeout occurred', request_path='/dashboard/')
+            today_str = timezone.localtime(timezone.now()).strftime('%Y-%m-%d') if getattr(settings, 'USE_TZ', False) else datetime.now().strftime('%Y-%m-%d')
+            r_au = self.client.get(f"{reverse('admin_dashboard:audit_logs')}?date_from={today_str}&date_to={today_str}&sort=action")
+            self.assertEqual(r_au.status_code, 200)
+            self.assertIn('aa_first', r_au.content.decode('utf-8'))
+
+            r_err = self.client.get(f"{reverse('admin_dashboard:error_logs')}?date_from={today_str}&date_to={today_str}")
+            self.assertEqual(r_err.status_code, 200)
+            self.assertIn('7-Day Error Trend', r_err.content.decode('utf-8'))
+            self.assertIn('Database timeout', r_err.content.decode('utf-8'))
+
+            # 5. Notification Bell includes recent ErrorLog & live Watch Rooms
+            cache.clear()
+            with patch('users_management.services.public_rooms', return_value=([{'roomId': 'ROOM-1', 'movieTitle': 'Inception', 'createdAt': now}], None)):
+                r_bell = self.client.get(reverse('admin_dashboard:api_admin_notifications') + '?refresh=1')
+            self.assertEqual(r_bell.status_code, 200)
+            bell_payload = r_bell.json()
+            ev_types = {ev['type'] for ev in bell_payload['events']}
+            self.assertIn('error', ev_types)
+            self.assertIn('room', ev_types)
+            self.assertTrue(all('detail' in ev for ev in bell_payload['events']))
+
+
 
 

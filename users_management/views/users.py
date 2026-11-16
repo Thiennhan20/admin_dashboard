@@ -231,6 +231,17 @@ def user_detail(request, user_id):
             messages.error(request, 'Không tìm thấy người dùng!')
             return redirect('admin_dashboard:users_list')
 
+        # Auto-expire temporary ban if banExpiresAt has passed
+        ban_exp = raw_user.get('banExpiresAt')
+        if raw_user.get('isBanned') and isinstance(ban_exp, datetime) and ban_exp <= datetime.utcnow():
+            db.users.update_one(
+                {'_id': oid},
+                {'$set': {'isBanned': False, 'banReason': '', 'banExpiresAt': None, 'bannedAt': None, 'bannedBy': ''}},
+            )
+            raw_user['isBanned'] = False
+            raw_user['banReason'] = ''
+            raw_user['banExpiresAt'] = None
+
         created_dt = raw_user.get('createdAt')
         updated_dt = raw_user.get('updatedAt') or created_dt
         user = clean_value(raw_user)
@@ -387,6 +398,17 @@ def user_edit(request, user_id):
             messages.error(request, 'Không tìm thấy người dùng!')
             return redirect('admin_dashboard:users_list')
 
+        # Auto-expire temporary ban if banExpiresAt has passed
+        ban_exp = raw_user.get('banExpiresAt')
+        if raw_user.get('isBanned') and isinstance(ban_exp, datetime) and ban_exp <= datetime.utcnow():
+            db.users.update_one(
+                {'_id': oid},
+                {'$set': {'isBanned': False, 'banReason': '', 'banExpiresAt': None, 'bannedAt': None, 'bannedBy': ''}},
+            )
+            raw_user['isBanned'] = False
+            raw_user['banReason'] = ''
+            raw_user['banExpiresAt'] = None
+
         user = clean_value(raw_user)
         user['id'] = user.get('_id')
         user['is_email_verified'] = bool(raw_user.get('isEmailVerified'))
@@ -403,6 +425,12 @@ def user_edit(request, user_id):
 @require_permission('users.delete')
 def user_delete(request, user_id):
     """Xóa user trực tiếp trong MongoDB kèm toàn bộ dữ liệu liên kết (Cascade Delete)."""
+    from users_management.rate_limit import consume_action_rate_limit, format_retry_wait
+    from users_management.webhook_dispatcher import dispatch_webhook_event
+    allowed_rl, retry_after, _ = consume_action_rate_limit('admin_sensitive', request)
+    if not allowed_rl:
+        messages.error(request, f'Thao tác quá nhanh. Vui lòng thử lại sau {format_retry_wait(retry_after)}.')
+        return redirect('admin_dashboard:users_list')
     try:
         db = mongo_admin.db()
         oid = ObjectId(user_id)
@@ -425,6 +453,8 @@ def user_delete(request, user_id):
         result = db.users.delete_one({'_id': oid})
         invalidate_swr('admin_sidebar_counts', 'user_list_stats_v2', 'mongo_overview_cache', 'sessions_global_stats_v1')
         AuditLog.log(request, 'delete_user', 'user', user_id)
+        if result.deleted_count:
+            dispatch_webhook_event('user.deleted', {'user_id': user_id, 'admin': request.user.username})
         messages.success(request, f'Đã xóa người dùng và dọn sạch toàn bộ dữ liệu liên quan! ({result.deleted_count} bản ghi)')
     except Exception as e:
         messages.error(request, f'Lỗi: {e}')

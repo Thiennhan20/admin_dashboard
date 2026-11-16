@@ -35,6 +35,23 @@ def _get_or_create_profile(user):
     return profile
 
 
+def _is_valid_admin_avatar(value):
+    if not value:
+        return True
+    if len(value) > 400000:
+        return False
+    lower = value.lower()
+    if lower.startswith(('https://', 'http://')):
+        return True
+    return lower.startswith((
+        'data:image/png;base64,',
+        'data:image/jpeg;base64,',
+        'data:image/jpg;base64,',
+        'data:image/webp;base64,',
+        'data:image/gif;base64,',
+    ))
+
+
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
 def admin_profile(request):
@@ -45,14 +62,17 @@ def admin_profile(request):
         action = request.POST.get('action', '')
 
         if action == 'update_profile':
+            if 'avatar' in request.POST:
+                avatar = (request.POST.get('avatar') or '').strip()
+                if not _is_valid_admin_avatar(avatar):
+                    messages.error(request, 'Định dạng hoặc kích thước Avatar không hợp lệ!')
+                    return redirect('admin_dashboard:admin_profile')
+                profile.avatar = avatar
+                profile.save(update_fields=['avatar', 'updated_at'])
             request.user.first_name = request.POST.get('first_name', '')
             request.user.last_name = request.POST.get('last_name', '')
             request.user.email = request.POST.get('email', request.user.email)
             request.user.save()
-            avatar = request.POST.get('avatar', '')
-            if avatar:
-                profile.avatar = avatar
-                profile.save()
             AuditLog.log(request, 'update_profile', 'admin', str(request.user.id))
             messages.success(request, 'Đã cập nhật hồ sơ cá nhân thành công!')
             return redirect('admin_dashboard:admin_profile')
@@ -142,6 +162,7 @@ def enable_2fa(request):
     profile.save(update_fields=['totp_secret', 'totp_enabled', 'totp_backup_codes', 'updated_at'])
 
     request.session.pop(_2FA_SETUP_SESSION_KEY, None)
+    request.session.pop('_require_2fa_setup', None)
     request.session[_2FA_BACKUP_FLASH_KEY] = plain_codes
     request.session.modified = True
 
@@ -156,6 +177,9 @@ def enable_2fa(request):
 def disable_2fa(request):
     """Verify current password and disable 2FA TOTP on own account."""
     profile = _get_or_create_profile(request.user)
+    if request.user.is_superuser or profile.role == 'super_admin':
+        messages.error(request, 'Tài khoản Super Admin bắt buộc phải duy trì xác thực 2FA TOTP, không thể tắt!')
+        return redirect('admin_dashboard:admin_profile')
     current_password = request.POST.get('current_password') or ''
     if not request.user.check_password(current_password):
         messages.error(request, 'Mật khẩu hiện tại không đúng, không thể tắt 2FA!')

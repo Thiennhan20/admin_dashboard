@@ -189,6 +189,25 @@ UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_REST_CACHE_TOKEN', '')
 UPSTASH_REDIS_ROOMS_URL = os.environ.get('UPSTASH_REDIS_REST_URL', '')
 UPSTASH_REDIS_ROOMS_TOKEN = os.environ.get('UPSTASH_REDIS_REST_TOKEN', '')
 
+# Outbound SMTP Email configuration (activates automatically when EMAIL_HOST is set)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '').strip()
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587') or 587)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10') or 10)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@entn.local').strip()
+ADMIN_REPORT_EMAIL = os.environ.get('ADMIN_REPORT_EMAIL', '').strip()
+EMAIL_BACKEND = (
+    os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+    if EMAIL_HOST
+    else os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.locmem.EmailBackend')
+)
+
+# Optional Super Admin mandatory 2FA enforcement on interactive login
+ENFORCE_SUPERADMIN_2FA = env_bool('ENFORCE_SUPERADMIN_2FA', True)
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

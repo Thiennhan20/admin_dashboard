@@ -139,6 +139,18 @@
                     <h6 class="mb-0">
                         <i class="fas fa-history me-2"></i><span data-i18n="notif.historyTitle">Notification Dispatch History</span> ({{ total }})
                     </h6>
+                    <div class="d-none align-items-center gap-2 flex-wrap" id="notifBulkBar">
+                        <span class="small text-muted"><strong id="notifSelectedCount">0</strong> <span data-i18n="notif.selected">selected</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="bulkNotifAction('read')">
+                            <i class="fas fa-envelope-open me-1"></i><span data-i18n="notif.bulkRead">Mark Read</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="bulkNotifAction('unread')">
+                            <i class="fas fa-envelope me-1"></i><span data-i18n="notif.bulkUnread">Mark Unread</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="bulkNotifAction('delete')">
+                            <i class="fas fa-trash-alt me-1"></i><span data-i18n="notif.bulkDelete">Delete Selected</span>
+                        </button>
+                    </div>
                 </div>
                 <form method="GET" class="filter-stack filter-stack--compact">
                     <div class="filter-search-row">
@@ -189,6 +201,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
+                                    <th style="width:40px;"><input type="checkbox" class="form-check-input" id="selectAllNotifs"></th>
                                     <th data-i18n="notif.colRecipient">Recipient</th>
                                     <th data-i18n="notif.colDetails">Details</th>
                                     <th data-i18n="notif.colStatus">Status</th>
@@ -199,6 +212,7 @@
                             <tbody>
                                 {% for noti in notifications %}
                                 <tr id="noti-row-{{ noti.id }}">
+                                    <td><input type="checkbox" class="form-check-input noti-checkbox" value="{{ noti.id }}"></td>
                                     <td>
                                         <div class="fw-semibold">
                                             {% if noti.recipient_id_str %}
@@ -337,7 +351,16 @@
             'notif.expoPushOpt': 'Also send Mobile Push (Expo)',
             'notif.filterSearchPlaceholder': 'Search message, email, or name...',
             'notif.allTypes': 'All Types',
-            'notif.allStatus': 'All Statuses'
+            'notif.allStatus': 'All Statuses',
+            'notif.selected': 'selected',
+            'notif.bulkRead': 'Mark Read',
+            'notif.bulkUnread': 'Mark Unread',
+            'notif.bulkDelete': 'Delete Selected',
+            'notif.confirmBulkTitle': 'Bulk Notification Action',
+            'notif.confirmBulkRead': 'Mark {count} selected notifications as read?',
+            'notif.confirmBulkUnread': 'Mark {count} selected notifications as unread?',
+            'notif.confirmBulkDelete': 'Permanently delete {count} selected notifications?',
+            'notif.bulkDone': 'Updated {count} notification(s).'
         },
         vi: {
             'notif.title': 'Thông báo & Phát sóng hệ thống',
@@ -398,7 +421,16 @@
             'notif.expoPushOpt': 'Gửi kèm thông báo đẩy di động (Expo)',
             'notif.filterSearchPlaceholder': 'Tìm nội dung, email hoặc tên...',
             'notif.allTypes': 'Tất cả loại',
-            'notif.allStatus': 'Trạng thái'
+            'notif.allStatus': 'Trạng thái',
+            'notif.selected': 'đã chọn',
+            'notif.bulkRead': 'Đánh dấu đã đọc',
+            'notif.bulkUnread': 'Đánh dấu chưa đọc',
+            'notif.bulkDelete': 'Xóa đã chọn',
+            'notif.confirmBulkTitle': 'Thao tác hàng loạt thông báo',
+            'notif.confirmBulkRead': 'Đánh dấu {count} thông báo đã chọn là đã đọc?',
+            'notif.confirmBulkUnread': 'Đánh dấu {count} thông báo đã chọn là chưa đọc?',
+            'notif.confirmBulkDelete': 'Xóa vĩnh viễn {count} thông báo đã chọn?',
+            'notif.bulkDone': 'Đã cập nhật {count} thông báo.'
         }
     });
 
@@ -492,6 +524,53 @@
 
     function showAlert(message, type) {
         window.showToast(message, type);
+    }
+
+    function updateNotifBulkBar() {
+        const checked = document.querySelectorAll('.noti-checkbox:checked');
+        const bar = document.getElementById('notifBulkBar');
+        const countEl = document.getElementById('notifSelectedCount');
+        if (countEl) countEl.textContent = String(checked.length);
+        if (bar) {
+            bar.classList.toggle('d-none', checked.length === 0);
+            bar.classList.toggle('d-flex', checked.length > 0);
+        }
+    }
+
+    document.getElementById('selectAllNotifs')?.addEventListener('change', function() {
+        document.querySelectorAll('.noti-checkbox').forEach(cb => { cb.checked = this.checked; });
+        updateNotifBulkBar();
+    });
+    document.querySelectorAll('.noti-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateNotifBulkBar);
+    });
+
+    function bulkNotifAction(action) {
+        const ids = Array.from(document.querySelectorAll('.noti-checkbox:checked')).map(cb => cb.value);
+        if (!ids.length) return;
+        const msgKey = action === 'read'
+            ? 'notif.confirmBulkRead'
+            : action === 'unread'
+                ? 'notif.confirmBulkUnread'
+                : 'notif.confirmBulkDelete';
+        confirmAction(t('notif.confirmBulkTitle'), t(msgKey, { count: ids.length }), () => {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch('/dashboard/api/bulk-action/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ collection: 'notifications', action, ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(t('notif.bulkDone', { count: data.count ?? ids.length }), 'success');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showAlert(`${t('notif.errorPrefix')} ${data.error}`, 'danger');
+                }
+            })
+            .catch(err => showAlert(`${t('notif.networkError')} ${err.message}`, 'danger'));
+        });
     }
 </script>
 {% endblock %}

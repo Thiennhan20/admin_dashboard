@@ -34,14 +34,21 @@
 </div>
 
 <div class="card mt-4">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-chart-line me-2"></i><span data-i18n="mon.latency_title">Service Latency Trend (ms)</span></h6></div>
+    <div class="card-body" style="height: 240px;"><canvas id="latencyChart"></canvas></div>
+</div>
+
+<div class="card mt-4">
     <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i><span data-i18n="mon.history_title">Check History</span></h6></div>
     <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="historyTable">
         <thead><tr><th data-i18n="mon.col_time">Time</th><th data-i18n="mon.col_service">Service</th><th data-i18n="mon.col_status">Status</th><th data-i18n="mon.col_response">Response</th></tr></thead>
         <tbody id="historyBody"></tbody>
     </table></div></div>
 </div>
+{{ initial_history|default_if_none:""|json_script:"initial-health-history" }}
 {% endblock %}
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 const t = window.AdminUI.t;
@@ -58,6 +65,7 @@ window.AdminUI.addTranslations({
         'mon.srv_postgres': 'PostgreSQL',
         'mon.srv_redis_cache': 'Redis Cache (Upstash)',
         'mon.srv_redis_rooms': 'Redis Rooms (Upstash)',
+        'mon.latency_title': 'Service Latency Trend (ms)',
         'mon.history_title': 'Check History',
         'mon.col_time': 'Time',
         'mon.col_service': 'Service',
@@ -80,6 +88,7 @@ window.AdminUI.addTranslations({
         'mon.srv_postgres': 'PostgreSQL',
         'mon.srv_redis_cache': 'Bộ nhớ đệm Redis (Upstash)',
         'mon.srv_redis_rooms': 'Phòng xem Redis (Upstash)',
+        'mon.latency_title': 'Biểu đồ độ trễ dịch vụ (ms)',
         'mon.history_title': 'Lịch sử kiểm tra',
         'mon.col_time': 'Thời gian',
         'mon.col_service': 'Dịch vụ',
@@ -94,7 +103,63 @@ window.AdminUI.addTranslations({
 });
 
 let history = [];
+let persistedSnapshots = [];
+let latencyChartInstance = null;
 let lastServicesData = null;
+
+try {
+    const rawInit = document.getElementById('initial-health-history')?.textContent || '[]';
+    const parsedInit = JSON.parse(rawInit);
+    if (Array.isArray(parsedInit)) persistedSnapshots = parsedInit;
+} catch (_) {}
+
+function rebuildHistoryFromSnapshots(snapshots) {
+    history = [];
+    (snapshots || []).forEach(snap => {
+        const tsLabel = snap.checkedAt ? new Date(snap.checkedAt).toLocaleTimeString() : '-';
+        Object.entries(snap.services || {}).forEach(([name, info]) => {
+            history.push({
+                time: tsLabel,
+                service: name,
+                status: info.status || 'unknown',
+                response: info.response_ms != null ? info.response_ms + 'ms' : (info.error || '-')
+            });
+        });
+    });
+}
+
+function renderLatencyChart(snapshots) {
+    const canvas = document.getElementById('latencyChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    const ordered = [...(snapshots || [])].reverse();
+    const labels = ordered.map(s => s.checkedAt ? new Date(s.checkedAt).toLocaleTimeString() : '');
+    const colors = { nodejs: '#3b82f6', mongodb: '#22c55e', postgresql: '#a855f7', redis_cache: '#f59e0b', redis_rooms: '#14b8a6' };
+    const datasets = Object.keys(colors).map(srv => ({
+        label: serviceLabel(srv),
+        data: ordered.map(s => (s.services && s.services[srv] && s.services[srv].response_ms) ?? null),
+        borderColor: colors[srv],
+        backgroundColor: colors[srv] + '22',
+        tension: 0.3,
+        spanGaps: true
+    }));
+    if (latencyChartInstance) latencyChartInstance.destroy();
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const txtColor = dark ? '#94a3b8' : '#64748b';
+    latencyChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: txtColor } } },
+            scales: {
+                x: { ticks: { color: txtColor } },
+                y: { beginAtZero: true, ticks: { color: txtColor } }
+            }
+        }
+    });
+}
+if (persistedSnapshots.length) rebuildHistoryFromSnapshots(persistedSnapshots);
 function statusLabel(status) {
     return t('mon.status_' + status) || String(status || '').toUpperCase();
 }
@@ -128,19 +193,28 @@ function runHealthCheck() {
         if (!data.success) return;
         lastServicesData = data.services;
         renderServices(data.services);
-        Object.entries(data.services).forEach(([name, info]) => {
-            history.unshift({ time: new Date().toLocaleTimeString(), service: name, status: info.status, response: info.response_ms ? info.response_ms + 'ms' : info.error || '-' });
-        });
+        if (Array.isArray(data.history) && data.history.length) {
+            persistedSnapshots = data.history;
+            rebuildHistoryFromSnapshots(persistedSnapshots);
+        } else {
+            Object.entries(data.services).forEach(([name, info]) => {
+                history.unshift({ time: new Date().toLocaleTimeString(), service: name, status: info.status, response: info.response_ms ? info.response_ms + 'ms' : info.error || '-' });
+            });
+        }
         renderHistory();
+        renderLatencyChart(persistedSnapshots);
     }).catch(e => { btn.disabled = false; btn.innerHTML = `<i class="fas fa-sync me-1"></i>${t('mon.btn_check')}`; });
 }
 function renderHistory() {
-    document.getElementById('historyBody').innerHTML = history.slice(0, 25).map(h => `<tr><td><small>${h.time}</small></td><td>${serviceLabel(h.service)}</td><td><span class="badge bg-${h.status==='online'?'success':h.status==='offline'?'danger':'warning'}">${statusLabel(h.status)}</span></td><td><small>${h.response}</small></td></tr>`).join('');
+    document.getElementById('historyBody').innerHTML = history.slice(0, 35).map(h => `<tr><td><small>${h.time}</small></td><td>${serviceLabel(h.service)}</td><td><span class="badge bg-${h.status==='online'?'success':h.status==='offline'?'danger':'warning'}">${statusLabel(h.status)}</span></td><td><small>${h.response}</small></td></tr>`).join('');
 }
 document.addEventListener('admin:language-change', () => {
     if (lastServicesData) renderServices(lastServicesData);
     renderHistory();
+    renderLatencyChart(persistedSnapshots);
 });
+renderHistory();
+renderLatencyChart(persistedSnapshots);
 runHealthCheck();
 </script>
 {% endblock %}

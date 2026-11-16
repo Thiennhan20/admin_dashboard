@@ -1,4 +1,5 @@
-"""System monitoring views."""
+"""System monitoring views with persistent MongoDB health logs."""
+from datetime import datetime
 import time
 
 from django.conf import settings
@@ -8,8 +9,9 @@ from django.shortcuts import render
 import requests
 
 from users_management.decorators import require_permission
-from users_management.services import mongo_admin, parallel_run
+from users_management.services import clean_value, mongo_admin, parallel_run
 from users_management.views_legacy import check_admin_access
+from users_management.webhook_dispatcher import dispatch_webhook_event
 
 __all__ = ['monitoring_dashboard', 'api_health_check']
 
@@ -104,14 +106,24 @@ def _check_postgresql_health():
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
 @require_permission('monitoring.view')
 def monitoring_dashboard(request):
-    return render(request, 'admin_dashboard/monitoring/monitoring.html')
+    history_logs = []
+    if mongo_admin.enabled:
+        try:
+            history_logs = clean_value(list(
+                mongo_admin.db().admin_health_logs.find({})
+                .sort('checkedAt', -1)
+                .limit(15)
+            ))
+        except Exception:
+            history_logs = []
+    return render(request, 'admin_dashboard/monitoring/monitoring.html', {'initial_history': history_logs})
 
 
 @login_required
 @user_passes_test(check_admin_access, login_url='/dashboard/login/')
 @require_permission('monitoring.view')
 def api_health_check(request):
-    """Check health of all connected services concurrently."""
+    """Check health of all connected services concurrently and persist snapshot."""
     results = parallel_run({
         'nodejs': _check_nodejs_health,
         'mongodb': _check_mongodb_health,
@@ -119,4 +131,39 @@ def api_health_check(request):
         'redis_rooms': _check_redis_rooms_health,
         'postgresql': _check_postgresql_health,
     }, max_workers=5)
-    return JsonResponse({'success': True, 'services': results})
+
+    offline_services = [name for name, info in results.items() if info.get('status') in ('offline', 'error')]
+    if offline_services:
+        dispatch_webhook_event('system.error', {
+            'source': 'monitoring',
+            'offline_services': offline_services,
+        })
+
+    history_logs = []
+    if mongo_admin.enabled:
+        try:
+            db = mongo_admin.db()
+            now = datetime.utcnow()
+            db.admin_health_logs.insert_one({
+                'checkedAt': now,
+                'services': {
+                    k: {
+                        'status': v.get('status', 'unknown'),
+                        'response_ms': v.get('response_ms'),
+                        'error': (v.get('error') or '')[:200],
+                    }
+                    for k, v in results.items()
+                },
+                'offlineCount': len(offline_services),
+            })
+            # Retain at most 100 latest health check snapshots
+            stale = list(db.admin_health_logs.find({}, {'_id': 1}).sort('checkedAt', -1).skip(100))
+            if stale:
+                db.admin_health_logs.delete_many({'_id': {'$in': [s['_id'] for s in stale]}})
+            history_logs = clean_value(list(
+                db.admin_health_logs.find({}).sort('checkedAt', -1).limit(15)
+            ))
+        except Exception:
+            history_logs = []
+
+    return JsonResponse({'success': True, 'services': results, 'history': history_logs})

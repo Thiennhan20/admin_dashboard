@@ -306,6 +306,11 @@ class MaintenanceNotice(models.Model):
 
 # ── User Report ─────────────────────────────────────────────────────
 class UserReport(models.Model):
+    """Legacy PostgreSQL report model kept only for migration history compatibility.
+
+    Runtime comment moderation reports are stored in MongoDB collection `userreports`
+    and queried directly via `mongo_admin`.
+    """
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('reviewing', 'Reviewing'),

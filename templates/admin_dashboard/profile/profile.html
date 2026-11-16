@@ -9,7 +9,13 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-body text-center py-4">
-                <div class="avatar-dot mx-auto mb-3" style="width:80px;height:80px;font-size:2rem;background:var(--blue);">{{ request.user.username|first|upper }}</div>
+                {% if profile.avatar %}
+                <img src="{{ profile.avatar }}" alt="{{ request.user.username }}" id="profileAvatarPreviewImg" class="rounded-circle mx-auto mb-3 d-block" style="width:80px;height:80px;object-fit:cover;border:2px solid var(--line);">
+                <div class="avatar-dot mx-auto mb-3 d-none" id="profileAvatarPreviewFallback" style="width:80px;height:80px;font-size:2rem;background:var(--blue);">{{ request.user.username|first|upper }}</div>
+                {% else %}
+                <img src="" alt="{{ request.user.username }}" id="profileAvatarPreviewImg" class="rounded-circle mx-auto mb-3 d-none" style="width:80px;height:80px;object-fit:cover;border:2px solid var(--line);">
+                <div class="avatar-dot mx-auto mb-3" id="profileAvatarPreviewFallback" style="width:80px;height:80px;font-size:2rem;background:var(--blue);">{{ request.user.username|first|upper }}</div>
+                {% endif %}
                 <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
                 <p class="text-muted mb-2">{{ request.user.email }}</p>
                 <span class="badge bg-primary px-3 py-2" data-i18n="role.{{ profile.role }}">{{ profile.get_role_display }}</span>
@@ -38,6 +44,19 @@
                         <div class="col-md-6"><label class="form-label" data-i18n="pro.first_name">First Name</label><input type="text" class="form-control" name="first_name" value="{{ request.user.first_name }}"></div>
                         <div class="col-md-6"><label class="form-label" data-i18n="pro.last_name">Last Name</label><input type="text" class="form-control" name="last_name" value="{{ request.user.last_name }}"></div>
                         <div class="col-12"><label class="form-label" data-i18n="pro.email">Email</label><input type="email" class="form-control" name="email" value="{{ request.user.email }}"></div>
+                        <div class="col-12">
+                            <label class="form-label" data-i18n="pro.avatar">Avatar (URL or Upload)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="avatar" id="avatarInput" value="{{ profile.avatar }}" placeholder="https://example.com/avatar.png" data-i18n-placeholder="pro.ph_avatar">
+                                <label class="btn btn-outline-secondary mb-0" for="avatarFilePicker">
+                                    <i class="fas fa-upload me-1"></i><span data-i18n="pro.btn_upload_avatar">Upload</span>
+                                </label>
+                                <input type="file" id="avatarFilePicker" accept="image/*" class="d-none" onchange="handleAvatarFile(this)">
+                                <button type="button" class="btn btn-outline-danger" onclick="clearAvatarField()" title="Clear Avatar" data-i18n-title="pro.btn_clear_avatar">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
                         <div class="col-12"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="pro.btn_save">Save Profile</span></button></div>
                     </div>
                 </form>
@@ -98,6 +117,12 @@
                         </form>
                     </div>
                     <div class="col-md-6">
+                        {% if profile.is_super_admin %}
+                        <div class="p-3 rounded h-100 d-flex flex-column justify-content-center" style="background: var(--control); border: 1px solid rgba(59,130,246,0.35);">
+                            <div class="small fw-semibold text-primary mb-1"><i class="fas fa-lock me-1"></i><span data-i18n="pro.tfa_locked_title">Mandatory Super Admin 2FA</span></div>
+                            <p class="small text-muted mb-0" data-i18n="pro.tfa_locked_desc">Super Admin accounts must keep 2FA TOTP active at all times.</p>
+                        </div>
+                        {% else %}
                         <form method="POST" action="{% url 'admin_dashboard:profile_2fa_disable' %}" class="p-3 rounded" style="background: var(--control); border: 1px solid rgba(239,68,68,0.35);">
                             {% csrf_token %}
                             <label class="form-label small fw-semibold text-danger" data-i18n="pro.tfa_disable_label">Disable 2FA</label>
@@ -106,6 +131,7 @@
                                 <i class="fas fa-shield-slash me-1"></i><span data-i18n="pro.tfa_btn_disable">Disable 2FA</span>
                             </button>
                         </form>
+                        {% endif %}
                     </div>
                 </div>
                 {% elif tfa_pending_secret %}
@@ -197,7 +223,13 @@ window.AdminUI.addTranslations({
         'pro.tfa_btn_setup': 'Enable 2FA TOTP',
         'pro.never': 'Never',
         'pro.btn_copy': 'Copy',
-        'pro.tfa_otp_placeholder': 'Enter 6-digit OTP'
+        'pro.tfa_otp_placeholder': 'Enter 6-digit OTP',
+        'pro.avatar': 'Avatar (URL or Upload)',
+        'pro.ph_avatar': 'https://example.com/avatar.png',
+        'pro.btn_upload_avatar': 'Upload',
+        'pro.btn_clear_avatar': 'Clear Avatar',
+        'pro.tfa_locked_title': 'Mandatory Super Admin 2FA',
+        'pro.tfa_locked_desc': 'Super Admin accounts must keep 2FA TOTP active at all times.'
     },
     vi: {
         'pro.joined': 'Thành viên từ',
@@ -234,9 +266,60 @@ window.AdminUI.addTranslations({
         'pro.tfa_btn_setup': 'Bật xác thực 2FA',
         'pro.never': 'Chưa bao giờ',
         'pro.btn_copy': 'Sao chép',
-        'pro.tfa_otp_placeholder': 'Nhập mã OTP 6 chữ số'
+        'pro.tfa_otp_placeholder': 'Nhập mã OTP 6 chữ số',
+        'pro.avatar': 'Ảnh đại diện (URL hoặc Tải lên)',
+        'pro.ph_avatar': 'https://example.com/avatar.png',
+        'pro.btn_upload_avatar': 'Tải lên',
+        'pro.btn_clear_avatar': 'Xóa ảnh đại diện',
+        'pro.tfa_locked_title': 'Bắt buộc 2FA cho Super Admin',
+        'pro.tfa_locked_desc': 'Tài khoản Super Admin luôn bắt buộc duy trì xác thực 2FA TOTP.'
     }
 });
+function updateAvatarPreview(src) {
+    var img = document.getElementById('profileAvatarPreviewImg');
+    var fb = document.getElementById('profileAvatarPreviewFallback');
+    if (!img || !fb) return;
+    if (src && (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:image/'))) {
+        img.src = src;
+        img.classList.remove('d-none');
+        img.classList.add('d-block');
+        fb.classList.add('d-none');
+    } else {
+        img.src = '';
+        img.classList.add('d-none');
+        img.classList.remove('d-block');
+        fb.classList.remove('d-none');
+    }
+}
+document.getElementById('avatarInput')?.addEventListener('input', function() {
+    updateAvatarPreview(this.value.trim());
+});
+function clearAvatarField() {
+    var inp = document.getElementById('avatarInput');
+    if (inp) { inp.value = ''; updateAvatarPreview(''); }
+}
+function handleAvatarFile(fileInput) {
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+        var img = new Image();
+        img.onload = function() {
+            var maxDim = 160;
+            var ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.width * ratio));
+            canvas.height = Math.max(1, Math.round(img.height * ratio));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            var inp = document.getElementById('avatarInput');
+            if (inp) inp.value = dataUrl;
+            updateAvatarPreview(dataUrl);
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 function copyBackupCodes() {
     var box = document.getElementById('backupCodesBox');
     if (!box) return;

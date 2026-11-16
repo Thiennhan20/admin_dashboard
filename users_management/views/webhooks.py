@@ -12,6 +12,7 @@ import requests
 
 from users_management.decorators import require_permission
 from users_management.models import WebhookEndpoint, WebhookLog, AuditLog
+from users_management.services import validate_public_http_url
 from users_management.views_legacy import check_admin_access
 
 __all__ = ['webhooks_list', 'webhook_action', 'webhook_test']
@@ -25,10 +26,15 @@ def webhooks_list(request):
         profile = getattr(request.user, 'admin_profile', None)
         if not (request.user.is_superuser or (profile and profile.has_perm('webhooks.edit'))):
             raise PermissionDenied('Permission webhooks.edit required')
+        url = (request.POST.get('url', '') or '').strip()
+        ok_url, reason = validate_public_http_url(url)
+        if not ok_url:
+            messages.error(request, f'Lỗi: Webhook URL không hợp lệ ({reason})')
+            return redirect('admin_dashboard:webhooks')
         events = request.POST.getlist('events')
         WebhookEndpoint.objects.create(
             name=request.POST.get('name', ''),
-            url=request.POST.get('url', ''),
+            url=url,
             events=events,
             is_active=request.POST.get('is_active') == 'on',
             secret=request.POST.get('secret', ''),
@@ -43,6 +49,7 @@ def webhooks_list(request):
     available_events = [
         'user.created', 'user.deleted', 'user.banned',
         'comment.created', 'comment.deleted', 'comment.hidden',
+        'report.resolved',
         'room.created', 'room.closed',
         'notification.broadcast',
         'backup.completed', 'system.error',
@@ -89,6 +96,9 @@ def webhook_test(request, webhook_id):
         return JsonResponse({'success': False}, status=405)
 
     endpoint = get_object_or_404(WebhookEndpoint, id=webhook_id)
+    ok_url, reason = validate_public_http_url(endpoint.url)
+    if not ok_url:
+        return JsonResponse({'success': False, 'error': f'Unsafe webhook URL: {reason}'}, status=400)
     payload = {
         'event': 'test',
         'data': {'message': 'This is a test webhook from Admin Panel'},

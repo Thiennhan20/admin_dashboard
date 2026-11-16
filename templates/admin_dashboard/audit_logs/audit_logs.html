@@ -7,16 +7,33 @@
     <div class="card-header"><h6 class="mb-0"><i class="fas fa-search me-2"></i><span data-i18n="au.filter_title">Filter Logs</span></h6></div>
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-12 col-md-6 col-xl-4">
+            <div class="col-12 col-md-6 col-xl-2">
                 <label class="form-label" data-i18n="au.form_admin">Admin User</label>
                 <input type="text" class="form-control" name="admin" value="{{ admin_filter }}" placeholder="Search by admin username..." data-i18n-placeholder="au.ph_admin">
             </div>
-            <div class="col-12 col-md-6 col-xl-5">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label class="form-label" data-i18n="au.form_action">Action</label>
                 <input type="text" class="form-control" name="action" value="{{ action_filter }}" placeholder="Search by action..." data-i18n-placeholder="au.ph_action" list="actionList">
                 <datalist id="actionList">{% for a in distinct_actions %}<option value="{{ a }}">{% endfor %}</datalist>
             </div>
-            <div class="col-12 col-xl-3 d-flex gap-2">
+            <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label" data-i18n="au.form_date_from">From Date</label>
+                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label" data-i18n="au.form_date_to">To Date</label>
+                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-12 col-md-4 col-xl-1">
+                <label class="form-label" data-i18n="au.form_sort">Sort</label>
+                <select class="form-select" name="sort">
+                    <option value="-timestamp" {% if sort == '-timestamp' or not sort %}selected{% endif %} data-i18n="au.sort_newest">Newest</option>
+                    <option value="timestamp" {% if sort == 'timestamp' %}selected{% endif %} data-i18n="au.sort_oldest">Oldest</option>
+                    <option value="action" {% if sort == 'action' %}selected{% endif %} data-i18n="au.sort_action">Action A-Z</option>
+                    <option value="admin_username" {% if sort == 'admin_username' %}selected{% endif %} data-i18n="au.sort_admin">Admin A-Z</option>
+                </select>
+            </div>
+            <div class="col-12 col-xl-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary filter-action-btn flex-fill"><i class="fas fa-filter"></i><span data-i18n="au.btn_filter">Filter</span></button>
                 <a href="{% url 'admin_dashboard:audit_logs' %}" class="btn btn-outline-secondary filter-action-btn flex-fill"><i class="fas fa-times"></i><span data-i18n="common.btn_clear">Clear</span></a>
             </div>
@@ -53,7 +70,7 @@
         {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-scroll fa-3x mb-3 d-block opacity-25"></i><span data-i18n="au.no_logs">No audit logs found.</span></div>{% endif %}
     </div>
 </div>
-{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&action={{ action_filter }}&admin={{ admin_filter }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&action={{ action_filter }}&admin={{ admin_filter }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
+{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&action={{ action_filter|urlencode }}&admin={{ admin_filter|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}&sort={{ sort|urlencode }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&action={{ action_filter|urlencode }}&admin={{ admin_filter|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}&sort={{ sort|urlencode }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -72,7 +89,14 @@ window.AdminUI.addTranslations({
         'au.col_target': 'Target',
         'au.col_ip': 'IP',
         'au.col_time': 'Time',
-        'au.no_logs': 'No audit logs found.'
+        'au.no_logs': 'No audit logs found.',
+        'au.form_date_from': 'From Date',
+        'au.form_date_to': 'To Date',
+        'au.form_sort': 'Sort',
+        'au.sort_newest': 'Newest',
+        'au.sort_oldest': 'Oldest',
+        'au.sort_action': 'Action A-Z',
+        'au.sort_admin': 'Admin A-Z'
     },
     vi: {
         'au.filter_title': 'Lọc lịch sử',
@@ -87,7 +111,14 @@ window.AdminUI.addTranslations({
         'au.col_target': 'Đối tượng',
         'au.col_ip': 'Địa chỉ IP',
         'au.col_time': 'Thời gian',
-        'au.no_logs': 'Không tìm thấy nhật ký vận hành nào.'
+        'au.no_logs': 'Không tìm thấy nhật ký vận hành nào.',
+        'au.form_date_from': 'Từ ngày',
+        'au.form_date_to': 'Đến ngày',
+        'au.form_sort': 'Sắp xếp',
+        'au.sort_newest': 'Mới nhất',
+        'au.sort_oldest': 'Cũ nhất',
+        'au.sort_action': 'Hành động A-Z',
+        'au.sort_admin': 'Quản trị viên A-Z'
     }
 });
 </script>

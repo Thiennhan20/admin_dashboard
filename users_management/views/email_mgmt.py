@@ -1,4 +1,5 @@
 """Email management views."""
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -6,6 +7,7 @@ from django.shortcuts import render, redirect
 
 from users_management.decorators import require_permission
 from users_management.models import EmailLog, AuditLog
+from users_management.rate_limit import consume_action_rate_limit, format_retry_wait
 from users_management.services import mongo_admin, clean_value
 from users_management.views_legacy import check_admin_access
 
@@ -20,6 +22,12 @@ def email_management(request):
         profile = getattr(request.user, 'admin_profile', None)
         if not (request.user.is_superuser or (profile and profile.has_perm('email.edit'))):
             raise PermissionDenied('Permission email.edit required')
+
+        allowed, retry_after, _ = consume_action_rate_limit('admin_sensitive', request)
+        if not allowed:
+            messages.error(request, f'Thao tác quá nhanh. Vui lòng thử lại sau {format_retry_wait(retry_after)}.')
+            return redirect('admin_dashboard:email')
+
         recipient_type = request.POST.get('recipient_type', 'single')
         subject = request.POST.get('subject', '').strip()
         body = request.POST.get('body', '').strip()
@@ -48,10 +56,9 @@ def email_management(request):
             error_msg = ''
             try:
                 from django.core.mail import send_mail
-                from django.conf import settings as dj_settings
-                if getattr(dj_settings, 'EMAIL_HOST', ''):
+                if getattr(settings, 'EMAIL_HOST', ''):
                     for email_addr in recipients[:100]:  # Limit batch
-                        send_mail(subject, body, dj_settings.DEFAULT_FROM_EMAIL, [email_addr], fail_silently=True)
+                        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email_addr], fail_silently=False)
                     status = 'sent'
                 else:
                     status = 'pending'
@@ -86,5 +93,10 @@ def email_management(request):
         return redirect('admin_dashboard:email')
 
     logs = EmailLog.objects.all()[:50]
-    context = {'logs': logs}
+    smtp_host = getattr(settings, 'EMAIL_HOST', '') or ''
+    context = {
+        'logs': logs,
+        'smtp_configured': bool(smtp_host),
+        'smtp_host': smtp_host,
+    }
     return render(request, 'admin_dashboard/email/email.html', context)

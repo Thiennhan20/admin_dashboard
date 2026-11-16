@@ -488,7 +488,7 @@
     function deleteUser(userId, userName) {
         confirmAction(t('usr.confirm_delete_title'), t('usr.confirm_delete_body', {name: userName}), () => {
             window.location.href = `/dashboard/users/${userId}/delete/`;
-        });
+        }, { requireText: 'DELETE' });
     }
     
     // Bulk delete
@@ -522,7 +522,7 @@
                     showToast(t('usr.error_prefix') + data.error, 'error');
                 }
             });
-        });
+        }, { requireText: 'DELETE' });
     }
     
     // Select all functionality

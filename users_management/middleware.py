@@ -85,6 +85,18 @@ class AdminAccessMiddleware:
                 messages.error(request, 'Bạn không có quyền truy cập bảng điều khiển quản trị!')
                 return redirect('admin_dashboard:login')
 
+            # Enforce mandatory 2FA enrollment if flagged at interactive super_admin login
+            if request.session.get('_require_2fa_setup'):
+                allowed_2fa_setup_paths = ('/dashboard/profile/', '/dashboard/logout/')
+                if not any(path.startswith(p) for p in allowed_2fa_setup_paths):
+                    if is_json_request(request):
+                        return JsonResponse(
+                            {'error': 'Super Admin must enable 2FA TOTP before accessing dashboard', 'ok': False, 'success': False},
+                            status=403,
+                        )
+                    messages.warning(request, 'Tài khoản Super Admin bắt buộc phải bật xác thực 2FA TOTP trước khi truy cập!')
+                    return redirect('admin_dashboard:admin_profile')
+
             # Enforce RBAC for non-superusers
             if not request.user.is_superuser:
                 profile = get_admin_profile(request.user, request)
@@ -170,6 +182,13 @@ class ErrorLoggingMiddleware:
                 admin_user=request.user if request.user.is_authenticated else None,
                 ip_address=None if ip == 'unknown' else ip,
             )
+            from .webhook_dispatcher import dispatch_webhook_event
+            dispatch_webhook_event('system.error', {
+                'path': request.path[:500],
+                'method': request.method,
+                'message': str(exception)[:500],
+                'user': request.user.username if request.user.is_authenticated else 'anonymous',
+            })
         except Exception:
             pass  # Never break the error flow
         return None

@@ -807,6 +807,15 @@ window.syncAllCustomSelects = syncAllCustomSelects;
         if (ev.type === 'comment') {
             return `${escapeHtml(translateValue('notif.newComment'))}: ${escapeHtml(detail || '')}`;
         }
+        if (ev.type === 'report') {
+            return `${escapeHtml(translateValue('notif.pendingReport'))}: ${escapeHtml(detail || '')}`;
+        }
+        if (ev.type === 'error') {
+            return `${escapeHtml(translateValue('notif.newError'))}: ${escapeHtml(detail || '')}`;
+        }
+        if (ev.type === 'room') {
+            return `${escapeHtml(translateValue('notif.liveRoom'))}: ${escapeHtml(detail || '')}`;
+        }
         return escapeHtml(ev.title || '');
     }
 
@@ -817,7 +826,12 @@ window.syncAllCustomSelects = syncAllCustomSelects;
         if (!data.events.length) { list.innerHTML = `<div class="text-center py-3 text-muted small">${escapeHtml(translateValue('notif.noRecent') || 'No recent events')}</div>`; return; }
         list.innerHTML = data.events.map(e => {
             const iconClass = /^fa-[a-z0-9-]+$/i.test(e.icon || '') ? e.icon : 'fa-bell';
-            return `<div class="d-flex gap-2 px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><i class="fas ${iconClass} text-muted mt-1" style="font-size:12px;"></i><div class="small">${formatNotifTitle(e)}<br><span class="text-muted" style="font-size:11px;">${escapeHtml(e.time || '')}</span></div></div>`;
+            const iconColor = e.type === 'error' ? 'text-danger' : (e.type === 'report' ? 'text-warning' : (e.type === 'room' ? 'text-success' : 'text-muted'));
+            const body = `<div class="d-flex gap-2 px-3 py-2 border-bottom" style="border-color:var(--line)!important;"><i class="fas ${iconClass} ${iconColor} mt-1" style="font-size:12px;"></i><div class="small">${formatNotifTitle(e)}<br><span class="text-muted" style="font-size:11px;">${escapeHtml(e.time || '')}</span></div></div>`;
+            if (typeof e.url === 'string' && e.url.startsWith('/')) {
+                return `<a href="${escapeHtml(e.url)}" class="d-block text-decoration-none text-reset">${body}</a>`;
+            }
+            return body;
         }).join('');
     }
 

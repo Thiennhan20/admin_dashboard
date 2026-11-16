@@ -1,51 +1,385 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}User Reports - Admin Panel{% endblock %}
-{% block page_title %}User Reports{% endblock %}
+{% block page_title %}Moderation Reports{% endblock %}
 {% block page_i18n_key %}nav.reports{% endblock %}
 {% block content %}
 <div class="row g-3 mb-4">
-    <div class="col-md-3"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-warning">{{ stats.pending }}</h3><small class="text-muted" data-i18n="rep.status_pending">Pending</small></div></div></div>
-    <div class="col-md-3"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-info">{{ stats.reviewing }}</h3><small class="text-muted" data-i18n="rep.status_reviewing">Reviewing</small></div></div></div>
-    <div class="col-md-3"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-success">{{ stats.resolved }}</h3><small class="text-muted" data-i18n="rep.status_resolved">Resolved</small></div></div></div>
-    <div class="col-md-3"><div class="card"><div class="card-body text-center"><h3 class="mb-1 text-muted">{{ stats.dismissed }}</h3><small class="text-muted" data-i18n="rep.status_dismissed">Dismissed</small></div></div></div>
+    <div class="col-6 col-md-3">
+        <a href="?status=pending" class="text-decoration-none">
+            <div class="card h-100 {% if status_filter == 'pending' %}border-warning{% endif %}">
+                <div class="card-body text-center">
+                    <h3 class="mb-1 text-warning">{{ stats.pending }}</h3>
+                    <small class="text-muted" data-i18n="rep.status_pending">Pending</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="?status=reviewing" class="text-decoration-none">
+            <div class="card h-100 {% if status_filter == 'reviewing' %}border-info{% endif %}">
+                <div class="card-body text-center">
+                    <h3 class="mb-1 text-info">{{ stats.reviewing }}</h3>
+                    <small class="text-muted" data-i18n="rep.status_reviewing">Reviewing</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="?status=resolved" class="text-decoration-none">
+            <div class="card h-100 {% if status_filter == 'resolved' %}border-success{% endif %}">
+                <div class="card-body text-center">
+                    <h3 class="mb-1 text-success">{{ stats.resolved }}</h3>
+                    <small class="text-muted" data-i18n="rep.status_resolved">Resolved</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="?status=dismissed" class="text-decoration-none">
+            <div class="card h-100 {% if status_filter == 'dismissed' %}border-secondary{% endif %}">
+                <div class="card-body text-center">
+                    <h3 class="mb-1 text-muted">{{ stats.dismissed }}</h3>
+                    <small class="text-muted" data-i18n="rep.status_dismissed">Dismissed</small>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
+
+{% if error %}
+<div class="alert alert-danger mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <h6 class="mb-0"><i class="fas fa-flag me-2"></i><span data-i18n="nav.reports">Reports</span> ({{ total }})</h6>
-        <div class="card-toolbar">
-            <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?status='+this.value">
+        <h6 class="mb-0">
+            <i class="fas fa-flag me-2 text-warning"></i><span data-i18n="nav.reports">Moderation Reports</span> ({{ total }})
+        </h6>
+        <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
+            <input
+                type="text"
+                name="search"
+                value="{{ search }}"
+                class="form-control form-control-sm"
+                style="width: 210px;"
+                placeholder="Search content, user..."
+                data-i18n-placeholder="rep.search_placeholder"
+            >
+            <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
                 <option value="" data-i18n="rep.all_status">All Status</option>
                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %} data-i18n="rep.status_pending">Pending</option>
                 <option value="reviewing" {% if status_filter == 'reviewing' %}selected{% endif %} data-i18n="rep.status_reviewing">Reviewing</option>
                 <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %} data-i18n="rep.status_resolved">Resolved</option>
                 <option value="dismissed" {% if status_filter == 'dismissed' %}selected{% endif %} data-i18n="rep.status_dismissed">Dismissed</option>
             </select>
-        </div>
+            <select name="reason" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="" data-i18n="rep.all_reasons">All Reasons</option>
+                <option value="spam" {% if reason_filter == 'spam' %}selected{% endif %} data-i18n="rep.cat_spam">Spam</option>
+                <option value="harassment" {% if reason_filter == 'harassment' %}selected{% endif %} data-i18n="rep.cat_harassment">Harassment</option>
+                <option value="hate_speech" {% if reason_filter == 'hate_speech' %}selected{% endif %} data-i18n="rep.cat_hate_speech">Hate Speech</option>
+                <option value="spoiler" {% if reason_filter == 'spoiler' %}selected{% endif %} data-i18n="rep.cat_spoiler">Spoiler</option>
+                <option value="inappropriate" {% if reason_filter == 'inappropriate' %}selected{% endif %} data-i18n="rep.cat_inappropriate">Inappropriate</option>
+                <option value="other" {% if reason_filter == 'other' %}selected{% endif %} data-i18n="rep.cat_other">Other</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-filter me-1"></i><span data-i18n="rep.btn_filter">Filter</span>
+            </button>
+            {% if status_filter or reason_filter or search %}
+            <a href="{% url 'admin_dashboard:reports' %}" class="btn btn-sm btn-outline-secondary" data-i18n="common.btn_clear">Clear</a>
+            {% endif %}
+        </form>
     </div>
+
     <div class="card-body p-0">
         {% if reports %}
-        <div class="table-responsive"><table class="table table-hover mb-0">
-            <thead><tr><th data-i18n="rep.col_reporter">Reporter</th><th data-i18n="rep.col_target">Target</th><th data-i18n="rep.col_reason">Reason</th><th data-i18n="rep.col_status">Status</th><th data-i18n="rep.col_date">Date</th><th class="text-end" data-i18n="rep.col_actions">Actions</th></tr></thead>
-            <tbody>{% for r in reports %}<tr>
-                <td><small>{{ r.reporter_name|default:r.reporter_id|truncatechars:15 }}</small></td>
-                <td><span class="badge bg-secondary" data-i18n="rep.target_{{ r.target_type }}">{{ r.target_type }}</span> <code class="small">{{ r.target_id|truncatechars:12 }}</code></td>
-                <td><small>{{ r.reason|truncatechars:50 }}</small></td>
-                <td><span class="badge bg-{% if r.status == 'pending' %}warning text-dark{% elif r.status == 'reviewing' %}info text-dark{% elif r.status == 'resolved' %}success{% else %}secondary{% endif %}" data-i18n="rep.status_{{ r.status }}">{{ r.status }}</span></td>
-                <td><small class="text-muted"><span class="i18n-timesince" data-raw-timesince="{{ r.created_at|timesince }}" data-with-ago="1">{{ r.created_at|timesince }} ago</span></small></td>
-                <td class="text-end">
-                    <div class="table-actions">
-                        {% if r.status == 'pending' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="reviewing"><button class="btn btn-sm btn-outline-info btn-action-icon" title="Start Review" data-i18n-title="rep.btn_review"><i class="fas fa-eye"></i></button></form>{% endif %}
-                        {% if r.status != 'resolved' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="resolved"><button class="btn btn-sm btn-outline-success btn-action-icon" title="Resolve" data-i18n-title="rep.btn_resolve"><i class="fas fa-check"></i></button></form>{% endif %}
-                        {% if r.status != 'dismissed' %}<form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}">{% csrf_token %}<input type="hidden" name="action" value="dismissed"><button class="btn btn-sm btn-outline-secondary btn-action-icon" title="Dismiss" data-i18n-title="rep.btn_dismiss"><i class="fas fa-times"></i></button></form>{% endif %}
-                    </div>
-                </td>
-            </tr>{% endfor %}</tbody>
-        </table></div>
-        {% else %}<div class="text-center py-5 text-muted"><i class="fas fa-flag fa-3x mb-3 d-block opacity-25"></i><span data-i18n="rep.no_reports">No reports.</span></div>{% endif %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th data-i18n="rep.col_reporter">Reporter</th>
+                        <th data-i18n="rep.col_target">Comment & Author</th>
+                        <th data-i18n="rep.col_reason">Reason</th>
+                        <th data-i18n="rep.col_status">Status</th>
+                        <th data-i18n="rep.col_date">Reported</th>
+                        <th class="text-end" data-i18n="rep.col_actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reports %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold small">{{ r.reporter_name|default:r.reporter_id|truncatechars:22 }}</div>
+                            {% if r.reporter_id %}
+                            <code class="small text-muted">{{ r.reporter_id|truncatechars:12 }}</code>
+                            {% endif %}
+                        </td>
+                        <td style="min-width: 280px; max-width: 420px;">
+                            <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                                <span class="badge bg-secondary" data-i18n="rep.target_{{ r.target_type }}">{{ r.target_type }}</span>
+                                {% if r.is_reply %}
+                                <span class="badge bg-dark border border-secondary text-light" data-i18n="rep.badge_reply">Reply</span>
+                                {% endif %}
+                                {% if r.comment_state == 'active' %}
+                                <span class="badge bg-success" data-i18n="rep.comment_active">Visible</span>
+                                {% elif r.comment_state == 'hidden' %}
+                                <span class="badge bg-warning text-dark" data-i18n="rep.comment_hidden">Hidden</span>
+                                {% else %}
+                                <span class="badge bg-danger" data-i18n="rep.comment_deleted">Deleted</span>
+                                {% endif %}
+                                {% if r.same_target_total > 1 %}
+                                <span class="badge bg-danger bg-opacity-75" title="Total reports on this comment">
+                                    {{ r.same_target_total }} <span data-i18n="rep.reports_count">reports</span>
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="small text-break mb-1" style="white-space: pre-wrap;">
+                                {{ r.comment_content|default:"—"|truncatechars:200 }}
+                            </div>
+
+                            <div class="d-flex flex-wrap align-items-center gap-2 text-muted small">
+                                {% if r.author_name %}
+                                <span>
+                                    <i class="fas fa-user me-1"></i>{{ r.author_name }}
+                                    {% if r.author_is_banned %}
+                                    <span class="badge bg-danger ms-1" data-i18n="rep.author_banned">Banned</span>
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                                {% if r.movie_id %}
+                                <span>
+                                    <i class="fas fa-film me-1"></i>{{ r.content_type|default:"movie" }} #{{ r.movie_id }}
+                                </span>
+                                {% endif %}
+                                {% if r.client_comment_url %}
+                                <a href="{{ r.client_comment_url }}" target="_blank" rel="noopener noreferrer" class="text-info text-decoration-none">
+                                    <i class="fas fa-external-link-alt me-1"></i><span data-i18n="rep.view_on_site">View on site</span>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="min-width: 190px; max-width: 280px;">
+                            <div class="mb-1">
+                                <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25" data-i18n="rep.cat_{{ r.reason_category }}">{{ r.reason_category }}</span>
+                            </div>
+                            {% if r.details %}
+                            <div class="small text-break">{{ r.details|truncatechars:140 }}</div>
+                            {% elif r.reason %}
+                            <div class="small text-muted text-break">{{ r.reason|truncatechars:140 }}</div>
+                            {% endif %}
+                            {% if r.resolution_note %}
+                            <div class="small text-info mt-1">
+                                <i class="fas fa-sticky-note me-1"></i>{{ r.resolution_note|truncatechars:100 }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>
+                                <span class="badge bg-{% if r.status == 'pending' %}warning text-dark{% elif r.status == 'reviewing' %}info text-dark{% elif r.status == 'resolved' %}success{% else %}secondary{% endif %}" data-i18n="rep.status_{{ r.status }}">{{ r.status }}</span>
+                            </div>
+                            {% if r.action_taken and r.action_taken != 'none' %}
+                            <div class="mt-1">
+                                <span class="badge bg-dark border border-secondary text-light" data-i18n="rep.act_{{ r.action_taken }}">{{ r.action_taken }}</span>
+                            </div>
+                            {% endif %}
+                            {% if r.resolved_by %}
+                            <small class="text-muted d-block mt-1">{{ r.resolved_by }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.created_at %}
+                            <small class="text-muted">
+                                <span class="i18n-timesince" data-raw-timesince="{{ r.created_at|timesince }}" data-with-ago="1">{{ r.created_at|timesince }} ago</span>
+                            </small>
+                            {% else %}
+                            <small class="text-muted">—</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                {% if can_edit_reports %}
+                                {% if r.status == 'pending' %}
+                                <form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="reviewing">
+                                    <input type="hidden" name="next_status" value="{{ status_filter }}">
+                                    <input type="hidden" name="next_reason" value="{{ reason_filter }}">
+                                    <input type="hidden" name="next_search" value="{{ search }}">
+                                    <input type="hidden" name="next_page" value="{{ page }}">
+                                    <button class="btn btn-sm btn-outline-info btn-action-icon" title="Start Review" data-i18n-title="rep.btn_review">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary js-moderate-btn"
+                                    data-action-url="{% url 'admin_dashboard:report_action' r.id %}"
+                                    data-reporter="{{ r.reporter_name|default:r.reporter_id }}"
+                                    data-author="{{ r.author_name|default:'Unknown' }}"
+                                    data-author-banned="{% if r.author_is_banned %}1{% else %}0{% endif %}"
+                                    data-author-exists="{% if r.author_exists %}1{% else %}0{% endif %}"
+                                    data-comment-content="{{ r.comment_content }}"
+                                    data-live-content="{{ r.live_content }}"
+                                    data-comment-state="{{ r.comment_state }}"
+                                    data-reason="{{ r.reason }}"
+                                    data-note="{{ r.resolution_note }}"
+                                    data-same-open="{{ r.same_target_open }}"
+                                    data-client-url="{{ r.client_comment_url }}"
+                                    title="Inspect & Moderate"
+                                    data-i18n-title="rep.btn_moderate"
+                                >
+                                    <i class="fas fa-gavel me-1"></i><span data-i18n="rep.btn_moderate">Moderate</span>
+                                </button>
+                                {% if r.status != 'dismissed' %}
+                                <form method="POST" action="{% url 'admin_dashboard:report_action' r.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="dismissed">
+                                    <input type="hidden" name="next_status" value="{{ status_filter }}">
+                                    <input type="hidden" name="next_reason" value="{{ reason_filter }}">
+                                    <input type="hidden" name="next_search" value="{{ search }}">
+                                    <input type="hidden" name="next_page" value="{{ page }}">
+                                    <button class="btn btn-sm btn-outline-secondary btn-action-icon" title="Dismiss" data-i18n-title="rep.btn_dismiss">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-flag fa-3x mb-3 d-block opacity-25"></i>
+            <span data-i18n="rep.no_reports">No reports.</span>
+        </div>
+        {% endif %}
     </div>
 </div>
-{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&status={{ status_filter }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&status={{ status_filter }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
+
+{% include 'admin_dashboard/includes/pagination.html' %}
+
+{% if can_edit_reports %}
+<!-- Manual Moderation Modal -->
+<div class="modal fade" id="moderateReportModal" tabindex="-1" aria-labelledby="moderateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="moderateReportForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="next_status" value="{{ status_filter }}">
+                <input type="hidden" name="next_reason" value="{{ reason_filter }}">
+                <input type="hidden" name="next_search" value="{{ search }}">
+                <input type="hidden" name="next_page" value="{{ page }}">
+                <input type="hidden" name="action" id="moderateActionInput" value="resolved">
+                <input type="hidden" name="hide_comment" value="1">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="moderateModalLabel">
+                        <i class="fas fa-gavel me-2 text-warning"></i><span data-i18n="rep.modal_title">Manual Comment Moderation</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3 p-3 rounded border" style="background: rgba(255,255,255,0.03);">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <span class="small text-muted">
+                                <strong data-i18n="rep.col_reporter">Reporter</strong>: <span id="modReporter"></span>
+                                &bull;
+                                <strong data-i18n="rep.author_label">Author</strong>: <span id="modAuthor"></span>
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span id="modStateBadge" class="badge bg-secondary"></span>
+                                <a id="modClientLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-info d-none">
+                                    <i class="fas fa-external-link-alt me-1"></i><span data-i18n="rep.view_on_site">View on site</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="small fw-semibold mb-1" data-i18n="rep.snapshot_label">Reported Comment Snapshot:</div>
+                        <div id="modCommentContent" class="p-2 rounded bg-dark border border-secondary small text-break" style="white-space: pre-wrap;"></div>
+                        <div id="modLiveContentWrap" class="mt-2 d-none">
+                            <div class="small fw-semibold text-info mb-1" data-i18n="rep.live_label">Current Live Text (edited after report):</div>
+                            <div id="modLiveContent" class="p-2 rounded bg-dark border border-info small text-break" style="white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="small fw-semibold mb-1" data-i18n="rep.col_reason">Reason</div>
+                        <div id="modReason" class="small text-warning"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modNote" class="form-label small fw-semibold" data-i18n="rep.note_label">Moderator Note (optional)</label>
+                        <textarea id="modNote" name="note" rows="2" maxlength="500" class="form-control form-control-sm" placeholder="Write resolution details..." data-i18n-placeholder="rep.note_placeholder"></textarea>
+                    </div>
+
+                    <div class="mb-3 form-check" id="modSiblingsWrap">
+                        <input class="form-check-input" type="checkbox" id="modApplySiblings" name="apply_siblings" value="1" checked>
+                        <label class="form-check-label small" for="modApplySiblings">
+                            <span data-i18n="rep.apply_siblings_label">Also resolve all open reports targeting this same comment</span>
+                            (<span id="modSiblingCount">0</span>)
+                        </label>
+                    </div>
+
+                    <div id="modBanReasonWrap" class="row g-2 mb-2">
+                        <div class="col-md-8">
+                            <label for="modBanReason" class="form-label small fw-semibold" data-i18n="rep.ban_reason_label">Ban Reason (used only when banning author)</label>
+                            <input type="text" id="modBanReason" name="ban_reason" maxlength="300" class="form-control form-control-sm" placeholder="Repeated comment policy violation..." data-i18n-placeholder="rep.ban_reason_placeholder">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="modBanDuration" class="form-label small fw-semibold" data-i18n="rep.ban_duration_label">Ban Duration</label>
+                            <select id="modBanDuration" name="ban_duration_hours" class="form-select form-select-sm">
+                                <option value="0" data-i18n="rep.ban_perm">Permanent</option>
+                                <option value="24" data-i18n="rep.ban_24h">24 Hours</option>
+                                <option value="72" data-i18n="rep.ban_3d">3 Days</option>
+                                <option value="168" data-i18n="rep.ban_7d">7 Days</option>
+                                <option value="720" data-i18n="rep.ban_30d">30 Days</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer flex-wrap justify-content-between gap-2">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if can_edit_comments %}
+                        <button type="button" id="btnHideComment" class="btn btn-sm btn-warning text-dark js-submit-moderate" data-act="hide_comment">
+                            <i class="fas fa-eye-slash me-1"></i><span data-i18n="rep.act_btn_hide">Hide Comment & Resolve</span>
+                        </button>
+                        <button type="button" id="btnRestoreComment" class="btn btn-sm btn-outline-info js-submit-moderate d-none" data-act="restore_comment">
+                            <i class="fas fa-eye me-1"></i><span data-i18n="rep.act_btn_restore">Restore Comment</span>
+                        </button>
+                        {% endif %}
+                        {% if can_delete_comments %}
+                        <button type="button" id="btnDeleteComment" class="btn btn-sm btn-danger js-submit-moderate" data-act="delete_comment">
+                            <i class="fas fa-trash-alt me-1"></i><span data-i18n="rep.act_btn_delete">Delete Comment & Resolve</span>
+                        </button>
+                        {% endif %}
+                        {% if can_edit_users and can_edit_comments %}
+                        <button type="button" id="btnBanAuthor" class="btn btn-sm btn-outline-danger js-submit-moderate" data-act="ban_author">
+                            <i class="fas fa-user-slash me-1"></i><span data-i18n="rep.act_btn_ban">Hide Comment & Ban Author</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-submit-moderate" data-act="dismissed">
+                            <i class="fas fa-times me-1"></i><span data-i18n="rep.btn_dismiss">Dismiss</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success js-submit-moderate" data-act="resolved">
+                            <i class="fas fa-check me-1"></i><span data-i18n="rep.act_btn_keep_resolve">Keep Comment & Resolve</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -57,22 +391,63 @@ window.AdminUI.addTranslations({
         'rep.status_resolved': 'Resolved',
         'rep.status_dismissed': 'Dismissed',
         'rep.all_status': 'All Status',
+        'rep.all_reasons': 'All Reasons',
+        'rep.search_placeholder': 'Search content, user...',
+        'rep.btn_filter': 'Filter',
         'rep.col_reporter': 'Reporter',
-        'rep.col_target': 'Target',
+        'rep.col_target': 'Comment & Author',
         'rep.col_reason': 'Reason',
         'rep.col_status': 'Status',
         'rep.col_date': 'Date',
         'rep.col_actions': 'Actions',
         'rep.no_reports': 'No reports.',
         'rep.btn_review': 'Start Review',
+        'rep.btn_moderate': 'Moderate',
         'rep.btn_resolve': 'Resolve',
         'rep.btn_dismiss': 'Dismiss',
         'rep.target_comment': 'Comment',
         'rep.target_user': 'User',
+        'rep.target_content': 'Content',
         'rep.target_room': 'Watch Room',
         'rep.target_movie': 'Movie',
         'rep.target_tv': 'TV Show',
-        'rep.target_tvshow': 'TV Show'
+        'rep.target_tvshow': 'TV Show',
+        'rep.badge_reply': 'Reply',
+        'rep.comment_active': 'Visible',
+        'rep.comment_hidden': 'Hidden',
+        'rep.comment_deleted': 'Deleted',
+        'rep.reports_count': 'reports',
+        'rep.author_banned': 'Banned',
+        'rep.view_on_site': 'View on site',
+        'rep.cat_spam': 'Spam',
+        'rep.cat_harassment': 'Harassment',
+        'rep.cat_hate_speech': 'Hate Speech',
+        'rep.cat_spoiler': 'Spoiler',
+        'rep.cat_inappropriate': 'Inappropriate',
+        'rep.cat_other': 'Other',
+        'rep.act_comment_hidden': 'Comment Hidden',
+        'rep.act_comment_deleted': 'Comment Deleted',
+        'rep.act_user_banned': 'Author Banned',
+        'rep.modal_title': 'Manual Comment Moderation',
+        'rep.author_label': 'Author',
+        'rep.snapshot_label': 'Reported Comment Snapshot:',
+        'rep.live_label': 'Current Live Text (edited after report):',
+        'rep.note_label': 'Moderator Note (optional)',
+        'rep.note_placeholder': 'Write resolution details...',
+        'rep.apply_siblings_label': 'Also resolve all open reports targeting this same comment',
+        'rep.ban_reason_label': 'Ban Reason (used only when banning author)',
+        'rep.ban_reason_placeholder': 'Repeated comment policy violation...',
+        'rep.ban_duration_label': 'Ban Duration',
+        'rep.ban_perm': 'Permanent',
+        'rep.ban_24h': '24 Hours',
+        'rep.ban_3d': '3 Days',
+        'rep.ban_7d': '7 Days',
+        'rep.ban_30d': '30 Days',
+        'rep.act_btn_hide': 'Hide Comment & Resolve',
+        'rep.act_btn_restore': 'Restore Comment',
+        'rep.act_btn_delete': 'Delete Comment & Resolve',
+        'rep.act_btn_ban': 'Hide Comment & Ban Author',
+        'rep.act_btn_keep_resolve': 'Keep Comment & Resolve'
     },
     vi: {
         'rep.status_pending': 'Đang chờ duyệt',
@@ -80,23 +455,142 @@ window.AdminUI.addTranslations({
         'rep.status_resolved': 'Đã giải quyết',
         'rep.status_dismissed': 'Đã bỏ qua',
         'rep.all_status': 'Tất cả trạng thái',
+        'rep.all_reasons': 'Tất cả lý do',
+        'rep.search_placeholder': 'Tìm nội dung, người dùng...',
+        'rep.btn_filter': 'Lọc',
         'rep.col_reporter': 'Người báo cáo',
-        'rep.col_target': 'Đối tượng bị báo cáo',
+        'rep.col_target': 'Bình luận & Tác giả',
         'rep.col_reason': 'Lý do báo cáo',
         'rep.col_status': 'Trạng thái',
         'rep.col_date': 'Thời gian',
         'rep.col_actions': 'Thao tác',
         'rep.no_reports': 'Chưa có báo cáo vi phạm nào.',
         'rep.btn_review': 'Bắt đầu xử lý',
+        'rep.btn_moderate': 'Kiểm duyệt',
         'rep.btn_resolve': 'Đánh dấu đã giải quyết',
         'rep.btn_dismiss': 'Bỏ qua',
         'rep.target_comment': 'Bình luận',
         'rep.target_user': 'Người dùng',
+        'rep.target_content': 'Nội dung',
         'rep.target_room': 'Phòng xem',
         'rep.target_movie': 'Phim lẻ',
         'rep.target_tv': 'Phim bộ',
-        'rep.target_tvshow': 'Phim bộ'
+        'rep.target_tvshow': 'Phim bộ',
+        'rep.badge_reply': 'Phản hồi',
+        'rep.comment_active': 'Đang hiển thị',
+        'rep.comment_hidden': 'Đã ẩn',
+        'rep.comment_deleted': 'Đã xóa',
+        'rep.reports_count': 'báo cáo',
+        'rep.author_banned': 'Đã khóa',
+        'rep.view_on_site': 'Xem trên web',
+        'rep.cat_spam': 'Spam / Quảng cáo',
+        'rep.cat_harassment': 'Quấy rối / Xúc phạm',
+        'rep.cat_hate_speech': 'Ngôn từ thù ghét',
+        'rep.cat_spoiler': 'Tiết lộ nội dung (Spoiler)',
+        'rep.cat_inappropriate': 'Nội dung phản cảm',
+        'rep.cat_other': 'Lý do khác',
+        'rep.act_comment_hidden': 'Đã ẩn bình luận',
+        'rep.act_comment_deleted': 'Đã xóa bình luận',
+        'rep.act_user_banned': 'Đã khóa tác giả',
+        'rep.modal_title': 'Kiểm duyệt bình luận thủ công',
+        'rep.author_label': 'Tác giả',
+        'rep.snapshot_label': 'Nội dung lúc bị báo cáo:',
+        'rep.live_label': 'Nội dung hiện tại (đã chỉnh sửa sau báo cáo):',
+        'rep.note_label': 'Ghi chú xử lý của Admin (không bắt buộc)',
+        'rep.note_placeholder': 'Nhập ghi chú kiểm duyệt...',
+        'rep.apply_siblings_label': 'Đồng thời xử lý các báo cáo đang mở khác của cùng bình luận này',
+        'rep.ban_reason_label': 'Lý do khóa tài khoản (chỉ dùng khi khóa tác giả)',
+        'rep.ban_reason_placeholder': 'Vi phạm quy tắc bình luận nhiều lần...',
+        'rep.ban_duration_label': 'Thời hạn khóa',
+        'rep.ban_perm': 'Vĩnh viễn',
+        'rep.ban_24h': '24 giờ',
+        'rep.ban_3d': '3 ngày',
+        'rep.ban_7d': '7 ngày',
+        'rep.ban_30d': '30 ngày',
+        'rep.act_btn_hide': 'Ẩn bình luận & Hoàn tất',
+        'rep.act_btn_restore': 'Khôi phục bình luận',
+        'rep.act_btn_delete': 'Xóa bình luận & Hoàn tất',
+        'rep.act_btn_ban': 'Ẩn bình luận & Khóa tác giả',
+        'rep.act_btn_keep_resolve': 'Giữ bình luận & Hoàn tất'
     }
 });
+
+(function() {
+    const modalEl = document.getElementById('moderateReportModal');
+    const formEl = document.getElementById('moderateReportForm');
+    if (!modalEl || !formEl || typeof bootstrap === 'undefined') return;
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    const t = window.AdminUI.t;
+
+    document.addEventListener('click', function(ev) {
+        const trigger = ev.target.closest('.js-moderate-btn');
+        if (trigger) {
+            formEl.action = trigger.dataset.actionUrl || '';
+            document.getElementById('modReporter').textContent = trigger.dataset.reporter || '-';
+            document.getElementById('modAuthor').textContent = trigger.dataset.author || '-';
+            document.getElementById('modCommentContent').textContent = trigger.dataset.commentContent || '-';
+            document.getElementById('modReason').textContent = trigger.dataset.reason || '-';
+            document.getElementById('modNote').value = trigger.dataset.note || '';
+            document.getElementById('modBanReason').value = '';
+
+            const state = trigger.dataset.commentState || 'active';
+            const stateBadge = document.getElementById('modStateBadge');
+            stateBadge.className = 'badge ' + (
+                state === 'active' ? 'bg-success' :
+                state === 'hidden' ? 'bg-warning text-dark' : 'bg-danger'
+            );
+            stateBadge.textContent = t('rep.comment_' + state) || state;
+
+            const liveContent = trigger.dataset.liveContent || '';
+            const snapshot = trigger.dataset.commentContent || '';
+            const liveWrap = document.getElementById('modLiveContentWrap');
+            if (liveContent && liveContent !== snapshot) {
+                document.getElementById('modLiveContent').textContent = liveContent;
+                liveWrap.classList.remove('d-none');
+            } else {
+                liveWrap.classList.add('d-none');
+            }
+
+            const clientUrl = trigger.dataset.clientUrl || '';
+            const linkEl = document.getElementById('modClientLink');
+            if (clientUrl) {
+                linkEl.href = clientUrl;
+                linkEl.classList.remove('d-none');
+            } else {
+                linkEl.classList.add('d-none');
+            }
+
+            const sameOpen = parseInt(trigger.dataset.sameOpen || '0', 10) || 0;
+            document.getElementById('modSiblingCount').textContent = String(sameOpen);
+            document.getElementById('modSiblingsWrap').classList.toggle('d-none', sameOpen <= 1);
+            document.getElementById('modApplySiblings').checked = true;
+
+            const btnHide = document.getElementById('btnHideComment');
+            const btnRestore = document.getElementById('btnRestoreComment');
+            const btnDelete = document.getElementById('btnDeleteComment');
+            const btnBan = document.getElementById('btnBanAuthor');
+
+            if (btnHide) btnHide.classList.toggle('d-none', state !== 'active');
+            if (btnRestore) btnRestore.classList.toggle('d-none', state !== 'hidden');
+            if (btnDelete) btnDelete.classList.toggle('d-none', state === 'deleted');
+            if (btnBan) {
+                const canBan = trigger.dataset.authorExists === '1' && trigger.dataset.authorBanned !== '1';
+                btnBan.classList.toggle('d-none', !canBan);
+            }
+
+            bsModal.show();
+            return;
+        }
+
+        const actBtn = ev.target.closest('.js-submit-moderate');
+        if (actBtn) {
+            const act = actBtn.dataset.act;
+            if (!act) return;
+            document.getElementById('moderateActionInput').value = act;
+            formEl.submit();
+        }
+    });
+})();
 </script>
 {% endblock %}

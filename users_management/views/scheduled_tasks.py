@@ -46,8 +46,15 @@ def _run_cleanup_tokens():
     cutoff = now - timedelta(hours=24)
     r1 = db.passwordresettokens.delete_many({'expiresAt': {'$lt': cutoff}})
     r2 = db.sessions.delete_many({'expiresAt': {'$lt': now}})
-    invalidate_swr('admin_sidebar_counts', 'sessions_global_stats_v1')
-    return f'Deleted {r1.deleted_count} expired password reset tokens & {r2.deleted_count} expired login sessions'
+    r3 = db.users.update_many(
+        {'isBanned': True, 'banExpiresAt': {'$ne': None, '$lte': now}},
+        {'$set': {'isBanned': False, 'banReason': '', 'banExpiresAt': None, 'bannedAt': None, 'bannedBy': ''}},
+    )
+    invalidate_swr('admin_sidebar_counts', 'sessions_global_stats_v1', 'user_list_stats_v2')
+    return (
+        f'Deleted {r1.deleted_count} expired password reset tokens, '
+        f'{r2.deleted_count} expired sessions & auto-unbanned {r3.modified_count} expired bans'
+    )
 
 
 def _run_cleanup_blacklist():
@@ -91,6 +98,12 @@ def _run_backup_db():
         log.file_size = file_size
         log.status = 'success'
         log.save()
+        from users_management.webhook_dispatcher import dispatch_webhook_event
+        dispatch_webhook_event('backup.completed', {
+            'file': snap_path.name,
+            'file_size': file_size,
+            'collections': len(valid_collections),
+        })
         return f'Snapshot saved ({snap_path.name}, {len(valid_collections)} collections, {log.file_size} bytes, counts={counts})'
     except Exception as exc:
         log.status = 'failed'
@@ -141,10 +154,49 @@ def _run_weekly_report():
         target_id=summary['period'],
         details=summary,
     )
+    email_note = ''
+    if getattr(settings, 'EMAIL_HOST', ''):
+        from django.contrib.auth.models import User as DjangoUser
+        from django.core.mail import send_mail
+        raw_targets = (getattr(settings, 'ADMIN_REPORT_EMAIL', '') or '').strip()
+        if raw_targets:
+            recipients = [x.strip() for x in raw_targets.split(',') if x.strip()]
+        else:
+            recipients = list(
+                DjangoUser.objects.filter(
+                    is_active=True,
+                    is_staff=True,
+                    admin_profile__role='super_admin',
+                )
+                .exclude(email='')
+                .values_list('email', flat=True)
+            )
+        if recipients:
+            body_text = (
+                f"ENTN Weekly Operations Report ({summary['period']})\n\n"
+                f"- Total Users: {total_users}\n"
+                f"- New Users (7d): +{new_users_7d}\n"
+                f"- New Comments (7d): +{new_comments_7d}\n"
+                f"- Streams (7d): {streams_7d}\n"
+                f"- Active Sessions: {active_sessions}\n"
+                f"- Failed Tasks (7d): {failed_tasks_7d}\n"
+            )
+            try:
+                send_mail(
+                    f"[ENTN Admin] Weekly Report ({summary['period']})",
+                    body_text,
+                    settings.DEFAULT_FROM_EMAIL,
+                    recipients[:20],
+                    fail_silently=False,
+                )
+                email_note = f', email_sent={len(recipients[:20])}'
+            except Exception as exc:
+                email_note = f', email_error={exc}'
+
     return (
         f'Weekly Report ({summary["period"]}): total_users={total_users}, '
         f'+{new_users_7d} new users, +{new_comments_7d} comments, '
-        f'{streams_7d} streams, {active_sessions} sessions, {failed_tasks_7d} failed tasks'
+        f'{streams_7d} streams, {active_sessions} sessions, {failed_tasks_7d} failed tasks{email_note}'
     )
 
 

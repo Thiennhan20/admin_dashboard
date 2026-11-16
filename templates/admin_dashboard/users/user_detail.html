@@ -114,6 +114,11 @@
                 {% if user.isBanned and user.banReason %}
                 <div class="mt-2 small text-danger">
                     <i class="fas fa-exclamation-circle me-1"></i><strong data-i18n="ud.banReasonPrefix">Ban Reason:</strong> {{ user.banReason }}
+                    {% if user.banExpiresAt %}
+                    <span class="ms-2 badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i><span data-i18n="ud.banExpiresPrefix">Expires:</span> {{ user.banExpiresAt|slice:":16" }}</span>
+                    {% else %}
+                    <span class="ms-2 badge bg-danger" data-i18n="ud.banPermanent">Permanent</span>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -503,6 +508,40 @@
 </div>
 
 {{ watchlist_overflow|default_if_none:""|json_script:"user-watchlist-overflow" }}
+
+<!-- Ban User Modal (with Optional Temporary Duration) -->
+<div class="modal fade" id="banUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:var(--panel);border-color:var(--line);color:var(--ink);">
+            <div class="modal-header" style="border-color:var(--line);">
+                <h5 class="modal-title"><i class="fas fa-ban text-warning me-2"></i><span data-i18n="ud.banModalTitle">Ban User Account</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" data-i18n="ud.banReasonLabel">Ban Reason</label>
+                    <input type="text" class="form-control" id="banModalReason" maxlength="300">
+                </div>
+                <div>
+                    <label class="form-label small fw-semibold" data-i18n="ud.banDurationLabel">Duration</label>
+                    <select class="form-select" id="banModalDuration">
+                        <option value="0" data-i18n="ud.banDurPermanent">Permanent</option>
+                        <option value="24" data-i18n="ud.banDur24h">24 Hours</option>
+                        <option value="72" data-i18n="ud.banDur3d">3 Days</option>
+                        <option value="168" data-i18n="ud.banDur7d">7 Days</option>
+                        <option value="720" data-i18n="ud.banDur30d">30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-color:var(--line);">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-warning text-dark btn-sm fw-semibold" onclick="confirmBanFromModal()">
+                    <i class="fas fa-ban me-1"></i><span data-i18n="ud.btnConfirmBan">Confirm Ban</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -588,7 +627,18 @@
             'ud.toastFailed': 'Operation failed',
             'ud.confirmDelTitle': 'Cascading User Delete',
             'ud.confirmDelBody': 'Delete "{name}" and cascade-remove their sessions, comments, search history, watch progress, and notifications?',
-            'ud.toastExportJson': 'Exported user telemetry JSON.'
+            'ud.toastExportJson': 'Exported user telemetry JSON.',
+            'ud.banExpiresPrefix': 'Expires:',
+            'ud.banPermanent': 'Permanent',
+            'ud.banModalTitle': 'Ban User Account',
+            'ud.banReasonLabel': 'Ban Reason',
+            'ud.banDurationLabel': 'Duration',
+            'ud.banDurPermanent': 'Permanent',
+            'ud.banDur24h': '24 Hours',
+            'ud.banDur3d': '3 Days',
+            'ud.banDur7d': '7 Days',
+            'ud.banDur30d': '30 Days',
+            'ud.btnConfirmBan': 'Confirm Ban'
         },
         vi: {
             'ud.badgeBanned': 'ĐÃ KHÓA',
@@ -668,7 +718,18 @@
             'ud.toastFailed': 'Thao tác thất bại',
             'ud.confirmDelTitle': 'Xóa toàn bộ dữ liệu người dùng',
             'ud.confirmDelBody': 'Xóa "{name}" và xóa dây chuyền toàn bộ phiên, bình luận, tìm kiếm, tiến độ xem và thông báo?',
-            'ud.toastExportJson': 'Đã xuất tệp dữ liệu JSON của người dùng.'
+            'ud.toastExportJson': 'Đã xuất tệp dữ liệu JSON của người dùng.',
+            'ud.banExpiresPrefix': 'Hết hạn:',
+            'ud.banPermanent': 'Vĩnh viễn',
+            'ud.banModalTitle': 'Khóa tài khoản người dùng',
+            'ud.banReasonLabel': 'Lý do khóa',
+            'ud.banDurationLabel': 'Thời hạn khóa',
+            'ud.banDurPermanent': 'Vĩnh viễn',
+            'ud.banDur24h': '24 giờ',
+            'ud.banDur3d': '3 ngày',
+            'ud.banDur7d': '7 ngày',
+            'ud.banDur30d': '30 ngày',
+            'ud.btnConfirmBan': 'Xác nhận khóa'
         }
     });
 
@@ -704,8 +765,29 @@
     }
 
     function toggleBanUser(shouldBan) {
-        const reason = shouldBan ? (prompt(udT('ud.promptBanReason'), udT('ud.defaultBanReason')) || udT('ud.fallbackBanReason')) : '';
-        if (shouldBan && !reason) return;
+        if (shouldBan) {
+            const modalEl = document.getElementById('banUserModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                document.getElementById('banModalReason').value = udT('ud.defaultBanReason');
+                document.getElementById('banModalDuration').value = '0';
+                new bootstrap.Modal(modalEl).show();
+                return;
+            }
+        }
+        submitBanAction(shouldBan, '', 0);
+    }
+
+    function confirmBanFromModal() {
+        const reason = (document.getElementById('banModalReason')?.value || '').trim() || udT('ud.fallbackBanReason');
+        const durationHours = parseInt(document.getElementById('banModalDuration')?.value || '0', 10) || 0;
+        const modalEl = document.getElementById('banUserModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getInstance(modalEl)?.hide();
+        }
+        submitBanAction(true, reason, durationHours);
+    }
+
+    function submitBanAction(shouldBan, reason, durationHours) {
         fetch("{% url 'admin_dashboard:api_user_ban' %}", {
             method: 'POST',
             headers: {
@@ -715,7 +797,8 @@
             body: JSON.stringify({
                 user_id: "{{ user.id }}",
                 action: shouldBan ? 'ban' : 'unban',
-                reason: reason
+                reason: reason,
+                duration_hours: durationHours
             })
         })
         .then(r => r.json())
@@ -733,7 +816,8 @@
         confirmAction(
             udT('ud.confirmDelTitle'),
             udT('ud.confirmDelBody', {name: userName}),
-            () => { window.location.href = `/dashboard/users/${userId}/delete/`; }
+            () => { window.location.href = `/dashboard/users/${userId}/delete/`; },
+            { requireText: 'DELETE' }
         );
     }
 

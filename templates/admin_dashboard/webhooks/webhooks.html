@@ -47,7 +47,7 @@
                     <div class="table-actions">
                         <button class="btn btn-sm btn-outline-primary btn-action-icon" onclick="testWebhook('{{ ep.id }}')" title="Test" data-i18n-title="wh.btn_test"><i class="fas fa-paper-plane"></i></button>
                         <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="common.toggle"><i class="fas fa-toggle-{% if ep.is_active %}on{% else %}off{% endif %}"></i></button></form>
-                        <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="common.delete"><i class="fas fa-trash"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:webhook_action' ep.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button type="button" class="btn btn-sm btn-outline-danger btn-action-icon" onclick="confirmDeleteWebhook(this)" title="Delete" data-i18n-title="common.delete"><i class="fas fa-trash"></i></button></form>
                     </div>
                 </td>
             </tr>{% endfor %}</tbody>
@@ -111,7 +111,9 @@ window.AdminUI.addTranslations({
         'wh.btn_test': 'Test',
         'wh.btn_send_test': 'Send Test',
         'wh.test_success': 'Success! Status: ',
-        'wh.test_error': 'Error: '
+        'wh.test_error': 'Error: ',
+        'wh.confirm_delete_title': 'Delete Webhook',
+        'wh.confirm_delete_body': 'Are you sure you want to delete this webhook endpoint?'
     },
     vi: {
         'wh.title': 'Webhook nhận tin',
@@ -144,9 +146,17 @@ window.AdminUI.addTranslations({
         'wh.btn_test': 'Thử nghiệm',
         'wh.btn_send_test': 'Gửi thử',
         'wh.test_success': 'Thành công! Mã trạng thái: ',
-        'wh.test_error': 'Lỗi: '
+        'wh.test_error': 'Lỗi: ',
+        'wh.confirm_delete_title': 'Xóa Webhook',
+        'wh.confirm_delete_body': 'Bạn có chắc chắn muốn xóa endpoint webhook này?'
     }
 });
+
+function confirmDeleteWebhook(btn) {
+    confirmAction(t('wh.confirm_delete_title'), t('wh.confirm_delete_body'), () => {
+        btn.closest('form')?.submit();
+    });
+}
 
 function testWebhook(id) {
     confirmAction(t('wh.confirm_test_title'), t('wh.confirm_test_body'), () => {

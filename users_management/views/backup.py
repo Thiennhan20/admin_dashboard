@@ -454,6 +454,15 @@ def backup_restore_preview(request):
 @require_permission('backup.edit')
 def backup_restore_confirm(request):
     """Execute restore from a previously previewed and verified staging snapshot."""
+    from users_management.rate_limit import consume_action_rate_limit, format_retry_wait
+    allowed, retry_after, _ = consume_action_rate_limit('admin_sensitive', request)
+    if not allowed:
+        msg = f'Thao tác quá nhanh. Vui lòng thử lại sau {format_retry_wait(retry_after)}.'
+        if is_json_request(request):
+            return JsonResponse({'success': False, 'error': msg, 'retryAfter': retry_after}, status=429)
+        messages.error(request, msg)
+        return redirect('admin_dashboard:backup')
+
     pending = request.session.get(_RESTORE_SESSION_KEY)
     confirm_token = (request.POST.get('confirm_token') or '').strip()
 
@@ -568,6 +577,13 @@ def backup_restore_confirm(request):
             pending.get('filename', ''),
             {'mode': mode, 'collections': target_colls, 'results': results},
         )
+        from users_management.webhook_dispatcher import dispatch_webhook_event
+        dispatch_webhook_event('backup.completed', {
+            'action': 'restore',
+            'mode': mode,
+            'filename': pending.get('filename', ''),
+            'collections': target_colls,
+        })
     except Exception as exc:
         if is_json_request(request):
             return JsonResponse({'success': False, 'error': str(exc)}, status=500)

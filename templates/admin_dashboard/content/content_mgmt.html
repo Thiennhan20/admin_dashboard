@@ -46,7 +46,7 @@
                 <td class="text-end">
                     <div class="table-actions">
                         <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="con.btn_toggle"><i class="fas fa-toggle-{% if f.is_active %}on{% else %}off{% endif %}"></i></button></form>
-                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'featured' f.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button type="button" class="btn btn-sm btn-outline-danger btn-action-icon" onclick="confirmDeleteContent(this)" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
                     </div>
                 </td>
             </tr>{% endfor %}</tbody>
@@ -90,7 +90,7 @@
                 <td class="text-end">
                     <div class="table-actions">
                         <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><button class="btn btn-sm btn-outline-warning btn-action-icon" title="Toggle" data-i18n-title="con.btn_toggle"><i class="fas fa-toggle-{% if n.is_active %}on{% else %}off{% endif %}"></i></button></form>
-                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger btn-action-icon" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
+                        <form method="POST" action="{% url 'admin_dashboard:content_action' 'notice' n.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button type="button" class="btn btn-sm btn-outline-danger btn-action-icon" onclick="confirmDeleteContent(this)" title="Delete" data-i18n-title="con.btn_delete"><i class="fas fa-trash"></i></button></form>
                     </div>
                 </td>
             </tr>{% endfor %}</tbody>
@@ -134,7 +134,9 @@ window.AdminUI.addTranslations({
         'con.no_notices': 'No maintenance notices.',
         'con.poster_placeholder': '/path/to/poster.jpg',
         'con.btn_toggle': 'Toggle Status',
-        'con.btn_delete': 'Delete'
+        'con.btn_delete': 'Delete',
+        'con.confirm_delete_title': 'Delete Item',
+        'con.confirm_delete_body': 'Are you sure you want to remove this content item and sync MongoDB?'
     },
     vi: {
         'con.feat_title': 'Nội dung nổi bật',
@@ -167,8 +169,16 @@ window.AdminUI.addTranslations({
         'con.no_notices': 'Không có thông báo bảo trì nào.',
         'con.poster_placeholder': '/duong-dan/anh-bia.jpg',
         'con.btn_toggle': 'Bật / Tắt',
-        'con.btn_delete': 'Xóa'
+        'con.btn_delete': 'Xóa',
+        'con.confirm_delete_title': 'Xóa mục nội dung',
+        'con.confirm_delete_body': 'Bạn có chắc chắn muốn xóa mục này và đồng bộ lại MongoDB?'
     }
 });
+function confirmDeleteContent(btn) {
+    const t = window.AdminUI.t;
+    confirmAction(t('con.confirm_delete_title'), t('con.confirm_delete_body'), () => {
+        btn.closest('form')?.submit();
+    });
+}
 </script>
 {% endblock %}

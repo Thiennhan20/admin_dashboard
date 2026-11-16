@@ -12,16 +12,46 @@
     <div class="col-md-4"><div class="card"><div class="card-body text-center"><h3 class="mb-1" style="color:var(--red);">{{ stats.critical|default:"0" }}</h3><small class="text-muted" data-i18n="err.level_critical">Critical</small></div></div></div>
 </div>
 
+{% if trend_days %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i><span data-i18n="err.trend_title">7-Day Error Trend</span></h6>
+        <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ trend_7d_total|default:"0" }} <span data-i18n="err.trend_events">events (7d)</span></span>
+    </div>
+    <div class="card-body">
+        <div class="d-flex align-items-end justify-content-between gap-2" style="height:110px;">
+            {% for d in trend_days %}
+            <div class="flex-fill d-flex flex-column align-items-center h-100 justify-content-end" title="{{ d.iso }}: {{ d.total }} ({{ d.critical }} critical / {{ d.error }} error / {{ d.warning }} warning)">
+                <small class="text-muted mb-1" style="font-size:11px;">{{ d.total }}</small>
+                <div class="w-100 rounded-top d-flex align-items-end justify-content-center" style="max-width:44px;height:70px;background:var(--control-hover);overflow:hidden;">
+                    <div class="w-100 rounded-top" style="height:{{ d.pct }}%;min-height:{% if d.total %}6px{% else %}0{% endif %};background:{% if d.critical %}var(--red){% elif d.error %}#dc3545{% elif d.warning %}#ffc107{% else %}transparent{% endif %};transition:height .25s ease;"></div>
+                </div>
+                <small class="text-muted mt-1" style="font-size:11px;">{{ d.label }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0"><i class="fas fa-bug me-2"></i><span data-i18n="nav.errorLogs">Error Logs</span> ({{ total }})</h6>
-        <div class="card-toolbar">
-            <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='?level='+this.value}">
-                <option value="" data-i18n="err.all_levels">All Levels</option>
-                <option value="error" {% if level == 'error' %}selected{% endif %} data-i18n="err.level_error">Error</option>
-                <option value="warning" {% if level == 'warning' %}selected{% endif %} data-i18n="err.level_warning">Warning</option>
-                <option value="critical" {% if level == 'critical' %}selected{% endif %} data-i18n="err.level_critical">Critical</option>
-            </select>
+        <div class="card-toolbar d-flex flex-wrap align-items-center gap-2">
+            <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
+                <select class="form-select form-select-sm" name="level" style="width:auto;" onchange="this.form.submit()">
+                    <option value="" data-i18n="err.all_levels">All Levels</option>
+                    <option value="error" {% if level == 'error' %}selected{% endif %} data-i18n="err.level_error">Error</option>
+                    <option value="warning" {% if level == 'warning' %}selected{% endif %} data-i18n="err.level_warning">Warning</option>
+                    <option value="critical" {% if level == 'critical' %}selected{% endif %} data-i18n="err.level_critical">Critical</option>
+                </select>
+                <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}" style="width:auto;" title="From Date" data-i18n-title="err.date_from">
+                <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}" style="width:auto;" title="To Date" data-i18n-title="err.date_to">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i><span data-i18n="err.btn_filter">Filter</span></button>
+                {% if level or date_from or date_to %}
+                <a href="{% url 'admin_dashboard:error_logs' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times me-1"></i><span data-i18n="common.btn_clear">Clear</span></a>
+                {% endif %}
+            </form>
             <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()"><i class="fas fa-trash me-1"></i><span data-i18n="err.btn_clear_all">Clear All</span></button>
         </div>
     </div>
@@ -46,7 +76,7 @@
         {% endif %}
     </div>
 </div>
-{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&level={{ level }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&level={{ level }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
+{% if total_pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">{% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'-1' }}&level={{ level|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}">&laquo;</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>{% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page|add:'1' }}&level={{ level|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}">&raquo;</a></li>{% endif %}</ul></nav>{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -66,7 +96,12 @@ window.AdminUI.addTranslations({
         'err.col_time': 'Time',
         'err.no_errors': 'No errors! Everything looks good.',
         'err.confirm_clear_title': 'Clear All Logs',
-        'err.confirm_clear_body': 'This will permanently delete all error logs.'
+        'err.confirm_clear_body': 'This will permanently delete all error logs.',
+        'err.trend_title': '7-Day Error Trend',
+        'err.trend_events': 'events (7d)',
+        'err.date_from': 'From Date',
+        'err.date_to': 'To Date',
+        'err.btn_filter': 'Filter'
     },
     vi: {
         'err.level_error': 'Lỗi',
@@ -80,7 +115,12 @@ window.AdminUI.addTranslations({
         'err.col_time': 'Thời gian',
         'err.no_errors': 'Tuyệt vời! Không có lỗi nào xảy ra.',
         'err.confirm_clear_title': 'Xóa sạch nhật ký lỗi',
-        'err.confirm_clear_body': 'Hành động này sẽ xóa vĩnh viễn toàn bộ nhật ký lỗi.'
+        'err.confirm_clear_body': 'Hành động này sẽ xóa vĩnh viễn toàn bộ nhật ký lỗi.',
+        'err.trend_title': 'Xu hướng lỗi 7 ngày qua',
+        'err.trend_events': 'sự kiện (7 ngày)',
+        'err.date_from': 'Từ ngày',
+        'err.date_to': 'Đến ngày',
+        'err.btn_filter': 'Lọc'
     }
 });
 

@@ -6,9 +6,25 @@
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="card">
-            <div class="card-header"><h6 class="mb-0"><i class="fas fa-paper-plane me-2"></i><span data-i18n="em.compose_title">Compose Email</span></h6></div>
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0"><i class="fas fa-paper-plane me-2"></i><span data-i18n="em.compose_title">Compose Email</span></h6>
+                {% if smtp_configured %}
+                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i><span data-i18n="em.smtp_ready">SMTP Ready</span> ({{ smtp_host }})</span>
+                {% else %}
+                <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i><span data-i18n="em.smtp_missing">SMTP Not Configured</span></span>
+                {% endif %}
+            </div>
             <div class="card-body">
                 <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="send">
+                    <div class="mb-3">
+                        <label class="form-label" data-i18n="em.template_label">Quick Template</label>
+                        <select class="form-select form-select-sm" id="emailTemplateSelect" onchange="applyEmailTemplate(this.value)">
+                            <option value="" data-i18n="em.tpl_none">-- Select Template --</option>
+                            <option value="maintenance" data-i18n="em.tpl_maintenance">Scheduled Maintenance</option>
+                            <option value="release" data-i18n="em.tpl_release">New Feature Announcement</option>
+                            <option value="security" data-i18n="em.tpl_security">Security Notice</option>
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label" data-i18n="em.form_type">Recipient Type</label>
                         <select class="form-select" name="recipient_type" id="recipientType" onchange="document.getElementById('singleRecipient').classList.toggle('d-none', this.value!=='single')">
@@ -20,8 +36,8 @@
                         <label class="form-label" data-i18n="em.form_email">Email Address</label>
                         <input type="email" class="form-control" name="recipient_email" placeholder="user@example.com" data-i18n-placeholder="em.ph_email">
                     </div>
-                    <div class="mb-3"><label class="form-label" data-i18n="em.form_subject">Subject</label><input type="text" class="form-control" name="subject" required></div>
-                    <div class="mb-3"><label class="form-label" data-i18n="em.form_body">Body</label><textarea class="form-control" name="body" rows="6" required></textarea></div>
+                    <div class="mb-3"><label class="form-label" data-i18n="em.form_subject">Subject</label><input type="text" class="form-control" id="emailSubjectInput" name="subject" required></div>
+                    <div class="mb-3"><label class="form-label" data-i18n="em.form_body">Body</label><textarea class="form-control" id="emailBodyInput" name="body" rows="6" required></textarea></div>
                     <button type="submit" class="btn btn-primary w-100"><i class="fas fa-paper-plane me-1"></i><span data-i18n="em.btn_send">Send Email</span></button>
                 </form>
             </div>
@@ -72,7 +88,14 @@ window.AdminUI.addTranslations({
         'em.status_sent': 'Sent',
         'em.status_failed': 'Failed',
         'em.status_pending': 'Pending',
-        'em.no_emails': 'No emails sent yet.'
+        'em.no_emails': 'No emails sent yet.',
+        'em.smtp_ready': 'SMTP Ready',
+        'em.smtp_missing': 'SMTP Not Configured',
+        'em.template_label': 'Quick Template',
+        'em.tpl_none': '-- Select Template --',
+        'em.tpl_maintenance': 'Scheduled Maintenance',
+        'em.tpl_release': 'New Feature Announcement',
+        'em.tpl_security': 'Security Notice'
     },
     vi: {
         'em.compose_title': 'Soạn thư điện tử',
@@ -94,8 +117,56 @@ window.AdminUI.addTranslations({
         'em.status_sent': 'Đã gửi',
         'em.status_failed': 'Thất bại',
         'em.status_pending': 'Đang chờ',
-        'em.no_emails': 'Chưa gửi email nào gần đây.'
+        'em.no_emails': 'Chưa gửi email nào gần đây.',
+        'em.smtp_ready': 'SMTP Sẵn sàng',
+        'em.smtp_missing': 'Chưa cấu hình SMTP',
+        'em.template_label': 'Mẫu thư nhanh',
+        'em.tpl_none': '-- Chọn mẫu nhanh --',
+        'em.tpl_maintenance': 'Thông báo bảo trì định kỳ',
+        'em.tpl_release': 'Giới thiệu tính năng mới',
+        'em.tpl_security': 'Cảnh báo bảo mật tài khoản'
     }
 });
+function applyEmailTemplate(tplKey) {
+    if (!tplKey) return;
+    const lang = (localStorage.getItem('admin-lang') || 'vi') === 'en' ? 'en' : 'vi';
+    const presets = {
+        en: {
+            maintenance: {
+                s: '[ENTN] Scheduled System Maintenance Notice',
+                b: 'Hello,\n\nWe will perform scheduled system maintenance to upgrade streaming stability. Services may pause briefly during this window.\n\nThank you for your patience!'
+            },
+            release: {
+                s: '[ENTN] New Features & Platform Improvements',
+                b: 'Hello,\n\nWe have just rolled out new improvements across movie playback and Watch Rooms. Visit the platform to check out what is new!\n\nEnjoy watching!'
+            },
+            security: {
+                s: '[ENTN] Important Account Security Notice',
+                b: 'Hello,\n\nFor your account safety, please make sure you use a strong password and verify recent login sessions in your account settings.\n\nBest regards,\nENTN Team'
+            }
+        },
+        vi: {
+            maintenance: {
+                s: '[ENTN] Thông báo bảo trì nâng cấp hệ thống',
+                b: 'Xin chào,\n\nHệ thống sẽ tiến hành bảo trì định kỳ để tối ưu tốc độ phát phim và phòng xem chung. Dịch vụ có thể gián đoạn trong ít phút.\n\nCảm ơn bạn đã thông cảm!'
+            },
+            release: {
+                s: '[ENTN] Cập nhật tính năng & cải tiến mới',
+                b: 'Xin chào,\n\nChúng tôi vừa cập nhật thêm nhiều cải tiến mới cho trình phát phim và phòng xem chung. Hãy truy cập ngay để trải nghiệm nhé!\n\nChúc bạn xem phim vui vẻ!'
+            },
+            security: {
+                s: '[ENTN] Lưu ý quan trọng về bảo mật tài khoản',
+                b: 'Xin chào,\n\nĐể bảo vệ tài khoản an toàn, vui lòng kiểm tra các phiên đăng nhập gần đây và sử dụng mật khẩu mạnh.\n\nTrân trọng,\nĐội ngũ ENTN'
+            }
+        }
+    };
+    const item = presets[lang]?.[tplKey];
+    if (item) {
+        const sub = document.getElementById('emailSubjectInput');
+        const body = document.getElementById('emailBodyInput');
+        if (sub) sub.value = item.s;
+        if (body) body.value = item.b;
+    }
+}
 </script>
 {% endblock %}

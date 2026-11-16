@@ -21,6 +21,34 @@
     </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card h-100"><div class="card-body text-center">
+            <div class="small text-muted mb-1" data-i18n="an.kpi_dau">DAU (24h)</div>
+            <h3 class="mb-0 text-primary" id="kpiDau">-</h3>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100"><div class="card-body text-center">
+            <div class="small text-muted mb-1" data-i18n="an.kpi_wau">WAU (7d)</div>
+            <h3 class="mb-0 text-info" id="kpiWau">-</h3>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100"><div class="card-body text-center">
+            <div class="small text-muted mb-1" data-i18n="an.kpi_mau">MAU (30d)</div>
+            <h3 class="mb-0 text-success" id="kpiMau">-</h3>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100"><div class="card-body text-center">
+            <div class="small text-muted mb-1" data-i18n="an.kpi_sessions">Active Sessions & WoW</div>
+            <h3 class="mb-1 text-warning" id="kpiSessions">-</h3>
+            <div class="small text-muted" id="kpiWow"></div>
+        </div></div>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="card chart-card mb-4">
@@ -88,6 +116,16 @@
             <div class="card-body"><canvas id="streamSummaryChart"></canvas></div>
         </div>
     </div>
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-fire me-2 text-warning"></i><span data-i18n="an.title_heatmap">2D Activity Heatmap (Day of Week × Hour UTC)</span></h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" id="heatmapContainer"></div>
+            </div>
+        </div>
+    </div>
 </div>
 <div class="text-center mt-2 mb-3"><span class="text-muted small" id="loadStatus"><i class="fas fa-spinner fa-spin me-1"></i><span data-i18n="an.loading">Đang tải dữ liệu phân tích...</span></span></div>
 {% endblock %}
@@ -118,6 +156,37 @@ let lastAnalyticsData = null;
 function renderCharts(data) {
     if (!data) return;
     lastAnalyticsData = data;
+
+    if (data.kpis) {
+        document.getElementById('kpiDau').textContent = String(data.kpis.dau ?? 0);
+        document.getElementById('kpiWau').textContent = String(data.kpis.wau ?? 0);
+        document.getElementById('kpiMau').textContent = String(data.kpis.mau ?? 0);
+        document.getElementById('kpiSessions').textContent = String(data.kpis.active_sessions ?? 0);
+        const regSign = (data.kpis.reg_wow_pct || 0) >= 0 ? '+' : '';
+        const cmSign = (data.kpis.cm_wow_pct || 0) >= 0 ? '+' : '';
+        document.getElementById('kpiWow').textContent =
+            `${t('an.wow_users')}: ${regSign}${data.kpis.reg_wow_pct}% · ${t('an.wow_comments')}: ${cmSign}${data.kpis.cm_wow_pct}%`;
+    }
+
+    const hmEl = document.getElementById('heatmapContainer');
+    if (hmEl && Array.isArray(data.heatmap)) {
+        const dayNames = [t('an.day_mon'), t('an.day_tue'), t('an.day_wed'), t('an.day_thu'), t('an.day_fri'), t('an.day_sat'), t('an.day_sun')];
+        let maxVal = 1;
+        data.heatmap.forEach(row => row.forEach(v => { if (v > maxVal) maxVal = v; }));
+        let tbl = '<table class="table table-sm table-bordered mb-0 text-center" style="font-size:11px;"><thead><tr><th></th>';
+        for (let h = 0; h < 24; h++) tbl += `<th>${h}h</th>`;
+        tbl += '</tr></thead><tbody>';
+        data.heatmap.forEach((row, dIdx) => {
+            tbl += `<tr><th class="text-start">${dayNames[dIdx]}</th>`;
+            row.forEach(val => {
+                const alpha = val > 0 ? Math.max(0.18, Math.min(0.95, val / maxVal)) : 0.04;
+                tbl += `<td title="${dayNames[dIdx]}: ${val}" style="background:rgba(59,130,246,${alpha.toFixed(2)});min-width:24px;">${val || ''}</td>`;
+            });
+            tbl += '</tr>';
+        });
+        tbl += '</tbody></table>';
+        hmEl.innerHTML = tbl;
+    }
 
     if (chartInstances.regChart) chartInstances.regChart.destroy();
     chartInstances.regChart = new Chart(document.getElementById('regChart'), {
@@ -318,7 +387,21 @@ window.AdminUI.addTranslations({
         'an.lbl_read': 'Read',
         'an.lbl_unread': 'Unread',
         'an.lbl_unique_links': 'Unique Links',
-        'an.lbl_total_plays': 'Total Plays'
+        'an.lbl_total_plays': 'Total Plays',
+        'an.kpi_dau': 'DAU (24h)',
+        'an.kpi_wau': 'WAU (7d)',
+        'an.kpi_mau': 'MAU (30d)',
+        'an.kpi_sessions': 'Active Sessions & WoW',
+        'an.wow_users': 'Users WoW',
+        'an.wow_comments': 'Comments WoW',
+        'an.title_heatmap': '2D Activity Heatmap (Day of Week x Hour UTC)',
+        'an.day_mon': 'Mon',
+        'an.day_tue': 'Tue',
+        'an.day_wed': 'Wed',
+        'an.day_thu': 'Thu',
+        'an.day_fri': 'Fri',
+        'an.day_sat': 'Sat',
+        'an.day_sun': 'Sun'
     },
     vi: {
         'an.loading': 'Đang tải dữ liệu phân tích...',
@@ -357,7 +440,21 @@ window.AdminUI.addTranslations({
         'an.lbl_read': 'Đã đọc',
         'an.lbl_unread': 'Chưa đọc',
         'an.lbl_unique_links': 'Đường dẫn duy nhất',
-        'an.lbl_total_plays': 'Tổng lượt phát'
+        'an.lbl_total_plays': 'Tổng lượt phát',
+        'an.kpi_dau': 'Người dùng/Ngày (DAU)',
+        'an.kpi_wau': 'Người dùng/Tuần (WAU)',
+        'an.kpi_mau': 'Người dùng/Tháng (MAU)',
+        'an.kpi_sessions': 'Phiên hoạt động & Tăng trưởng tuần',
+        'an.wow_users': 'Users tuần',
+        'an.wow_comments': 'Bình luận tuần',
+        'an.title_heatmap': 'Bản đồ nhiệt hoạt động 2D (Thứ × Giờ UTC)',
+        'an.day_mon': 'T2',
+        'an.day_tue': 'T3',
+        'an.day_wed': 'T4',
+        'an.day_thu': 'T5',
+        'an.day_fri': 'T6',
+        'an.day_sat': 'T7',
+        'an.day_sun': 'CN'
     }
 });
 </script>

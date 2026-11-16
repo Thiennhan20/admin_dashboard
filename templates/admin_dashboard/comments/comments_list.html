@@ -69,10 +69,22 @@
 
 <!-- Comments List -->
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="mb-0">
             <i class="fas fa-list me-2"></i><span data-i18n="comments.listTitle">Comments</span> ({{ total }})
         </h6>
+        <div class="d-none align-items-center gap-2 flex-wrap" id="commentsBulkBar">
+            <span class="small text-muted"><strong id="commentsSelectedCount">0</strong> <span data-i18n="comments.selected">selected</span></span>
+            <button type="button" class="btn btn-sm btn-outline-warning" onclick="bulkCommentsAction('hide')">
+                <i class="fas fa-eye-slash me-1"></i><span data-i18n="comments.bulkHide">Hide Selected</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="bulkCommentsAction('restore')">
+                <i class="fas fa-eye me-1"></i><span data-i18n="comments.bulkRestore">Restore Selected</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="bulkCommentsAction('delete')">
+                <i class="fas fa-trash-alt me-1"></i><span data-i18n="comments.bulkDelete">Delete Selected</span>
+            </button>
+        </div>
     </div>
     <div class="card-body p-0">
         {% if comments %}
@@ -80,6 +92,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:40px;"><input type="checkbox" class="form-check-input" id="selectAllComments"></th>
                             <th data-i18n="comments.colUser">User</th>
                             <th data-i18n="comments.colComment">Comment Text</th>
                             <th data-i18n="comments.colMedia">Target Media</th>
@@ -92,6 +105,7 @@
                     <tbody>
                         {% for comment in comments %}
                         <tr id="comment-row-{{ comment.id }}">
+                            <td><input type="checkbox" class="form-check-input comment-checkbox" value="{{ comment.id }}"></td>
                             <td>
                                 <div class="fw-semibold">{% if comment.user.name %}{{ comment.user.name }}{% else %}<span data-i18n="comments.unknownUser">Unknown User</span>{% endif %}</div>
                                 <small class="text-muted">{{ comment.user.email|default:"" }}</small>
@@ -223,7 +237,16 @@
             'comments.type_movie': 'Movie',
             'comments.type_tv': 'TV Show',
             'comments.type_tvshow': 'TV Show',
-            'comments.btnDeleteTitle': 'Delete'
+            'comments.btnDeleteTitle': 'Delete',
+            'comments.selected': 'selected',
+            'comments.bulkHide': 'Hide Selected',
+            'comments.bulkRestore': 'Restore Selected',
+            'comments.bulkDelete': 'Delete Selected',
+            'comments.confirmBulkTitle': 'Bulk Comment Moderation',
+            'comments.confirmBulkHide': 'Hide {count} selected comments?',
+            'comments.confirmBulkRestore': 'Restore {count} selected comments?',
+            'comments.confirmBulkDelete': 'Permanently delete {count} selected comments and related replies?',
+            'comments.bulkDone': 'Updated {count} comment(s).'
         },
         vi: {
             'comments.title': 'Kiểm duyệt bình luận người dùng',
@@ -262,7 +285,16 @@
             'comments.type_movie': 'Phim lẻ',
             'comments.type_tv': 'Phim bộ',
             'comments.type_tvshow': 'Phim bộ',
-            'comments.btnDeleteTitle': 'Xóa'
+            'comments.btnDeleteTitle': 'Xóa',
+            'comments.selected': 'đã chọn',
+            'comments.bulkHide': 'Ẩn đã chọn',
+            'comments.bulkRestore': 'Khôi phục đã chọn',
+            'comments.bulkDelete': 'Xóa đã chọn',
+            'comments.confirmBulkTitle': 'Thao tác hàng loạt bình luận',
+            'comments.confirmBulkHide': 'Ẩn {count} bình luận đã chọn?',
+            'comments.confirmBulkRestore': 'Khôi phục {count} bình luận đã chọn?',
+            'comments.confirmBulkDelete': 'Xóa vĩnh viễn {count} bình luận đã chọn và các phản hồi liên quan?',
+            'comments.bulkDone': 'Đã cập nhật {count} bình luận.'
         }
     });
 
@@ -338,6 +370,53 @@
 
     function showAlert(message, type) {
         window.showToast(message, type);
+    }
+
+    function updateCommentBulkBar() {
+        const checked = document.querySelectorAll('.comment-checkbox:checked');
+        const bar = document.getElementById('commentsBulkBar');
+        const countEl = document.getElementById('commentsSelectedCount');
+        if (countEl) countEl.textContent = String(checked.length);
+        if (bar) {
+            bar.classList.toggle('d-none', checked.length === 0);
+            bar.classList.toggle('d-flex', checked.length > 0);
+        }
+    }
+
+    document.getElementById('selectAllComments')?.addEventListener('change', function() {
+        document.querySelectorAll('.comment-checkbox').forEach(cb => { cb.checked = this.checked; });
+        updateCommentBulkBar();
+    });
+    document.querySelectorAll('.comment-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateCommentBulkBar);
+    });
+
+    function bulkCommentsAction(action) {
+        const ids = Array.from(document.querySelectorAll('.comment-checkbox:checked')).map(cb => cb.value);
+        if (!ids.length) return;
+        const msgKey = action === 'hide'
+            ? 'comments.confirmBulkHide'
+            : action === 'restore'
+                ? 'comments.confirmBulkRestore'
+                : 'comments.confirmBulkDelete';
+        confirmAction(t('comments.confirmBulkTitle'), t(msgKey, { count: ids.length }), () => {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch('/dashboard/api/bulk-action/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ collection: 'comments', action, ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(t('comments.bulkDone', { count: data.count ?? ids.length }), 'success');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showAlert(`${t('comments.errorPrefix')} ${data.error}`, 'danger');
+                }
+            })
+            .catch(err => showAlert(`${t('comments.networkError')} ${err.message}`, 'danger'));
+        });
     }
 </script>
 {% endblock %}

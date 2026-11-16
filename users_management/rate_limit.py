@@ -22,6 +22,11 @@ DEFAULT_RULES = {
         'account_max': 5,
         'window_seconds': 900,
     },
+    'admin_sensitive': {
+        'ip_max': 60,
+        'account_max': 30,
+        'window_seconds': 300,
+    },
 }
 
 
@@ -221,6 +226,21 @@ def clear_failures(scope, request, account_identifier=''):
         except Exception:
             pass
     _mem_delete(*keys)
+
+
+def consume_action_rate_limit(scope, request, account_identifier=''):
+    """Enforce sliding/fixed window rate limit for post-login sensitive admin mutations.
+
+    Returns `(allowed, retry_after_seconds, reason_kind)`.
+    """
+    ident = account_identifier or (
+        getattr(getattr(request, 'user', None), 'username', '') or ''
+    )
+    allowed, retry_after, reason = check_rate_limit(scope, request, ident)
+    if not allowed:
+        return False, retry_after, reason
+    record_failure(scope, request, ident)
+    return True, 0, ''
 
 
 def format_retry_wait(seconds):

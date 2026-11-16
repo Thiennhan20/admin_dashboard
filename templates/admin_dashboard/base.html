@@ -217,6 +217,7 @@
                         {% if p_reports %}
                         <a class="side-link {% if 'reports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_dashboard:reports' %}">
                             <i class="fas fa-flag"></i><span data-i18n="nav.reports">Moderation Reports</span>
+                            {% if sidebar_counts.reports %}<span class="side-badge bg-danger text-white">{{ sidebar_counts.reports }}</span>{% endif %}
                         </a>
                         {% endif %}
                     </div></div>
@@ -365,7 +366,11 @@
                     <!-- User Menu -->
                     <div class="dropdown">
                         <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if admin_profile and admin_profile.avatar %}
+                            <img src="{{ admin_profile.avatar }}" alt="{{ request.user.username }}" class="avatar-dot" style="object-fit:cover;padding:0;">
+                            {% else %}
                             <span class="avatar-dot">{{ request.user.username|first|upper }}</span>
+                            {% endif %}
                             <span>{{ request.user.username }}</span>
                             <i class="fas fa-chevron-down text-muted" style="font-size: 11px;"></i>
                         </button>

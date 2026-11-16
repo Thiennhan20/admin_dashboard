@@ -64,6 +64,16 @@ EXPORT_CONFIGS = {
         'fields': ['_id', 'movieId', 'type', 'content', 'likes', 'isDeleted', 'createdAt'],
         'headers': ['ID', 'Movie ID', 'Type', 'Content', 'Likes', 'Deleted', 'Created At'],
     },
+    'watchlist': {
+        'source': 'watchlist',
+        'collection': 'users',
+        'headers': ['User ID', 'User Name', 'User Email', 'Media ID', 'Title', 'Type', 'Poster Path'],
+    },
+    'userreports': {
+        'collection': 'userreports',
+        'fields': ['_id', 'reporterName', 'targetType', 'targetId', 'reportedUserName', 'reasonCategory', 'reason', 'status', 'actionTaken', 'resolvedBy', 'createdAt'],
+        'headers': ['ID', 'Reporter', 'Target Type', 'Target ID', 'Author', 'Category', 'Reason', 'Status', 'Action Taken', 'Resolved By', 'Created At'],
+    },
     'watchprogresses': {
         'collection': 'watchprogresses',
         'fields': ['_id', 'userId', 'contentId', 'title', 'isTVShow', 'currentTime', 'duration', 'server', 'audio', 'lastWatched'],
@@ -213,6 +223,8 @@ _EXPORT_PERM_MAP = {
     'users': 'users.export',
     'sessions': 'sessions.export',
     'comments': 'comments.export',
+    'userreports': 'reports.export',
+    'watchlist': 'watchlist.export',
     'watchprogresses': 'watch_progress.export',
     'searchhistories': 'search_history.export',
     'notifications': 'notifications.export',
@@ -250,6 +262,26 @@ def export_collection(request, collection_name):
                     row.id, row.admin_username, row.action,
                     row.target_type, row.target_id, row.ip_address,
                     row.timestamp.isoformat() if row.timestamp else '',
+                ]
+        elif config.get('source') == 'watchlist':
+            db = mongo_admin.db()
+            pipeline = [
+                {'$match': {'watchlist.0': {'$exists': True}}},
+                {'$project': {'name': 1, 'email': 1, 'watchlist': 1}},
+                {'$unwind': '$watchlist'},
+                {'$sort': {'watchlist.title': 1}},
+                {'$limit': 5000},
+            ]
+            for doc in db.users.aggregate(pipeline):
+                wl = doc.get('watchlist') or {}
+                yield [
+                    str(doc.get('_id', '')),
+                    doc.get('name', ''),
+                    doc.get('email', ''),
+                    str(wl.get('id', '')),
+                    wl.get('title', ''),
+                    wl.get('type', ''),
+                    wl.get('poster_path', ''),
                 ]
         else:
             db = mongo_admin.db()

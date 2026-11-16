@@ -97,6 +97,15 @@ def api_analytics_data(request):
                         }},
                         {'$sort': {'_id': 1}},
                     ],
+                    'heatmap': [
+                        {'$group': {
+                            '_id': {
+                                'dow': {'$dayOfWeek': '$createdAt'},
+                                'hour': {'$hour': '$createdAt'},
+                            },
+                            'count': {'$sum': 1},
+                        }},
+                    ],
                 }},
             ]
             wp_pct_expr = {
@@ -140,6 +149,17 @@ def api_analytics_data(request):
                 }},
             ]
 
+            d1_cut = now - timedelta(days=1)
+            d7_cut = now - timedelta(days=7)
+            d14_cut = now - timedelta(days=14)
+            d30_cut = now - timedelta(days=30)
+
+            def _distinct_active(since_dt):
+                ids = set(db.watchprogresses.distinct('userId', {'lastWatched': {'$gte': since_dt}}))
+                ids.update(db.comments.distinct('userId', {'createdAt': {'$gte': since_dt}}))
+                ids.update(db.sessions.distinct('userId', {'lastActive': {'$gte': since_dt}}))
+                return len(ids)
+
             res = parallel_run({
                 'reg': lambda: clean_value(list(db.users.aggregate(reg_pipeline))),
                 'wl_facet': lambda: list(db.users.aggregate(wl_facet_pipeline)),
@@ -148,6 +168,14 @@ def api_analytics_data(request):
                 'wp_stats': lambda: list(db.watchprogresses.aggregate(wp_stats_pipeline)),
                 'notif_stats': lambda: clean_value(list(db.notifications.aggregate(notif_pipeline))),
                 'stream_stats': lambda: clean_value(list(db.streamhistories.aggregate(stream_pipeline))),
+                'dau': lambda: _distinct_active(d1_cut),
+                'wau': lambda: _distinct_active(d7_cut),
+                'mau': lambda: _distinct_active(d30_cut),
+                'active_sessions': lambda: db.sessions.count_documents({'$or': [{'expiresAt': {'$gt': now}}, {'expiresAt': None}]}),
+                'reg_curr_7d': lambda: db.users.count_documents({'createdAt': {'$gte': d7_cut}}),
+                'reg_prev_7d': lambda: db.users.count_documents({'createdAt': {'$gte': d14_cut, '$lt': d7_cut}}),
+                'cm_curr_7d': lambda: db.comments.count_documents({'createdAt': {'$gte': d7_cut}}),
+                'cm_prev_7d': lambda: db.comments.count_documents({'createdAt': {'$gte': d14_cut, '$lt': d7_cut}}),
             }, max_workers=6)
 
             wl_doc = res['wl_facet'][0] if res['wl_facet'] else {}
@@ -159,8 +187,38 @@ def api_analytics_data(request):
             verified = uv_doc.get('verified', 0) or 0
             google_cnt = uv_doc.get('google', 0) or 0
 
+            # Build 7x24 matrix (Mon..Sun x 0..23h); MongoDB $dayOfWeek is 1=Sun..7=Sat
+            heatmap_matrix = [[0] * 24 for _ in range(7)]
+            for cell in (cm_doc.get('heatmap') or []):
+                cell_id = cell.get('_id') or {}
+                dow = int(cell_id.get('dow') or 1)
+                hour = int(cell_id.get('hour') or 0)
+                if 1 <= dow <= 7 and 0 <= hour < 24:
+                    mon_idx = (dow - 2) % 7
+                    heatmap_matrix[mon_idx][hour] = int(cell.get('count') or 0)
+
+            reg_curr = res['reg_curr_7d'] or 0
+            reg_prev = res['reg_prev_7d'] or 0
+            reg_wow_pct = round(((reg_curr - reg_prev) / reg_prev) * 100, 1) if reg_prev > 0 else (100.0 if reg_curr > 0 else 0.0)
+            cm_curr = res['cm_curr_7d'] or 0
+            cm_prev = res['cm_prev_7d'] or 0
+            cm_wow_pct = round(((cm_curr - cm_prev) / cm_prev) * 100, 1) if cm_prev > 0 else (100.0 if cm_curr > 0 else 0.0)
+
             return {
                 'success': True,
+                'kpis': {
+                    'dau': res['dau'],
+                    'wau': res['wau'],
+                    'mau': res['mau'],
+                    'active_sessions': res['active_sessions'],
+                    'reg_curr_7d': reg_curr,
+                    'reg_prev_7d': reg_prev,
+                    'reg_wow_pct': reg_wow_pct,
+                    'cm_curr_7d': cm_curr,
+                    'cm_prev_7d': cm_prev,
+                    'cm_wow_pct': cm_wow_pct,
+                },
+                'heatmap': heatmap_matrix,
                 'registrations': res['reg'],
                 'top_watchlisted': clean_value(wl_doc.get('top_watchlisted', [])),
                 'user_verification': {
@@ -195,7 +253,7 @@ def api_analytics_data(request):
             }
 
         payload = cached_swr(
-            f'analytics_data_v2:{days_limit}',
+            f'analytics_data_v3:{days_limit}',
             fresh_ttl=60,
             stale_ttl=300,
             fetcher=_compute_analytics,

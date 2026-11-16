@@ -21,7 +21,7 @@ from .models import (
 )
 from .decorators import require_permission, require_super_admin
 from .rate_limit import (
-    check_rate_limit, record_failure, clear_failures,
+    check_rate_limit, consume_action_rate_limit, record_failure, clear_failures,
     format_retry_wait, get_client_ip,
 )
 from .totp import verify_totp_code, verify_and_consume_backup_code
@@ -132,6 +132,12 @@ def admin_login(request):
                     AuditLog.log(request, 'login', 'auth', str(user.pk), {'username': user.username, 'method': 'password'})
                 except Exception:
                     pass
+                is_super = bool(user.is_superuser or (profile and profile.role == 'super_admin'))
+                if is_super and getattr(settings, 'ENFORCE_SUPERADMIN_2FA', True):
+                    request.session['_require_2fa_setup'] = True
+                    request.session.modified = True
+                    messages.warning(request, 'Tài khoản Super Admin bắt buộc phải kích hoạt 2FA TOTP trước khi truy cập hệ thống!')
+                    return redirect('admin_dashboard:admin_profile')
                 messages.success(request, f'Chào mừng {user.username}! Đăng nhập thành công.')
                 return redirect(next_url or 'admin_dashboard:dashboard')
             else:
@@ -334,6 +340,7 @@ _MONGO_COLLECTION_MODULE = {
     'users': 'users',
     'sessions': 'sessions',
     'comments': 'comments',
+    'userreports': 'reports',
     'watchprogresses': 'watch_progress',
     'streamhistories': 'stream_history',
     'searchhistories': 'search_history',
@@ -454,9 +461,15 @@ def api_mongo_action(request, collection, document_id, action):
         if action == 'delete':
             changed = mongo_admin.delete_document(collection, document_id)
             message = f'Deleted {changed} document(s).'
+            if collection == 'comments' and changed:
+                from .webhook_dispatcher import dispatch_webhook_event
+                dispatch_webhook_event('comment.deleted', {'comment_id': document_id, 'admin': request.user.username})
         elif collection == 'comments' and action in ('hide', 'restore'):
             changed = mongo_admin.set_comment_deleted(document_id, action == 'hide')
             message = f'Updated {changed} comment(s).'
+            if action == 'hide' and changed:
+                from .webhook_dispatcher import dispatch_webhook_event
+                dispatch_webhook_event('comment.hidden', {'comment_id': document_id, 'admin': request.user.username})
         elif collection == 'notifications' and action in ('read', 'unread'):
             changed = mongo_admin.set_notification_read(document_id, action == 'read')
             message = f'Updated {changed} notification(s).'
@@ -1505,6 +1518,16 @@ def _media_catalog_list(request, *, is_tv):
                 del_watchlist = del_res['watchlist']
                 del_comments = del_res['comments']
                 invalidate_swr(f'media_catalog:{target_type}', 'admin_sidebar_counts', 'mongo_overview_cache')
+                from users_management.services import invalidate_comment_cache
+                invalidate_comment_cache()
+                AuditLog.log(
+                    request, f'delete_{target_type}', target_type, str(media_id),
+                    {
+                        'watchlist_modified': del_watchlist.modified_count,
+                        'progress_deleted': del_progress.deleted_count,
+                        'comments_deleted': del_comments.deleted_count,
+                    },
+                )
                 messages.success(
                     request,
                     f'Đã xóa {label} thành công! Gỡ bỏ khỏi {del_watchlist.modified_count} watchlists, '
@@ -1685,6 +1708,9 @@ def rooms_list(request):
                 _upstash_rooms(['DEL', f'room:{room_id}'])
                 _upstash_rooms(['DEL', f'room:{room_id}:users'])
                 _upstash_rooms(['DEL', f'room:{room_id}:grace'])
+                AuditLog.log(request, 'close_room', 'room', room_id)
+                from .webhook_dispatcher import dispatch_webhook_event
+                dispatch_webhook_event('room.closed', {'room_id': room_id, 'admin': request.user.username})
                 messages.success(request, f'Đã kết thúc phòng {room_id} thành công!')
             except Exception as e:
                 messages.error(request, f'Lỗi khi đóng phòng: {str(e)}')
@@ -1783,6 +1809,10 @@ def notifications_list(request):
         if not (request.user.is_superuser or (profile and profile.has_perm('notifications.edit'))):
             messages.error(request, 'Bạn không có quyền gửi thông báo hệ thống.')
             return redirect('admin_dashboard:notifications')
+        allowed, retry_after, _ = consume_action_rate_limit('admin_sensitive', request)
+        if not allowed:
+            messages.error(request, f'Thao tác quá nhanh. Vui lòng thử lại sau {format_retry_wait(retry_after)}.')
+            return redirect('admin_dashboard:notifications')
         noti_type = request.POST.get('type', 'version_updated').strip() or 'version_updated'
         title = request.POST.get('title', 'Thông báo hệ thống').strip()
         message = request.POST.get('message', '').strip()
@@ -1855,6 +1885,14 @@ def notifications_list(request):
                     push_note += f' (Đã tự động dọn {pruned} token chết)'
 
             AuditLog.log(request, 'broadcast_notification', 'notification', target_mode, {'users': len(users), 'expo_push': send_expo_push})
+            from .webhook_dispatcher import dispatch_webhook_event
+            dispatch_webhook_event('notification.broadcast', {
+                'type': noti_type,
+                'title': title,
+                'users': len(users),
+                'expo_push': send_expo_push,
+                'admin': request.user.username,
+            })
             messages.success(request, f'Đã phát thông báo thành công tới {len(users)} người dùng{push_note}')
         except Exception as e:
             messages.error(request, f'Lỗi gửi thông báo: {str(e)}')
@@ -2185,6 +2223,13 @@ def api_cache_action(request):
         req_perm = 'cache.view' if action == 'get' else ('cache.delete' if action in ('delete', 'flush') else 'cache.edit')
         if not _has_perm(request, req_perm):
             return JsonResponse({'success': False, 'error': f'Permission {req_perm} required'}, status=403)
+        if action in ('delete', 'flush'):
+            allowed, retry_after, _ = consume_action_rate_limit('admin_sensitive', request)
+            if not allowed:
+                return JsonResponse(
+                    {'success': False, 'error': f'Rate limit exceeded. Retry in {retry_after}s', 'retryAfter': retry_after},
+                    status=429,
+                )
 
         if action == 'delete':
             key = body.get('key', '')

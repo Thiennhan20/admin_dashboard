@@ -156,6 +156,10 @@ MONGO_COLLECTIONS = {
         'label': 'Comments',
         'sort': [('createdAt', -1)],
     },
+    'userreports': {
+        'label': 'User Reports',
+        'sort': [('createdAt', -1)],
+    },
     'watchprogresses': {
         'label': 'Watch Progress',
         'sort': [('lastWatched', -1)],
@@ -646,6 +650,43 @@ class MongoAdminService:
         except (InvalidId, TypeError):
             raise ValueError('Invalid object id')
 
+    def _collect_comment_branch_ids(self, db, root_comment):
+        root_oid = root_comment['_id']
+        if not root_comment.get('parentId'):
+            replies = list(db.comments.find({'parentId': root_oid}, {'_id': 1}))
+            return [root_oid] + [r['_id'] for r in replies]
+
+        ids = [root_oid]
+        seen = {root_oid}
+        frontier = [root_oid]
+        while frontier:
+            children = list(db.comments.find(
+                {'parentId': root_comment.get('parentId'), 'replyToComment': {'$in': frontier}},
+                {'_id': 1},
+            ))
+            next_frontier = []
+            for child in children:
+                cid = child['_id']
+                if cid not in seen:
+                    seen.add(cid)
+                    ids.append(cid)
+                    next_frontier.append(cid)
+            frontier = next_frontier
+        return ids
+
+    @staticmethod
+    def sync_comment_parent_reply_count(db, parent_oid, pulled_ids=None):
+        if not parent_oid:
+            return
+        update_doc = {
+            '$set': {
+                'replyCount': db.comments.count_documents({'parentId': parent_oid, 'isDeleted': {'$ne': True}}),
+            }
+        }
+        if pulled_ids:
+            update_doc['$pull'] = {'replies': {'$in': list(pulled_ids)}}
+        db.comments.update_one({'_id': parent_oid}, update_doc)
+
     def delete_document(self, collection, document_id):
         if collection not in MONGO_COLLECTIONS or collection == 'users':
             raise ValueError('Unsupported delete target')
@@ -658,34 +699,38 @@ class MongoAdminService:
             if not comment:
                 return 0
 
-            ids = [oid]
-            if not comment.get('parentId'):
-                replies = list(db.comments.find({'parentId': oid}, {'_id': 1}))
-                ids.extend(reply['_id'] for reply in replies)
-                db.comments.delete_many({'parentId': oid})
-            else:
-                db.comments.update_one(
-                    {'_id': comment.get('parentId')},
-                    {'$pull': {'replies': oid}},
-                )
+            ids = self._collect_comment_branch_ids(db, comment)
+            parent_oid = comment.get('parentId')
             db.notifications.delete_many({
                 '$or': [
                     {'metadata.commentId': {'$in': ids}},
                     {'metadata.parentCommentId': {'$in': ids}},
                 ]
             })
-            result = db.comments.delete_one({'_id': oid})
+            result = db.comments.delete_many({'_id': {'$in': ids}})
+            if parent_oid:
+                self.sync_comment_parent_reply_count(db, parent_oid, pulled_ids=ids)
+            invalidate_comment_cache()
             return result.deleted_count
 
         result = db[collection].delete_one({'_id': oid})
+        if collection == 'userreports':
+            invalidate_admin_report_cache()
         return result.deleted_count
 
     def set_comment_deleted(self, comment_id, is_deleted=True):
         oid = self.object_id(comment_id)
-        result = self.db().comments.update_one(
+        db = self.db()
+        comment = db.comments.find_one({'_id': oid}, {'_id': 1, 'parentId': 1})
+        if not comment:
+            return 0
+        result = db.comments.update_one(
             {'_id': oid},
             {'$set': {'isDeleted': bool(is_deleted)}},
         )
+        if comment.get('parentId'):
+            self.sync_comment_parent_reply_count(db, comment.get('parentId'))
+        invalidate_comment_cache()
         return result.modified_count
 
     def set_notification_read(self, notification_id, read=True):
@@ -693,6 +738,49 @@ class MongoAdminService:
         update = {'read': bool(read), 'readAt': datetime.utcnow() if read else None}
         result = self.db().notifications.update_one({'_id': oid}, {'$set': update})
         return result.modified_count
+
+
+_HOMEPAGE_COMMENT_LIMITS = (4, 5, 8, 9, 10, 12, 15, 20, 50)
+_HOMEPAGE_COMMENT_SORTS = ('likes', 'replies')
+
+
+def invalidate_admin_report_cache():
+    """Clear SWR caches for admin sidebar counts and topbar notification bell."""
+    for base in ('admin_sidebar_counts', 'admin_bell_notifs_v1'):
+        cache.delete(f'{base}:fresh')
+        cache.delete(f'{base}:stale')
+
+
+def invalidate_comment_cache():
+    """Best-effort invalidation of homepage comment caches in Redis / Node server."""
+    upstash_url = getattr(settings, 'UPSTASH_REDIS_ROOMS_URL', '') or ''
+    upstash_token = getattr(settings, 'UPSTASH_REDIS_ROOMS_TOKEN', '') or ''
+    if upstash_url and upstash_token:
+        keys = [f'homepage:comments:recent:{lim}' for lim in _HOMEPAGE_COMMENT_LIMITS]
+        for sort_key in _HOMEPAGE_COMMENT_SORTS:
+            for lim in _HOMEPAGE_COMMENT_LIMITS:
+                keys.append(f'homepage:comments:top:{sort_key}:{lim}')
+        try:
+            requests.post(
+                f'{upstash_url.rstrip("/")}/pipeline',
+                headers={'Authorization': f'Bearer {upstash_token}', 'Content-Type': 'application/json'},
+                json=[['DEL', key] for key in keys],
+                timeout=(1, 2),
+            )
+        except Exception:
+            pass
+
+    admin_key = getattr(settings, 'ADMIN_API_KEY', '') or ''
+    server_url = getattr(settings, 'SERVER_URL', '') or ''
+    if admin_key and server_url and 'test' not in sys.argv:
+        try:
+            requests.post(
+                f'{server_url.rstrip("/")}/api/comments/admin/invalidate-cache',
+                headers={'x-admin-api-key': admin_key},
+                timeout=(1, 2),
+            )
+        except Exception:
+            pass
 
 
 mongo_admin = MongoAdminService()
